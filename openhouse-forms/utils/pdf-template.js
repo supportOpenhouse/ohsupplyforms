@@ -207,8 +207,8 @@ function generateReceiptHTML(p, mode='deal', baseUrl=''){
         <ul class="terms-list">
           <li>Should any discrepancies or unavailability of required documents arise during the document verification process, Openhouse reserves the right to withhold execution of the agreement. In such an event, the advance token paid will be refunded to Openhouse in full.</li>
           <li>All charges related to the Society NOC shall be the sole responsibility of the seller and must be settled at the time of ownership transfer.</li>
-          <li>To facilitate maximum visits to your property, Openhouse will install a smart lock on your property for digital access at no cost to you.</li>
           <li>If the owner decides to cancel the deal after receipt of token , the owner needs to refund the token in the company’s bank account within 03 (three) calendar days , failing which there will be a penalty charged @INR 1000 per day of delay beyond 03 days from the date of intimation of such cancellation.</li>
+          <li>To facilitate maximum visits to your property, Openhouse will install a smart lock on your property for digital access at no cost to you.</li>
           <li>Openhouse is committed to facilitating a seamless, transparent, and mutually beneficial transaction.</li>        
           </ul>
       </div>
