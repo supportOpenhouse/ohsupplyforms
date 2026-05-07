@@ -16,5 +16,5 @@
     "pg": "^8.13.0",
     "puppeteer": "^23.0.0"
   },
-  "engines": { "node": ">=18.0.0" }
+  "engines": { "node": "22.x" }
 }
