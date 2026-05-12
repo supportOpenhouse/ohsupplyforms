@@ -169,16 +169,16 @@
       <div class="fg"><label>Payment Structure <span class="req">*</span></label>
         <div class="radios"><label><input type="radio" name="ama_payment_structure" value="Flexible" onchange="togglePaymentStructure()"><span>Flexible</span></label><label><input type="radio" name="ama_payment_structure" value="Non Flexible" onchange="togglePaymentStructure()"><span>Non Flexible</span></label></div></div>
       <div class="r2" id="betaRangeWrap" style="display:none">
-        <div class="fg"><label>Range Max <span class="req">*</span></label>
+        <div class="fg"><label>Range Min <span class="req">*</span></label>
           <div style="position:relative">
-            <input type="text" name="ama_beta_max_pct" id="betaMax" inputmode="numeric" maxlength="3" placeholder="%" oninput="this.value=this.value.replace(/\D/g,'');if(parseInt(this.value)>100)this.value='100'" style="padding-right:26px">
+            <input type="text" name="ama_beta_min_pct" id="betaMin" inputmode="numeric" maxlength="3" placeholder="%" oninput="this.value=this.value.replace(/\D/g,'');if(parseInt(this.value)>100)this.value='100'" style="padding-right:26px">
             <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:13px;font-weight:600;pointer-events:none">%</span>
           </div>
           <div class="err-msg">Required</div>
         </div>
-        <div class="fg"><label>Range Min <span class="req">*</span></label>
+        <div class="fg"><label>Range Max <span class="req">*</span></label>
           <div style="position:relative">
-            <input type="text" name="ama_beta_min_pct" id="betaMin" inputmode="numeric" maxlength="3" placeholder="%" oninput="this.value=this.value.replace(/\D/g,'');if(parseInt(this.value)>100)this.value='100'" style="padding-right:26px">
+            <input type="text" name="ama_beta_max_pct" id="betaMax" inputmode="numeric" maxlength="3" placeholder="%" oninput="this.value=this.value.replace(/\D/g,'');if(parseInt(this.value)>100)this.value='100'" style="padding-right:26px">
             <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:13px;font-weight:600;pointer-events:none">%</span>
           </div>
           <div class="err-msg">Required</div>
