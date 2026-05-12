@@ -79,18 +79,6 @@ CREATE INDEX IF NOT EXISTS idx_prop_city ON properties(city);
 CREATE INDEX IF NOT EXISTS idx_prop_created ON properties(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prop_lead_id ON properties(lead_id);
 
-CREATE TABLE IF NOT EXISTS cp_inventory (
-  id SERIAL PRIMARY KEY,
-  cp_code TEXT, cp_name TEXT NOT NULL, cp_contact TEXT NOT NULL,
-  city TEXT NOT NULL, locality TEXT NOT NULL, society_name TEXT NOT NULL,
-  configuration TEXT, floor TEXT, unit_no TEXT,
-  size_sqft TEXT, price_expectation TEXT,
-  flat_status TEXT, exit_facing TEXT, additional_comments TEXT,
-  bulk_inventory_urls JSONB DEFAULT '[]',
-  submitted_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_cpi_created ON cp_inventory(created_at DESC);
-
 CREATE TABLE IF NOT EXISTS cp_master (
   id SERIAL PRIMARY KEY,
   cp_code TEXT UNIQUE NOT NULL,

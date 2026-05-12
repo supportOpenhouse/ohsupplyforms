@@ -76,7 +76,6 @@ app.use('/api/pending-request', isAuthenticated, hasFormAccess, require('./route
 app.use('/api/final', isAuthenticated, hasFormAccess, require('./routes/final')(pool));
 app.use('/api/listing', isAuthenticated, hasFormAccess, require('./routes/listing')(pool));
 app.use('/api/cp-bill', isAuthenticated, hasFormAccess, require('./routes/cp-bill')(pool));
-app.use('/api/cp-inventory', isAuthenticated, require('./routes/cp-inventory')(pool));
 app.use('/api/ocr', isAuthenticated, require('./routes/ocr')());
 // External integrations — uses X-Internal-Key header auth, NO session auth
 app.use('/api/external', require('./routes/external')(pool));
@@ -178,7 +177,6 @@ app.get('/pending-request', ...sendForm('pending-request.html'));
 app.get('/final', ...sendForm('final.html'));
 app.get('/listing', ...sendForm('listing.html'));
 app.get('/cp-bill', ...sendForm('cp-bill.html'));
-app.get('/cp-inventory', isAuthenticated, (_, r) => r.sendFile(path.join(__dirname, 'public/cp-inventory.html')));
 app.get('/admin', isAuthenticated, isAdmin, (_, r) => r.sendFile(path.join(__dirname, 'public/admin.html')));
 app.get('/my-properties', isAuthenticated, (_, r) => r.sendFile(path.join(__dirname, 'public/my-properties.html')));
 app.get('/', isAuthenticated, (_, r) => r.sendFile(path.join(__dirname, 'public/index.html')));
