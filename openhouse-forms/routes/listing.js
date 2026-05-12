@@ -35,6 +35,11 @@ function derivePoojaRoomCount(extraAreaRaw){
   return items.some(x=>x.includes('pooja')||x.includes('puja'))?1:0;
 }
 
+function deriveServantQtrCount(extraAreaRaw){
+  const items=toArray(extraAreaRaw).map(x=>String(x||'').trim().toLowerCase());
+  return items.some(x=>x.includes('servant'))?1:0;
+}
+
 function mapFurnishingStatus(furnishing){
   const val=(furnishing||'').toString().trim().toLowerCase();
   if(!val)return null;
@@ -74,6 +79,7 @@ function buildUpdatePayload(row){
     balcony_count:row.balconies!=null?parseInt(row.balconies,10):null,
     pooja_room:derivePoojaRoomCount(row.extra_area),
     study_room:deriveStudyRoomCount(row.extra_area),
+    servant_qtr:deriveServantQtrCount(row.extra_area),
     super_area:row.super_area!=null?parseInt(parseFloat(row.super_area),10):null,
     carpet_area:row.carpet_area!=null?parseInt(parseFloat(row.carpet_area),10):null,
   };
@@ -83,12 +89,12 @@ module.exports=function(pool){
   router.get('/prefill/:uid',async(req,res)=>{
     try{const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
-      if(!rows[0].pending_request_submitted_at)return res.status(400).json({error:'AMA Acknowledgement (Form 6) must be submitted first'});
+      if(!rows[0].final_submitted_at)return res.status(400).json({error:'Key Handover (Form 8) must be submitted first'});
       res.json(rows[0])}catch(e){res.status(500).json({error:e.message})}
   });
   router.get('/uids',async(req,res)=>{
     try{const vis=visibilityFilter(req.user);const{rows}=await pool.query(`SELECT uid,city,society_name,unit_no,tower_no,owner_broker_name,final_submitted_at,listing_submitted_at
-      FROM properties WHERE pending_request_submitted_at IS NOT NULL AND is_dead IS NOT TRUE AND is_token_refunded IS NOT TRUE${vis.clause} ORDER BY created_at DESC`,vis.params);res.json(rows)}catch(e){res.status(500).json({error:e.message})}
+      FROM properties WHERE final_submitted_at IS NOT NULL AND is_dead IS NOT TRUE AND is_token_refunded IS NOT TRUE${vis.clause} ORDER BY created_at DESC`,vis.params);res.json(rows)}catch(e){res.status(500).json({error:e.message})}
   });
   router.post('/submit',async(req,res)=>{
     try{
@@ -107,7 +113,7 @@ module.exports=function(pool){
          d.gas_pipeline||null,d.club_facility||null,
          d.seller_residential_status||null,d.sellers_available_on_registry||null,d.uid]);
       res.json({success:true,uid:d.uid});
-      logger.logFormSubmit(d.uid,'listing_submitted',7,req.user?.email,req.user?.name).catch(()=>{});
+      logger.logFormSubmit(d.uid,'listing_submitted',9,req.user?.email,req.user?.name).catch(()=>{});
     }catch(e){console.error('Listing:',e);res.status(500).json({error:e.message})}
   });
   
@@ -155,7 +161,7 @@ module.exports=function(pool){
         });
       }
 
-      logger.logFormSubmit(uid,'listing_dashboard_updated',7,req.user?.email,req.user?.name).catch(()=>{});
+      logger.logFormSubmit(uid,'listing_dashboard_updated',9,req.user?.email,req.user?.name).catch(()=>{});
       return res.status(r.status).json({...j,uid});
     }catch(e){
       console.error('[listing/update-seller-dashboard] exception',e);
