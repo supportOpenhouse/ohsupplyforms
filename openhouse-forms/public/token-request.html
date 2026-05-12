@@ -166,9 +166,23 @@
     <div class="card"><div class="card-t">Deal Summary</div>
       <div class="fg"><label>Performance Guarantee Forfeitable <span class="req">*</span></label>
         <div class="radios"><label><input type="radio" name="ama_pg_non_forfeitable" value="Yes"><span>Yes</span></label><label><input type="radio" name="ama_pg_non_forfeitable" value="No"><span>No</span></label></div></div>
-      <div class="r2">
-        <div class="fg"><label>Beta Amount Max (%) <span class="req">*</span></label><input type="number" name="ama_beta_max_pct" id="betaMax" step="0.01" min="0" max="100" required oninput="if(parseFloat(this.value)>100)this.value=100;if(parseFloat(this.value)<0)this.value=0"><div class="err-msg">Required</div></div>
-        <div class="fg"><label>Beta Amount Min (%) <span class="req">*</span></label><input type="number" name="ama_beta_min_pct" id="betaMin" step="0.01" min="0" max="100" required oninput="if(parseFloat(this.value)>100)this.value=100;if(parseFloat(this.value)<0)this.value=0"><div class="err-msg">Required</div></div>
+      <div class="fg"><label>Payment Structure <span class="req">*</span></label>
+        <div class="radios"><label><input type="radio" name="ama_payment_structure" value="Flexible" onchange="togglePaymentStructure()"><span>Flexible</span></label><label><input type="radio" name="ama_payment_structure" value="Non Flexible" onchange="togglePaymentStructure()"><span>Non Flexible</span></label></div></div>
+      <div class="r2" id="betaRangeWrap" style="display:none">
+        <div class="fg"><label>Range Max <span class="req">*</span></label>
+          <div style="position:relative">
+            <input type="text" name="ama_beta_max_pct" id="betaMax" inputmode="numeric" maxlength="3" placeholder="%" oninput="this.value=this.value.replace(/\D/g,'');if(parseInt(this.value)>100)this.value='100'" style="padding-right:26px">
+            <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:13px;font-weight:600;pointer-events:none">%</span>
+          </div>
+          <div class="err-msg">Required</div>
+        </div>
+        <div class="fg"><label>Range Min <span class="req">*</span></label>
+          <div style="position:relative">
+            <input type="text" name="ama_beta_min_pct" id="betaMin" inputmode="numeric" maxlength="3" placeholder="%" oninput="this.value=this.value.replace(/\D/g,'');if(parseInt(this.value)>100)this.value='100'" style="padding-right:26px">
+            <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:13px;font-weight:600;pointer-events:none">%</span>
+          </div>
+          <div class="err-msg">Required</div>
+        </div>
       </div>
       <div class="r2">
         <div class="fg"><label>Maintenance Charges Alignment <span class="req">*</span></label>
@@ -437,6 +451,16 @@ document.addEventListener('DOMContentLoaded',async()=>{
   }catch(e){toast('Failed','err')}
 });
 document.getElementById('loadBtn').addEventListener('click',loadData);
+function togglePaymentStructure(){
+  const v=document.querySelector('input[name="ama_payment_structure"]:checked')?.value;
+  const wrap=document.getElementById('betaRangeWrap');
+  const mx=document.getElementById('betaMax'),mn=document.getElementById('betaMin');
+  const show=v==='Flexible';
+  wrap.style.display=show?'':'none';
+  if(show){mx.setAttribute('required','');mn.setAttribute('required','')}
+  else{mx.removeAttribute('required');mn.removeAttribute('required');mx.value='';mn.value='';
+    mx.closest('.fg')?.classList.remove('invalid');mn.closest('.fg')?.classList.remove('invalid')}
+}
 async function loadData(){const uid=document.getElementById('selUid').value;if(!uid){toast('Select UID','warn');return}
   const st=document.getElementById('pfSt');st.className='pf-st show';st.textContent='Loading...';
   document.getElementById('historySection').classList.remove('show');
@@ -492,8 +516,10 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     });
     // Deal Summary prefill
     if(d.ama_pg_non_forfeitable){const rb=document.querySelector(`input[name="ama_pg_non_forfeitable"][value="${d.ama_pg_non_forfeitable}"]`);if(rb)rb.checked=true}
-    document.getElementById('betaMax').value=d.ama_beta_max_pct||'';
-    document.getElementById('betaMin').value=d.ama_beta_min_pct||'';
+    if(d.ama_payment_structure){const rb=document.querySelector(`input[name="ama_payment_structure"][value="${d.ama_payment_structure}"]`);if(rb)rb.checked=true}
+    document.getElementById('betaMax').value=d.ama_beta_max_pct!=null?String(parseInt(d.ama_beta_max_pct,10)):'';
+    document.getElementById('betaMin').value=d.ama_beta_min_pct!=null?String(parseInt(d.ama_beta_min_pct,10)):'';
+    togglePaymentStructure();
     document.getElementById('maintAlign').value=d.ama_maint_alignment||'';
     document.getElementById('elecAlign').value=d.ama_elec_alignment||'';
     sv('token_remarks',d.token_remarks);
@@ -530,8 +556,10 @@ function collectBody(){const fd=new FormData(document.getElementById('tokenForm'
   body.ama_soa_url=loanDocUrls.soa||null;
   body.ama_lod_url=loanDocUrls.lod||null;
   body.ama_pg_non_forfeitable=document.querySelector('input[name="ama_pg_non_forfeitable"]:checked')?.value||null;
-  body.ama_beta_max_pct=document.getElementById('betaMax').value!==''?parseFloat(document.getElementById('betaMax').value):null;
-  body.ama_beta_min_pct=document.getElementById('betaMin').value!==''?parseFloat(document.getElementById('betaMin').value):null;
+  body.ama_payment_structure=document.querySelector('input[name="ama_payment_structure"]:checked')?.value||null;
+  const isFlex=body.ama_payment_structure==='Flexible';
+  body.ama_beta_max_pct=isFlex&&document.getElementById('betaMax').value!==''?parseInt(document.getElementById('betaMax').value,10):null;
+  body.ama_beta_min_pct=isFlex&&document.getElementById('betaMin').value!==''?parseInt(document.getElementById('betaMin').value,10):null;
   body.ama_maint_alignment=document.getElementById('maintAlign').value||null;
   body.ama_elec_alignment=document.getElementById('elecAlign').value||null;
   return body}

@@ -35,6 +35,7 @@ module.exports=function(pool){
         ama_sanction_url=$41,ama_soa_url=$42,ama_lod_url=$43,
         ama_pg_non_forfeitable=$44,ama_beta_max_pct=$45,ama_beta_min_pct=$46,
         ama_maint_alignment=$47,ama_elec_alignment=$48,ama_special_terms=$49,
+        ama_payment_structure=$50,
         token_submitted_at=CASE WHEN $22=FALSE THEN NOW() ELSE token_submitted_at END,updated_at=NOW()
         WHERE uid=$23`,
         [d.token_requested_by||null,d.deal_token_amount!=null&&d.deal_token_amount!==''?parseFloat(d.deal_token_amount):null,
@@ -52,7 +53,8 @@ module.exports=function(pool){
          d.total_deposit!=null&&d.total_deposit!==''?parseFloat(d.total_deposit):null,d.refundable_deposit!=null&&d.refundable_deposit!==''?parseFloat(d.refundable_deposit):null,
          d.ama_sanction_url||null,d.ama_soa_url||null,d.ama_lod_url||null,
          d.ama_pg_non_forfeitable||null,d.ama_beta_max_pct!=null&&d.ama_beta_max_pct!==''?parseFloat(d.ama_beta_max_pct):null,d.ama_beta_min_pct!=null&&d.ama_beta_min_pct!==''?parseFloat(d.ama_beta_min_pct):null,
-         d.ama_maint_alignment||null,d.ama_elec_alignment||null,d.ama_special_terms||null]);
+         d.ama_maint_alignment||null,d.ama_elec_alignment||null,d.ama_special_terms||null,
+         d.ama_payment_structure||null]);
       res.json({success:true,uid:d.uid,draft:isDraft});
       logger.logFormSubmit(d.uid,'token_request_submitted',3,req.user?.email,req.user?.name,isDraft).catch(()=>{});
     }catch(e){console.error('TokenReq:',e);res.status(500).json({error:e.message})}

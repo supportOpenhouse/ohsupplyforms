@@ -401,7 +401,8 @@ function buildModal(p){
     ${ef('Loan Applicant','loan_applicant_name',p.loan_applicant_name)}${ef('Loan Co-applicant','loan_co_applicant_name',p.loan_co_applicant_name)}${ef('Loan Bank','bank_name_loan',p.bank_name_loan)}
     ${ef('Loan A/C','loan_account_number',p.loan_account_number)}${ef('Outstanding (₹)','outstanding_loan',p.outstanding_loan,'number')}${efSel('Willing to Pay','loan_pay_willingness',p.loan_pay_willingness,['Yes','No'])}
     ${efSel('PG Non Forfeitable','ama_pg_non_forfeitable',p.ama_pg_non_forfeitable,['Yes','No'])}
-    ${ef('Beta Max %','ama_beta_max_pct',p.ama_beta_max_pct,'number')}${ef('Beta Min %','ama_beta_min_pct',p.ama_beta_min_pct,'number')}
+    ${efSel('Payment Structure','ama_payment_structure',p.ama_payment_structure,['Flexible','Non Flexible'])}
+    ${ef('Range Max %','ama_beta_max_pct',p.ama_beta_max_pct,'number')}${ef('Range Min %','ama_beta_min_pct',p.ama_beta_min_pct,'number')}
     ${efSel('Maint Alignment','ama_maint_alignment',p.ama_maint_alignment,['Seller','OH'])}${efSel('Elec Alignment','ama_elec_alignment',p.ama_elec_alignment,['Seller','OH'])}
     ${efArea('Special Terms','ama_special_terms',p.ama_special_terms)}
     ${pvLink('Sanction Letter',p.ama_sanction_url)}${pvLink('Statement of Accounts',p.ama_soa_url)}${pvLink('LOD',p.ama_lod_url)}

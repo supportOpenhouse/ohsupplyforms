@@ -215,6 +215,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='ama_pg_non_forfeitable') THEN ALTER TABLE properties ADD COLUMN ama_pg_non_forfeitable TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='ama_beta_max_pct') THEN ALTER TABLE properties ADD COLUMN ama_beta_max_pct REAL; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='ama_beta_min_pct') THEN ALTER TABLE properties ADD COLUMN ama_beta_min_pct REAL; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='ama_payment_structure') THEN ALTER TABLE properties ADD COLUMN ama_payment_structure TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='ama_maint_alignment') THEN ALTER TABLE properties ADD COLUMN ama_maint_alignment TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='ama_elec_alignment') THEN ALTER TABLE properties ADD COLUMN ama_elec_alignment TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='ama_special_terms') THEN ALTER TABLE properties ADD COLUMN ama_special_terms TEXT; END IF;
