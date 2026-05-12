@@ -32,6 +32,9 @@ module.exports=function(pool){
         loan_applicant_name=$33,loan_co_applicant_name=$34,
         owner_pan_url=$35,owner_aadhaar_front_url=$36,owner_aadhaar_back_url=$37,owner_property_doc_url=$38,
         total_deposit=$39,refundable_deposit=$40,
+        ama_sanction_url=$41,ama_soa_url=$42,ama_lod_url=$43,
+        ama_pg_non_forfeitable=$44,ama_beta_max_pct=$45,ama_beta_min_pct=$46,
+        ama_maint_alignment=$47,ama_elec_alignment=$48,ama_special_terms=$49,
         token_submitted_at=CASE WHEN $22=FALSE THEN NOW() ELSE token_submitted_at END,updated_at=NOW()
         WHERE uid=$23`,
         [d.token_requested_by||null,d.deal_token_amount!=null&&d.deal_token_amount!==''?parseFloat(d.deal_token_amount):null,
@@ -46,7 +49,10 @@ module.exports=function(pool){
          d.unit_no||null,d.tower_no||null,parseInt(d.floor)||null,parseFloat(d.area_sqft)||null,parseFloat(d.demand_price)||null,
          d.co_owner_number||null,d.loan_applicant_name||null,d.loan_co_applicant_name||null,
          d.owner_pan_url||null,d.owner_aadhaar_front_url||null,d.owner_aadhaar_back_url||null,d.owner_property_doc_url||null,
-         d.total_deposit!=null&&d.total_deposit!==''?parseFloat(d.total_deposit):null,d.refundable_deposit!=null&&d.refundable_deposit!==''?parseFloat(d.refundable_deposit):null]);
+         d.total_deposit!=null&&d.total_deposit!==''?parseFloat(d.total_deposit):null,d.refundable_deposit!=null&&d.refundable_deposit!==''?parseFloat(d.refundable_deposit):null,
+         d.ama_sanction_url||null,d.ama_soa_url||null,d.ama_lod_url||null,
+         d.ama_pg_non_forfeitable||null,d.ama_beta_max_pct!=null&&d.ama_beta_max_pct!==''?parseFloat(d.ama_beta_max_pct):null,d.ama_beta_min_pct!=null&&d.ama_beta_min_pct!==''?parseFloat(d.ama_beta_min_pct):null,
+         d.ama_maint_alignment||null,d.ama_elec_alignment||null,d.ama_special_terms||null]);
       res.json({success:true,uid:d.uid,draft:isDraft});
       logger.logFormSubmit(d.uid,'token_request_submitted',3,req.user?.email,req.user?.name,isDraft).catch(()=>{});
     }catch(e){console.error('TokenReq:',e);res.status(500).json({error:e.message})}

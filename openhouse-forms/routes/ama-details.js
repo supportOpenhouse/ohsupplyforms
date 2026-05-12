@@ -19,25 +19,13 @@ module.exports=function(pool){
       const d=req.body;const{rows}=await pool.query('SELECT uid FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
       await pool.query(`UPDATE properties SET
-        ama_sanction_url=$1,ama_soa_url=$2,ama_lod_url=$3,
-        ama_pg_non_forfeitable=$4,ama_beta_max_pct=$5,ama_beta_min_pct=$6,
-        ama_maint_alignment=$7,ama_elec_alignment=$8,ama_special_terms=$9,
-        ama_prop_docs=$10,
-        loan_applicant_name=COALESCE($12,loan_applicant_name),loan_co_applicant_name=COALESCE($13,loan_co_applicant_name),
-        bank_name_loan=COALESCE($14,bank_name_loan),loan_account_number=COALESCE($15,loan_account_number),
-        outstanding_loan=COALESCE($16,outstanding_loan),loan_pay_willingness=COALESCE($17,loan_pay_willingness),
-        docs_verification_mode=COALESCE($18,docs_verification_mode),
+        ama_prop_docs=$1,
+        docs_verification_mode=COALESCE($2,docs_verification_mode),
         ama_submitted_at=NOW(),updated_at=NOW()
-        WHERE uid=$11`,
-        [d.ama_sanction_url||null,d.ama_soa_url||null,d.ama_lod_url||null,
-         d.ama_pg_non_forfeitable||null,parseFloat(d.ama_beta_max_pct)||null,parseFloat(d.ama_beta_min_pct)||null,
-         d.ama_maint_alignment||null,d.ama_elec_alignment||null,d.ama_special_terms||null,
-         d.ama_prop_docs||'{}',
-         d.uid,
-         d.loan_applicant_name||null,d.loan_co_applicant_name||null,
-         d.bank_name_loan||null,d.loan_account_number||null,
-         parseFloat(d.outstanding_loan)||null,d.loan_pay_willingness||null,
-         d.docs_verification_mode||null]);
+        WHERE uid=$3`,
+        [d.ama_prop_docs||'{}',
+         d.docs_verification_mode||null,
+         d.uid]);
       res.json({success:true,uid:d.uid});
       logger.logFormSubmit(d.uid,'ama_details_submitted',5,req.user?.email,req.user?.name).catch(()=>{});
       pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows})=>{

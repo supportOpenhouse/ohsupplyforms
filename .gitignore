@@ -28,3 +28,4 @@ logs/
 dist/
 build/
 .cache/
+preview-my-properties.html

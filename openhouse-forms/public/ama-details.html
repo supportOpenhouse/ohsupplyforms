@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"><title>Openhouse — Property Details for AMA</title><link rel="icon" type="image/png" href="/images/favicon.png">
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"><title>Openhouse — Property Documents for AMA</title><link rel="icon" type="image/png" href="/images/favicon.png">
 <link rel="stylesheet" href="/css/styles.css">
 <style>
 .doc-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)}
@@ -23,7 +23,7 @@
 <body>
 <header class="hdr">
   <a href="/" class="hdr-logo"><img src="/images/logo_2.png" alt="Openhouse" style="height:32px"></a>
-  <div class="hdr-center"><div class="form-name">Property Details for AMA (For Legal Team)</div></div>
+  <div class="hdr-center"><div class="form-name">Property Documents for AMA (For Legal Team)</div></div>
   <div class="hdr-right"></div>
 </header>
 <div class="ctn">
@@ -52,70 +52,7 @@
       <div class="fg"><label>Type of Agreement</label><input type="text" value="AMA" class="pre" readonly></div>
     </div>
 
-    <!-- Card 2: Loan Details (hidden if no loan) -->
-    <div class="card" id="loanDocsCard">
-      <div class="card-t">Loan Details</div>
-      <div class="fg">
-        <label>Sanction Letter</label>
-        <div class="upload-row" id="up_sanction" onclick="document.getElementById('fi_sanction').click()">
-          📄 Upload Sanction Letter
-          <input type="file" id="fi_sanction" accept="image/*,.pdf" onchange="uploadFile(this,'sanction')">
-        </div>
-        <div class="doc-upload-status" id="st_sanction"></div>
-      </div>
-      <div class="fg">
-        <label>Statement of Accounts <span class="req">*</span></label>
-        <div class="upload-row" id="up_soa" onclick="document.getElementById('fi_soa').click()">
-          📄 Upload Statement of Accounts
-          <input type="file" id="fi_soa" accept="image/*,.pdf" onchange="uploadFile(this,'soa')">
-        </div>
-        <div class="doc-upload-status" id="st_soa"></div>
-      </div>
-      <div class="fg">
-        <label>List of Documents (LOD)</label>
-        <div class="upload-row" id="up_lod" onclick="document.getElementById('fi_lod').click()">
-          📄 Upload LOD
-          <input type="file" id="fi_lod" accept="image/*,.pdf" onchange="uploadFile(this,'lod')">
-        </div>
-        <div class="doc-upload-status" id="st_lod"></div>
-      </div>
-    </div>
-
-    <!-- Card 2b: Loan Details (editable, only if loan=Yes) -->
-    <div class="card" id="loanDetailsCard" style="display:none">
-      <div class="card-t">Loan Details</div>
-      <div class="r2">
-        <div class="fg"><label>Applicant Name <span class="req">*</span></label><input type="text" name="loan_applicant_name" id="loanApplicant"></div>
-        <div class="fg"><label>Co-applicant Name</label><input type="text" name="loan_co_applicant_name" id="loanCoApplicant"></div>
-      </div>
-      <div class="fg"><label>Bank Name <span class="req">*</span></label><select name="bank_name_loan" id="selBankLoan"><option value="">Select bank...</option></select>
-        <input type="text" name="bank_name_loan_other" id="bankOther" style="display:none;margin-top:4px"></div>
-      <div class="fg"><label>Loan A/C Number <span class="req">*</span></label><input type="text" name="loan_account_number" id="loanAc"></div>
-      <div class="fg"><label>Outstanding Loan (in ₹) <span class="req">*</span></label><input type="text" inputmode="numeric" name="outstanding_loan" id="loanAmt" oninput="this.value=this.value.replace(/\D/g,'')"></div>
-      <div class="fg"><label>Willing to Pre-pay loan on his own?<span class="req">*</span></label>
-        <div class="radios"><label><input type="radio" name="loan_pay_willingness" value="Yes"><span>Yes</span></label><label><input type="radio" name="loan_pay_willingness" value="No"><span>No</span></label></div></div>
-    </div>
-
-    <!-- Card 3: Deal Summary -->
-    <div class="card">
-      <div class="card-t">Deal Summary</div>
-      <div class="fg"><label>Performance Guarantee Forfeitable <span class="req">*</span></label>
-        <div class="radios"><label><input type="radio" name="ama_pg_non_forfeitable" value="Yes"><span>Yes</span></label><label><input type="radio" name="ama_pg_non_forfeitable" value="No"><span>No</span></label></div></div>
-      <div class="r2">
-        <div class="fg"><label>Beta Amount Max (%)</label><input type="number" name="ama_beta_max_pct" id="betaMax" step="0.01" min="0" max="100" oninput="if(parseFloat(this.value)>100)this.value=100;if(parseFloat(this.value)<0)this.value=0"></div>
-        <div class="fg"><label>Beta Amount Min (%)</label><input type="number" name="ama_beta_min_pct" id="betaMin" step="0.01" min="0" max="100" oninput="if(parseFloat(this.value)>100)this.value=100;if(parseFloat(this.value)<0)this.value=0"></div>
-      </div>
-      <div class="r2">
-        <div class="fg"><label>Maintenance Charges Alignment</label>
-          <select name="ama_maint_alignment" id="maintAlign"><option value="">Select...</option><option>Seller</option><option>OH</option></select></div>
-        <div class="fg"><label>Electricity Charges Alignment</label>
-          <select name="ama_elec_alignment" id="elecAlign"><option value="">Select...</option><option>Seller</option><option>OH</option></select></div>
-      </div>
-      <div class="fg"><label>Special Terms other than AMF (Sale Price - Acq Price)</label>
-        <textarea name="ama_special_terms" id="specialTerms" rows="3" placeholder="Fetched from Form 3 remarks..."></textarea></div>
-    </div>
-
-    <!-- Card 4: Property Documents -->
+    <!-- Card 2: Property Documents -->
     <div class="card">
       <div class="card-t">Property Documents</div>
       <div id="propDocsContainer"></div>
@@ -146,7 +83,6 @@
 <script src="/js/shared.js"></script>
 <script>
 let currentUid=null,loadedData=null,cloudCfg=null;
-const fileUrls={sanction:'',soa:'',lod:''};
 fetch(`${API}/api/config/cloudinary`).then(r=>r.json()).then(c=>cloudCfg=c).catch(()=>{});
 
 // Property document definitions
@@ -243,11 +179,6 @@ function onMutationDdChange(val){
 
 document.addEventListener('DOMContentLoaded',async()=>{
   try{
-    // Load banks for loan section
-    const cfgR=await fetch(`${API}/api/config`);const cfg=await cfgR.json();
-    const bankSel=document.getElementById('selBankLoan');
-    (cfg.options.banks||[]).forEach(b=>{bankSel.innerHTML+=`<option value="${b}">${b}</option>`});
-    bankSel.addEventListener('change',()=>{document.getElementById('bankOther').style.display=bankSel.value==='Others'?'block':'none'});
     const r=await fetch(`${API}/api/ama-details/uids`);const uids=await r.json();
     const sel=document.getElementById('uidSel');
     sel.innerHTML='<option value="">Select UID...</option>';
@@ -288,43 +219,12 @@ async function loadUID(uid){
       document.getElementById('ro_srcPhone').value=d.contact_no||'';
     }
 
-    // Card 2: Loan file URLs
-    fileUrls.sanction=d.ama_sanction_url||'';
-    fileUrls.soa=d.ama_soa_url||'';
-    fileUrls.lod=d.ama_lod_url||'';
-    ['sanction','soa','lod'].forEach(k=>{
-      const row=document.getElementById('up_'+k);const stEl=document.getElementById('st_'+k);
-      if(fileUrls[k]){row.classList.add('done');row.textContent='✓ Uploaded — click to replace';
-        stEl.innerHTML=`<a href="${fileUrls[k]}" target="_blank" style="color:var(--ac2);font-size:10px">View</a>`;
-        const fi=row.querySelector('input');if(!fi){const inp=document.createElement('input');inp.type='file';inp.accept='image/*,.pdf';inp.style.display='none';inp.onchange=function(){uploadFile(this,k)};inp.id='fi_'+k;row.appendChild(inp)}
-      }
-    });
-
-    // Hide loan docs card + loan details card if no loan
+    // Docs verification visibility (hidden when loan exists, since loan docs serve verification)
     const hasLoan=d.has_loan||((d.bank_name_loan||d.outstanding_loan||d.loan_account_number)?'Yes':'No');
-    document.getElementById('loanDocsCard').style.display=hasLoan==='Yes'?'block':'none';
-    document.getElementById('loanDetailsCard').style.display=hasLoan==='Yes'?'block':'none';
     document.getElementById('docsVerifyRow').style.display=hasLoan==='Yes'?'none':'flex';
     if(d.docs_verification_mode)document.getElementById('docsVerifyDd').value=d.docs_verification_mode;
-    if(hasLoan==='Yes'){
-      document.getElementById('loanApplicant').value=d.loan_applicant_name||d.owner_broker_name||'';
-      document.getElementById('loanCoApplicant').value=d.loan_co_applicant_name||d.co_owner||'';
-      if(d.bank_name_loan){const bs=document.getElementById('selBankLoan');bs.value=d.bank_name_loan;if(d.bank_name_loan==='Others')document.getElementById('bankOther').style.display='block'}
-      document.getElementById('loanAc').value=d.loan_account_number||'';
-      document.getElementById('loanAmt').value=d.outstanding_loan||'';
-      if(d.loan_pay_willingness){const rb=document.querySelector(`input[name="loan_pay_willingness"][value="${d.loan_pay_willingness}"]`);if(rb)rb.checked=true}
-    }
 
-    // Card 3: Deal Summary
-    const pgNF=d.ama_pg_non_forfeitable;
-    if(pgNF){const rb=document.querySelector(`input[name="ama_pg_non_forfeitable"][value="${pgNF}"]`);if(rb)rb.checked=true}
-    document.getElementById('betaMax').value=d.ama_beta_max_pct||'';
-    document.getElementById('betaMin').value=d.ama_beta_min_pct||'';
-    document.getElementById('maintAlign').value=d.ama_maint_alignment||'';
-    document.getElementById('elecAlign').value=d.ama_elec_alignment||'';
-    document.getElementById('specialTerms').value=d.ama_special_terms||d.token_remarks_printed||'';
-
-    // Card 4: Property Documents
+    // Card 2: Property Documents
     let existingDocs={};
     try{existingDocs=typeof d.ama_prop_docs==='string'?JSON.parse(d.ama_prop_docs):d.ama_prop_docs||{}}catch(e){}
     buildPropDocs(existingDocs);
@@ -332,25 +232,6 @@ async function loadUID(uid){
     document.getElementById('amaForm').style.display='block';
     st.className='pf-st show ok';st.textContent=`Loaded: ${uid}${d.ama_submitted_at?' (Submitted)':''}${d.core_home_id?` · Home #${d.core_home_id}`:''}`;
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('amaForm').style.display='none'}
-}
-
-async function uploadFile(input,key){
-  if(!input.files.length)return;
-  if(!cloudCfg){toast('Upload not ready','warn');return}
-  const file=input.files[0];if(file.size>10*1024*1024){toast('File exceeds 10MB','err');return}
-  const row=document.getElementById('up_'+key);const stEl=document.getElementById('st_'+key);
-  row.textContent='Uploading...';
-  try{
-    const fd=new FormData();fd.append('file',file);fd.append('upload_preset',cloudCfg.uploadPreset);fd.append('folder','ama-docs');
-    const r=await fetch(`https://api.cloudinary.com/v1_1/${cloudCfg.cloudName}/auto/upload`,{method:'POST',body:fd});
-    const d=await r.json();if(!d.secure_url)throw new Error('Upload failed');
-    fileUrls[key]=d.secure_url;
-    row.className='upload-row done';row.textContent='✓ Uploaded — click to replace';
-    const fi=document.createElement('input');fi.type='file';fi.accept='image/*,.pdf';fi.style.display='none';fi.id='fi_'+key;fi.onchange=function(){uploadFile(this,key)};row.appendChild(fi);
-    stEl.innerHTML=`<a href="${d.secure_url}" target="_blank" style="color:var(--ac2);font-size:10px">View</a>`;
-    toast('Uploaded','ok');
-  }catch(e){toast('Upload failed','err');row.textContent='📄 Upload — click to retry';
-    const fi=document.createElement('input');fi.type='file';fi.accept='image/*,.pdf';fi.style.display='none';fi.id='fi_'+key;fi.onchange=function(){uploadFile(this,key)};row.appendChild(fi)}
 }
 
 async function uploadPropDoc(input,key){
@@ -374,22 +255,7 @@ async function uploadPropDoc(input,key){
 
 document.getElementById('submitBtn').addEventListener('click',()=>{
   if(!currentUid){toast('Select a UID','warn');return}
-  // Validate loan documents (only if loan card is visible)
-  const loanVisible=document.getElementById('loanDocsCard').style.display!=='none';
-  const alreadySubmitted=!!(loadedData&&loadedData.ama_submitted_at);
-  if(loanVisible&&!alreadySubmitted){
-    const missingLoan=[];
-    ['sanction','soa','lod'].forEach(k=>document.getElementById('up_'+k).classList.remove('missing'));
-    if(!fileUrls.soa){missingLoan.push('Statement of Accounts');document.getElementById('up_soa').classList.add('missing')}
-    if(missingLoan.length){toast(`Upload required: ${missingLoan.join(', ')}`,'err');return}
-    // Validate loan detail fields
-    if(!document.getElementById('loanApplicant').value.trim()){toast('Applicant Name required','err');return}
-    if(!document.getElementById('selBankLoan').value){toast('Loan Bank Name required','err');return}
-    if(!document.getElementById('loanAc').value.trim()){toast('Loan A/C Number required','err');return}
-    if(!document.getElementById('loanAmt').value){toast('Outstanding Loan required','err');return}
-    if(!document.querySelector('input[name="loan_pay_willingness"]:checked')){toast('Select Willing to pay loan','err');return}
-  }
-  // Validate property documents: required docs (first 5) need Yes/No, No requires mandatory upload
+  // Validate property documents: required docs need Yes/No, No requires mandatory upload
   const missingPropDocs=[];
   for(const doc of PROP_DOCS){
     const st=propDocState[doc.key];
@@ -407,27 +273,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   if(docsVerifyVisible&&!document.getElementById('docsVerifyDd').value){missingPropDocs.push('Documents Verification Done (select mode)')}
   if(missingPropDocs.length){toast(`${missingPropDocs[0]}`,'err');return}
   const body={uid:currentUid};
-  // Docs verification mode
   if(docsVerifyVisible)body.docs_verification_mode=document.getElementById('docsVerifyDd').value||null;
-  // Loan detail fields
-  const loanDetailsVisible=document.getElementById('loanDetailsCard').style.display!=='none';
-  if(loanDetailsVisible){
-    body.loan_applicant_name=document.getElementById('loanApplicant').value.trim()||null;
-    body.loan_co_applicant_name=document.getElementById('loanCoApplicant').value.trim()||null;
-    body.bank_name_loan=document.getElementById('selBankLoan').value==='Others'?document.getElementById('bankOther').value||'Others':document.getElementById('selBankLoan').value||null;
-    body.loan_account_number=document.getElementById('loanAc').value.trim()||null;
-    body.outstanding_loan=document.getElementById('loanAmt').value||null;
-    body.loan_pay_willingness=document.querySelector('input[name="loan_pay_willingness"]:checked')?.value||null;
-  }
-  body.ama_sanction_url=fileUrls.sanction||null;
-  body.ama_soa_url=fileUrls.soa||null;
-  body.ama_lod_url=fileUrls.lod||null;
-  body.ama_pg_non_forfeitable=document.querySelector('input[name="ama_pg_non_forfeitable"]:checked')?.value||null;
-  body.ama_beta_max_pct=document.getElementById('betaMax').value||null;
-  body.ama_beta_min_pct=document.getElementById('betaMin').value||null;
-  body.ama_maint_alignment=document.getElementById('maintAlign').value||null;
-  body.ama_elec_alignment=document.getElementById('elecAlign').value||null;
-  body.ama_special_terms=document.getElementById('specialTerms').value.trim()||null;
   body.ama_prop_docs=JSON.stringify(propDocState);
 
   submitBtn(document.getElementById('submitBtn'),async()=>{
