@@ -59,13 +59,10 @@ CREATE TABLE IF NOT EXISTS properties (
 
   -- Form 5: Final
   remaining_amount REAL,
-  bank_account_number TEXT, bank_name TEXT, ifsc_code TEXT,
-  token_transfer_date DATE, neft_reference TEXT,
   final_submitted_at TIMESTAMPTZ,
 
   -- Form 6: Listing
-  listing_asking_price REAL, listing_availability TEXT,
-  listing_highlights TEXT, listing_description TEXT,
+  listing_asking_price REAL,
   society_age_years REAL, total_units INTEGER,
   maintenance_charges REAL, society_move_in_charges REAL,
   electricity_charges REAL, water_supply TEXT, dg_charges REAL,
@@ -137,9 +134,6 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='balcony_details') THEN ALTER TABLE properties ADD COLUMN balcony_details JSONB DEFAULT '[]'; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='owner_broker_name') THEN ALTER TABLE properties ADD COLUMN owner_broker_name TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='listing_asking_price') THEN ALTER TABLE properties ADD COLUMN listing_asking_price REAL; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='listing_availability') THEN ALTER TABLE properties ADD COLUMN listing_availability TEXT; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='listing_highlights') THEN ALTER TABLE properties ADD COLUMN listing_highlights TEXT; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='listing_description') THEN ALTER TABLE properties ADD COLUMN listing_description TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='listing_submitted_at') THEN ALTER TABLE properties ADD COLUMN listing_submitted_at TIMESTAMPTZ; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='google_access_token') THEN ALTER TABLE users ADD COLUMN google_access_token TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='google_refresh_token') THEN ALTER TABLE users ADD COLUMN google_refresh_token TEXT; END IF;
@@ -160,12 +154,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='deal_value') THEN ALTER TABLE properties ADD COLUMN deal_value TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='total_brokerage_amount') THEN ALTER TABLE properties ADD COLUMN total_brokerage_amount TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='to_be_released_now') THEN ALTER TABLE properties ADD COLUMN to_be_released_now TEXT; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='pan_front_url') THEN ALTER TABLE properties ADD COLUMN pan_front_url TEXT; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='pan_back_url') THEN ALTER TABLE properties ADD COLUMN pan_back_url TEXT; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='aadhaar_front_url') THEN ALTER TABLE properties ADD COLUMN aadhaar_front_url TEXT; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='aadhaar_back_url') THEN ALTER TABLE properties ADD COLUMN aadhaar_back_url TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='cp_cancelled_cheque_url') THEN ALTER TABLE properties ADD COLUMN cp_cancelled_cheque_url TEXT; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='ama_signed_photo_url') THEN ALTER TABLE properties ADD COLUMN ama_signed_photo_url TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='cp_pan_card_url') THEN ALTER TABLE properties ADD COLUMN cp_pan_card_url TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='cp_aadhaar_front_url') THEN ALTER TABLE properties ADD COLUMN cp_aadhaar_front_url TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='cp_aadhaar_back_url') THEN ALTER TABLE properties ADD COLUMN cp_aadhaar_back_url TEXT; END IF;
