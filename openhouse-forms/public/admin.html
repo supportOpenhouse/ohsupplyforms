@@ -159,6 +159,8 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
 <script>
 const API=window.location.origin;let allData=[],filteredData=[],sortCol='',sortDir='desc';
 let dateFilterStart=null,dateFilterEnd=null,activeStatFilter='';
+let FORM_OPTS={sources:['CP','Direct'],configurations:[],directions:[],parkingOptions:[],furnishingLevels:[],banks:[],assignedByList:[],assignedToList:[],yesNo:['Yes','No']};
+fetch('/api/config').then(r=>r.json()).then(d=>{if(d&&d.options)FORM_OPTS={...FORM_OPTS,...d.options}}).catch(()=>{});
 
 function fmtDt(d){if(!d)return'';const dt=new Date(d);return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}
 function fmtDtFull(d){if(!d)return'—';const dt=new Date(d);return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})+' '+dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true})}
@@ -335,7 +337,7 @@ function ef(l,name,val,type='text'){const v=val===null||val===undefined?'':val;
   if(type==='date'){const dv=v?new Date(v).toISOString().split('T')[0]:'';return`<div class="prev-item"><div class="pi-label">${l}</div><input type="date" name="${name}" value="${dv}"></div>`}
   if(type==='number')return`<div class="prev-item"><div class="pi-label">${l}</div><input type="number" name="${name}" value="${v}" step="any"></div>`;
   return`<div class="prev-item"><div class="pi-label">${l}</div><input type="text" name="${name}" value="${String(v).replace(/"/g,'&quot;')}"></div>`}
-function efSel(l,name,val,opts){const v=val||'';const optHtml=opts.map(o=>`<option value="${o}"${o===v?' selected':''}>${o}</option>`).join('');
+function efSel(l,name,val,opts){const v=val==null?'':String(val);const list=v&&!opts.includes(v)?[...opts,v]:opts;const optHtml=list.map(o=>`<option value="${o}"${o===v?' selected':''}>${o}</option>`).join('');
   return`<div class="prev-item"><div class="pi-label">${l}</div><select name="${name}"><option value="">—</option>${optHtml}</select></div>`}
 function efArea(l,name,val){const v=val===null||val===undefined?'':val;return`<div class="prev-item full"><div class="pi-label">${l}</div><textarea name="${name}" rows="2">${String(v).replace(/</g,'&lt;')}</textarea></div>`}
 function efRO(l,v){const isEmpty=v===null||v===undefined||v===''||v==='null';return`<div class="prev-item"><div class="pi-label">${l}</div><div class="pi-readonly" style="font-size:12px;color:${isEmpty?'#bbb':'var(--tx)'}">${isEmpty?'—':v}</div></div>`}
@@ -362,31 +364,31 @@ function buildModal(p){
     ${ef('Locality','locality',p.locality)}${ef('Owner/Broker','owner_broker_name',p.owner_broker_name)}${ef('First Name','first_name',p.first_name)}
     ${ef('Last Name','last_name',p.last_name)}${ef('Contact','contact_no',p.contact_no)}${ef('Co-owner','co_owner',p.co_owner)}
     ${ef('Unit No','unit_no',p.unit_no)}${ef('Tower No','tower_no',p.tower_no)}${ef('Floor','floor',p.floor,'number')}
-    ${ef('Area (sqft)','area_sqft',p.area_sqft,'number')}${ef('Configuration','configuration',p.configuration)}${ef('Ask Price (L)','demand_price',p.demand_price,'number')}
-    ${ef('Source','source',p.source)}${ef('Assigned By','assigned_by',p.assigned_by)}${ef('Assigned To','field_exec',p.field_exec)}
+    ${ef('Area (sqft)','area_sqft',p.area_sqft,'number')}${efSel('Configuration','configuration',p.configuration,FORM_OPTS.configurations)}${ef('Ask Price (L)','demand_price',p.demand_price,'number')}
+    ${efSel('Source','source',p.source,FORM_OPTS.sources)}${efSel('Assigned By','assigned_by',p.assigned_by,FORM_OPTS.assignedByList)}${efSel('Assigned To','field_exec',p.field_exec,FORM_OPTS.assignedToList)}
     ${ef('Schedule Date','schedule_date',p.schedule_date,'date')}${ef('Schedule Time','schedule_time',p.schedule_time)}${ef('Lead ID','lead_id',p.lead_id)}
     ${efRO('Submitted',fmtDtFull(p.schedule_submitted_at))}
   </div></div>`;
 
   html+=`<div class="prev-section"><div class="prev-section-t">Visit (Form 2)</div><div class="prev-grid">
     ${efRO('Extra Area',extras.length?extras.join(', '):'—')}${ef('Bathrooms','bathrooms',p.bathrooms,'number')}${ef('Balconies','balconies',p.balconies,'number')}
-    ${efSel('Gas Pipeline','gas_pipeline',p.gas_pipeline,['Yes','No','Provision available'])}${efSel('Parking','parking',p.parking,['Covered','Open','Stilt','No Parking','N/A'])}${efSel('Furnishing','furnishing',p.furnishing,['Fully Furnished','Semi Furnished','Unfurnished'])}
+    ${efSel('Gas Pipeline','gas_pipeline',p.gas_pipeline,FORM_OPTS.yesNo)}${efSel('Parking','parking',p.parking,FORM_OPTS.parkingOptions)}${efSel('Furnishing','furnishing',p.furnishing,FORM_OPTS.furnishingLevels)}
     ${efRO('Furnishing Items',furnItems.length?furnItems.join(', '):'—')}
     ${ef('Total Lifts','total_lifts',p.total_lifts,'number')}${ef('Floors in Tower','total_floors_tower',p.total_floors_tower,'number')}${ef('Flats/Floor','total_flats_floor',p.total_flats_floor,'number')}
-    ${ef('Exit Facing','exit_facing',p.exit_facing)}${pvLink('Compass',p.exit_compass_image)}${ef('Video Link','video_link',p.video_link)}
+    ${efSel('Exit Facing','exit_facing',p.exit_facing,FORM_OPTS.directions)}${pvLink('Compass',p.exit_compass_image)}${ef('Video Link','video_link',p.video_link)}
     ${efArea('Visit Remarks','visit_remarks',p.visit_remarks)}${efRO('Submitted',fmtDtFull(p.visit_submitted_at))}
   </div></div>`;
 
   html+=`<div class="prev-section"><div class="prev-section-t">Token Request (Form 3)</div><div class="prev-grid">
     ${ef('Requested By','token_requested_by',p.token_requested_by)}${ef('Token Amount (₹)','deal_token_amount',p.deal_token_amount,'number')}${pvLink('Cheque Image',p.cheque_image_url)}
-    ${ef('Cheque Bank','cheque_bank_name',p.cheque_bank_name)}${ef('Cheque A/C','cheque_account_number',p.cheque_account_number)}${ef('Cheque IFSC','cheque_ifsc',p.cheque_ifsc)}
-    ${efSel('Registry','registry_status',p.registry_status,['Registered','Unregistered','Conveyance Done'])}${efSel('Occupancy','occupancy_status',p.occupancy_status,['Vacant','Tenant','Self Occupied'])}${ef('Key Handover','key_handover_date',p.key_handover_date,'date')}
+    ${efSel('Cheque Bank','cheque_bank_name',p.cheque_bank_name,FORM_OPTS.banks)}${ef('Cheque A/C','cheque_account_number',p.cheque_account_number)}${ef('Cheque IFSC','cheque_ifsc',p.cheque_ifsc)}
+    ${efSel('Registry','registry_status',p.registry_status,['Registered','Unregistered','Under Process'])}${efSel('Occupancy','occupancy_status',p.occupancy_status,['Vacant','Tenant','Owner Staying'])}${ef('Key Handover','key_handover_date',p.key_handover_date,'date')}
     ${ef('GSP (Lakhs)','guaranteed_sale_price',p.guaranteed_sale_price,'number')}${ef('Total Deposit (₹)','total_deposit',p.total_deposit,'number')}${ef('PG (₹)','performance_guarantee',p.performance_guarantee,'number')}
     ${ef('Refundable Deposit (₹)','refundable_deposit',p.refundable_deposit,'number')}${ef('Initial Period (d)','initial_period',p.initial_period,'number')}${ef('Rent (Initial)','rent_payable_initial_period',p.rent_payable_initial_period)}
     ${ef('Grace Period (d)','grace_period',p.grace_period,'number')}${ef('Rent (Grace)','rent_payable_grace_period',p.rent_payable_grace_period)}
     ${efSel('Has Loan?','has_loan',p.has_loan,['Yes','No'])}${ef('Loan Applicant','loan_applicant_name',p.loan_applicant_name)}${ef('Loan Co-applicant','loan_co_applicant_name',p.loan_co_applicant_name)}
-    ${ef('Outstanding Loan (₹)','outstanding_loan',p.outstanding_loan,'number')}${ef('Loan Bank','bank_name_loan',p.bank_name_loan)}${ef('Loan A/C','loan_account_number',p.loan_account_number)}
-    ${efSel('Willing to Pay','loan_pay_willingness',p.loan_pay_willingness,['Yes','No'])}${efRO('Documents',docs.length?docs.join(', '):'—')}
+    ${ef('Outstanding Loan (₹)','outstanding_loan',p.outstanding_loan,'number')}${efSel('Loan Bank','bank_name_loan',p.bank_name_loan,FORM_OPTS.banks)}${ef('Loan A/C','loan_account_number',p.loan_account_number)}
+    ${efSel('Willing to Pay','loan_pay_willingness',p.loan_pay_willingness,FORM_OPTS.yesNo)}${efRO('Documents',docs.length?docs.join(', '):'—')}
     ${pvLink('Owner PAN',p.owner_pan_url)}${pvLink('Owner Aadhaar Front',p.owner_aadhaar_front_url)}${pvLink('Owner Aadhaar Back',p.owner_aadhaar_back_url)}${pvLink('Owner Property Doc',p.owner_property_doc_url)}
     ${efArea('Remarks (Printed)','token_remarks_printed',p.token_remarks_printed)}${efArea('Remarks (Internal)','token_remarks',p.token_remarks)}${efRO('Submitted',fmtDtFull(p.token_submitted_at))}
   </div></div>`;
@@ -400,9 +402,9 @@ function buildModal(p){
   </div></div>`;
 
   html+=`<div class="prev-section"><div class="prev-section-t">AMA Details (Form 5)</div><div class="prev-grid">
-    ${ef('Loan Applicant','loan_applicant_name',p.loan_applicant_name)}${ef('Loan Co-applicant','loan_co_applicant_name',p.loan_co_applicant_name)}${ef('Loan Bank','bank_name_loan',p.bank_name_loan)}
-    ${ef('Loan A/C','loan_account_number',p.loan_account_number)}${ef('Outstanding (₹)','outstanding_loan',p.outstanding_loan,'number')}${efSel('Willing to Pay','loan_pay_willingness',p.loan_pay_willingness,['Yes','No'])}
-    ${efSel('PG Non Forfeitable','ama_pg_non_forfeitable',p.ama_pg_non_forfeitable,['Yes','No'])}
+    ${ef('Loan Applicant','loan_applicant_name',p.loan_applicant_name)}${ef('Loan Co-applicant','loan_co_applicant_name',p.loan_co_applicant_name)}${efSel('Loan Bank','bank_name_loan',p.bank_name_loan,FORM_OPTS.banks)}
+    ${ef('Loan A/C','loan_account_number',p.loan_account_number)}${ef('Outstanding (₹)','outstanding_loan',p.outstanding_loan,'number')}${efSel('Willing to Pay','loan_pay_willingness',p.loan_pay_willingness,FORM_OPTS.yesNo)}
+    ${efSel('PG Non Forfeitable','ama_pg_non_forfeitable',p.ama_pg_non_forfeitable,FORM_OPTS.yesNo)}
     ${efSel('Payment Structure','ama_payment_structure',p.ama_payment_structure,['Flexible','Non Flexible'])}
     ${ef('Range Min %','ama_beta_min_pct',p.ama_beta_min_pct,'number')}${ef('Range Max %','ama_beta_max_pct',p.ama_beta_max_pct,'number')}
     ${efSel('Maint Alignment','ama_maint_alignment',p.ama_maint_alignment,['Seller','OH'])}${efSel('Elec Alignment','ama_elec_alignment',p.ama_elec_alignment,['Seller','OH'])}
@@ -422,11 +424,11 @@ function buildModal(p){
 
   html+=`<div class="prev-section"><div class="prev-section-t">Listing (Form 7)</div><div class="prev-grid">
     ${ef('Super Area (sqft)','super_area',p.super_area,'number')}${ef('Carpet Area (sqft)','carpet_area',p.carpet_area,'number')}
-    ${efSel('Seller Residential Status','seller_residential_status',p.seller_residential_status,['RI','NRI'])}${efSel('Sellers on Registry','sellers_available_on_registry',p.sellers_available_on_registry,['Yes','No'])}
+    ${efSel('Seller Residential Status','seller_residential_status',p.seller_residential_status,['RI','NRI'])}${efSel('Sellers on Registry','sellers_available_on_registry',p.sellers_available_on_registry,FORM_OPTS.yesNo)}
     ${ef('Asking Price (L)','listing_asking_price',p.listing_asking_price,'number')}${ef('Society Age (yrs)','society_age_years',p.society_age_years,'number')}
     ${ef('Total Units','total_units',p.total_units,'number')}${ef('Maintenance (₹)','maintenance_charges',p.maintenance_charges,'number')}${ef('Move-in (₹)','society_move_in_charges',p.society_move_in_charges,'number')}
     ${ef('Electricity (₹)','electricity_charges',p.electricity_charges,'number')}${ef('DG Charges (₹)','dg_charges',p.dg_charges,'number')}${ef('Water Supply','water_supply',p.water_supply)}
-    ${efSel('Gas Pipeline','gas_pipeline',p.gas_pipeline,['Yes','No','Provision available'])}${efSel('Club Facility','club_facility',p.club_facility,['Yes','No'])}
+    ${efSel('Gas Pipeline','gas_pipeline',p.gas_pipeline,FORM_OPTS.yesNo)}${efSel('Club Facility','club_facility',p.club_facility,FORM_OPTS.yesNo)}
     ${efSel('Alpha/Beta','alpha_beta',p.alpha_beta,['Alpha','Beta'])}${ef('Beta %','beta_pct',p.beta_pct,'number')}${ef('Loan Status','loan_status',p.loan_status)}
     ${ef('Seller Location','seller_location',p.seller_location)}${ef('Circle Rate (₹)','circle_rate',p.circle_rate,'number')}${ef('Parking Number','parking_number',p.parking_number)}
     ${efRO('Submitted',fmtDtFull(p.listing_submitted_at))}
@@ -434,8 +436,8 @@ function buildModal(p){
 
   html+=`<div class="prev-section"><div class="prev-section-t">CP Bill Generation (Form 8)</div><div class="prev-grid">
     ${ef('CP Code','cp_code',p.cp_code)}${ef('CP Name','cp_name',p.cp_name)}${ef('CP Phone','cp_phone',p.cp_phone)}
-    ${ef('CP Firm','cp_firm',p.cp_firm)}${ef('CP Email','cp_email',p.cp_email)}${efSel('GST Applicable','gst_applicable',p.gst_applicable,['Yes','No'])}
-    ${efSel('Deal Type','deal_type',p.deal_type,['Acquisition','Supply'])}${ef('OH Model','oh_acquired_model',p.oh_acquired_model)}
+    ${ef('CP Firm','cp_firm',p.cp_firm)}${ef('CP Email','cp_email',p.cp_email)}${efSel('GST Applicable','gst_applicable',p.gst_applicable,FORM_OPTS.yesNo)}
+    ${efSel('Deal Type','deal_type',p.deal_type,['Acquisition/Supply'])}${ef('OH Model','oh_acquired_model',p.oh_acquired_model)}
     ${ef('Agreed Brokerage','agreed_brokerage',p.agreed_brokerage)}${ef('Deal Value','deal_value',p.deal_value)}${ef('Total Brokerage','total_brokerage_amount',p.total_brokerage_amount)}
     ${ef('To Release Now','to_be_released_now',p.to_be_released_now)}${ef('Incentive Visit','incentive_visit',p.incentive_visit)}${ef('Incentive Meeting','incentive_owner_meeting',p.incentive_owner_meeting)}
     ${ef('Total CP Amount','total_cp_amount',p.total_cp_amount)}
