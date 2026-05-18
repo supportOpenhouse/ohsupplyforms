@@ -38,9 +38,9 @@ function generateReceiptHTML(p, mode='deal', baseUrl=''){
   const availDocs=allDocs.filter(d=>selectedDocs.includes(d));
   console.log('PDF avail:', availDocs.length, 'missing:', missingDocs.length);
 
-  const hasNEFT=mode==='deal'?!!p.deal_neft_reference:!!(p.bank_account_number&&p.neft_reference);
-  const neftBank=mode==='deal'?(p.deal_bank_name||''):(p.bank_name||'');
-  const neftRef=mode==='deal'?(p.deal_neft_reference||''):(p.neft_reference||'');
+  const hasNEFT=!!p.deal_neft_reference;
+  const neftBank=p.deal_bank_name||'';
+  const neftRef=p.deal_neft_reference||'';
   const neftDate=p.deal_transfer_date;
   const hdDate=p.key_handover_date?fmtDate(p.key_handover_date):'';
   const showRefundable = p.refundable_deposit && Number(p.refundable_deposit) !== 0;

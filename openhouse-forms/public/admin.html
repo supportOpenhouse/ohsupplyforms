@@ -423,13 +423,13 @@ function buildModal(p){
   html+=`<div class="prev-section"><div class="prev-section-t">Listing (Form 7)</div><div class="prev-grid">
     ${ef('Super Area (sqft)','super_area',p.super_area,'number')}${ef('Carpet Area (sqft)','carpet_area',p.carpet_area,'number')}
     ${efSel('Seller Residential Status','seller_residential_status',p.seller_residential_status,['RI','NRI'])}${efSel('Sellers on Registry','sellers_available_on_registry',p.sellers_available_on_registry,['Yes','No'])}
-    ${ef('Asking Price (L)','listing_asking_price',p.listing_asking_price,'number')}${ef('Availability','listing_availability',p.listing_availability)}${ef('Society Age (yrs)','society_age_years',p.society_age_years,'number')}
+    ${ef('Asking Price (L)','listing_asking_price',p.listing_asking_price,'number')}${ef('Society Age (yrs)','society_age_years',p.society_age_years,'number')}
     ${ef('Total Units','total_units',p.total_units,'number')}${ef('Maintenance (₹)','maintenance_charges',p.maintenance_charges,'number')}${ef('Move-in (₹)','society_move_in_charges',p.society_move_in_charges,'number')}
     ${ef('Electricity (₹)','electricity_charges',p.electricity_charges,'number')}${ef('DG Charges (₹)','dg_charges',p.dg_charges,'number')}${ef('Water Supply','water_supply',p.water_supply)}
     ${efSel('Gas Pipeline','gas_pipeline',p.gas_pipeline,['Yes','No','Provision available'])}${efSel('Club Facility','club_facility',p.club_facility,['Yes','No'])}
     ${efSel('Alpha/Beta','alpha_beta',p.alpha_beta,['Alpha','Beta'])}${ef('Beta %','beta_pct',p.beta_pct,'number')}${ef('Loan Status','loan_status',p.loan_status)}
     ${ef('Seller Location','seller_location',p.seller_location)}${ef('Circle Rate (₹)','circle_rate',p.circle_rate,'number')}${ef('Parking Number','parking_number',p.parking_number)}
-    ${efArea('Highlights','listing_highlights',p.listing_highlights)}${efArea('Description','listing_description',p.listing_description)}${efRO('Submitted',fmtDtFull(p.listing_submitted_at))}
+    ${efRO('Submitted',fmtDtFull(p.listing_submitted_at))}
   </div></div>`;
 
   html+=`<div class="prev-section"><div class="prev-section-t">CP Bill Generation (Form 8)</div><div class="prev-grid">

@@ -13,7 +13,7 @@ function generateInvoiceHTML(p, baseUrl=''){
   const logoUrl=baseUrl?baseUrl+'/images/logo.png':'/images/logo.png';
 
   const dealAc=p.deal_bank_account_number||p.cheque_account_number||'—';
-  const finalAc=p.bank_account_number||dealAc;
+  const finalAc=dealAc;
 
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -83,7 +83,7 @@ function generateInvoiceHTML(p, baseUrl=''){
       </tr>
       <tr>
         <td><strong>Remaining Amount</strong><br><span class="mono">via A/C ${esc(finalAc)}</span></td>
-        <td><span class="mono">${esc(p.neft_reference||'—')}</span></td>
+        <td><span class="mono">—</span></td>
         <td>${fmtDate(p.deal_transfer_date)}</td>
         <td>${fmtCur(p.remaining_amount)}</td>
       </tr>
