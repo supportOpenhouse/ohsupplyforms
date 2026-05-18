@@ -101,7 +101,7 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
     const d=req.body;delete d.uid;delete d.created_at;delete d.updated_at;
     const allowed=new Set(['city','locality','society_name','unit_no','tower_no','floor','area_sqft','configuration',
       'demand_price','source','owner_broker_name','first_name','last_name','contact_no','assigned_by','field_exec',
-      'schedule_date','schedule_time','co_owner','co_owner_number',
+      'schedule_date','schedule_time','co_owner','co_owner_number','lead_id',
       'extra_area','bathrooms','balconies','gas_pipeline','parking','furnishing','furnishing_details',
       'total_lifts','total_floors_tower','total_flats_floor','exit_facing','video_link','visit_remarks',
       'token_requested_by','registry_status','occupancy_status','key_handover_date',
@@ -122,7 +122,7 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
       'super_area','carpet_area','seller_residential_status','sellers_available_on_registry',
       'listing_asking_price','listing_availability','listing_highlights','listing_description',
       'society_age_years','total_units','maintenance_charges','society_move_in_charges','electricity_charges',
-      'water_supply','dg_charges','alpha_beta','beta_pct','loan_status','seller_location',
+      'water_supply','dg_charges','alpha_beta','beta_pct','loan_status','seller_location','club_facility',
       'circle_rate','parking_number','is_dead','is_token_refunded']);
     const sets=[];const vals=[];let i=1;
     const changes={};

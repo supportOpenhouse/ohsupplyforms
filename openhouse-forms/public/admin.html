@@ -347,6 +347,7 @@ function buildModal(p){
   const steps=[{name:'Schedule',done:!!p.schedule_submitted_at,ts:p.schedule_submitted_at},{name:'Visit',done:!!p.visit_submitted_at,ts:p.visit_submitted_at},{name:'Token Req',done:!!p.token_submitted_at,draft:p.token_is_draft,ts:p.token_submitted_at},{name:'Deal Terms',done:!!p.token_deal_submitted_at,ts:p.token_deal_submitted_at},{name:'AMA Req',done:!!p.ama_submitted_at,ts:p.ama_submitted_at},{name:'AMA Signed',done:!!p.pending_request_submitted_at,ts:p.pending_request_submitted_at},{name:'Listing',done:!!p.listing_submitted_at,ts:p.listing_submitted_at},{name:'CP Bill',done:!!p.cp_bill_submitted_at,ts:p.cp_bill_submitted_at},{name:'Key Handover',done:!!p.final_submitted_at,ts:p.final_submitted_at}];
   let statusHtml=steps.map(s=>{const cls=p.is_dead?'dead':p.is_token_refunded?'refunded':s.draft?'draft':s.done?'done':'pending';const label=p.is_dead?'Cancelled':p.is_token_refunded?'Cancelled PT':s.draft?s.name+' (Draft)':s.done?s.name+' ✓':s.name+' ✗';return`<div class="prev-step ${cls}" title="${s.ts?fmtDtFull(s.ts):''}">${label}</div>`}).join('');
   const extras=parseJ(p.extra_area).filter(x=>x!=='No Extra Room');const furnItems=parseJ(p.furnishing_details).filter(x=>x!=='No Items');const docs=parseJ(p.documents_available);
+  let propDocsHtml='—';try{const pd=typeof p.ama_prop_docs==='string'?JSON.parse(p.ama_prop_docs):(p.ama_prop_docs||{});const rows=Object.entries(pd).filter(([k,v])=>v&&(v.status||v.url));if(rows.length)propDocsHtml=rows.map(([k,v])=>`${k}: <b>${v.status||'—'}</b>${v.url?` — <a href="${v.url}" target="_blank">View ↗</a>`:''}`).join('<br>')}catch(e){}
 
   let html=`<div class="prev-status">${statusHtml}
     <label style="margin-left:auto;display:flex;align-items:center;gap:4px;font-size:10px;color:#b45309;font-weight:600;cursor:pointer">
@@ -363,7 +364,8 @@ function buildModal(p){
     ${ef('Unit No','unit_no',p.unit_no)}${ef('Tower No','tower_no',p.tower_no)}${ef('Floor','floor',p.floor,'number')}
     ${ef('Area (sqft)','area_sqft',p.area_sqft,'number')}${ef('Configuration','configuration',p.configuration)}${ef('Ask Price (L)','demand_price',p.demand_price,'number')}
     ${ef('Source','source',p.source)}${ef('Assigned By','assigned_by',p.assigned_by)}${ef('Assigned To','field_exec',p.field_exec)}
-    ${ef('Schedule Date','schedule_date',p.schedule_date,'date')}${ef('Schedule Time','schedule_time',p.schedule_time)}${efRO('Submitted',fmtDtFull(p.schedule_submitted_at))}
+    ${ef('Schedule Date','schedule_date',p.schedule_date,'date')}${ef('Schedule Time','schedule_time',p.schedule_time)}${ef('Lead ID','lead_id',p.lead_id)}
+    ${efRO('Submitted',fmtDtFull(p.schedule_submitted_at))}
   </div></div>`;
 
   html+=`<div class="prev-section"><div class="prev-section-t">Visit (Form 2)</div><div class="prev-grid">
@@ -405,7 +407,9 @@ function buildModal(p){
     ${ef('Range Min %','ama_beta_min_pct',p.ama_beta_min_pct,'number')}${ef('Range Max %','ama_beta_max_pct',p.ama_beta_max_pct,'number')}
     ${efSel('Maint Alignment','ama_maint_alignment',p.ama_maint_alignment,['Seller','OH'])}${efSel('Elec Alignment','ama_elec_alignment',p.ama_elec_alignment,['Seller','OH'])}
     ${efArea('Special Terms','ama_special_terms',p.ama_special_terms)}
+    ${efSel('Docs Verification Mode','docs_verification_mode',p.docs_verification_mode,['Physically','Video Call'])}
     ${pvLink('Sanction Letter',p.ama_sanction_url)}${pvLink('Statement of Accounts',p.ama_soa_url)}${pvLink('LOD',p.ama_lod_url)}
+    <div class="prev-item full"><div class="pi-label">Property Documents</div><div class="pi-value${propDocsHtml==='—'?' empty':''}"><div style="white-space:normal;line-height:1.6">${propDocsHtml}</div></div></div>
     ${efRO('Submitted',fmtDtFull(p.ama_submitted_at))}
   </div></div>`;
 
@@ -422,6 +426,7 @@ function buildModal(p){
     ${ef('Asking Price (L)','listing_asking_price',p.listing_asking_price,'number')}${ef('Availability','listing_availability',p.listing_availability)}${ef('Society Age (yrs)','society_age_years',p.society_age_years,'number')}
     ${ef('Total Units','total_units',p.total_units,'number')}${ef('Maintenance (₹)','maintenance_charges',p.maintenance_charges,'number')}${ef('Move-in (₹)','society_move_in_charges',p.society_move_in_charges,'number')}
     ${ef('Electricity (₹)','electricity_charges',p.electricity_charges,'number')}${ef('DG Charges (₹)','dg_charges',p.dg_charges,'number')}${ef('Water Supply','water_supply',p.water_supply)}
+    ${efSel('Gas Pipeline','gas_pipeline',p.gas_pipeline,['Yes','No','Provision available'])}${efSel('Club Facility','club_facility',p.club_facility,['Yes','No'])}
     ${efSel('Alpha/Beta','alpha_beta',p.alpha_beta,['Alpha','Beta'])}${ef('Beta %','beta_pct',p.beta_pct,'number')}${ef('Loan Status','loan_status',p.loan_status)}
     ${ef('Seller Location','seller_location',p.seller_location)}${ef('Circle Rate (₹)','circle_rate',p.circle_rate,'number')}${ef('Parking Number','parking_number',p.parking_number)}
     ${efArea('Highlights','listing_highlights',p.listing_highlights)}${efArea('Description','listing_description',p.listing_description)}${efRO('Submitted',fmtDtFull(p.listing_submitted_at))}
