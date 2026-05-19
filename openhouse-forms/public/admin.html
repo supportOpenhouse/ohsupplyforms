@@ -192,7 +192,7 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
 const API=window.location.origin;let allData=[],filteredData=[],sortCol='',sortDir='desc';
 let dateFilterStart=null,dateFilterEnd=null,activeStatFilter='';
 let IS_ADMIN=false,IS_SUPER=false;
-const SUPER_EMAIL='sahaj.dureja@openhouse.in';
+const SUPER_EMAILS=['sahaj.dureja@openhouse.in','saransh.khera@openhouse.in'];
 let FORM_OPTS={sources:['CP','Direct'],configurations:[],directions:[],parkingOptions:[],furnishingLevels:[],banks:[],assignedByList:[],assignedToList:[],yesNo:['Yes','No']};
 fetch('/api/config').then(r=>r.json()).then(d=>{if(d&&d.options)FORM_OPTS={...FORM_OPTS,...d.options}}).catch(()=>{});
 
@@ -515,7 +515,7 @@ document.getElementById('fQ').addEventListener('input',render);document.getEleme
 document.addEventListener('DOMContentLoaded',async()=>{
   const todayStr=new Date().toISOString().split('T')[0];
   document.getElementById('fDateFrom').max=todayStr;document.getElementById('fDateTo').max=todayStr;
-  try{const r=await fetch('/auth/me');if(r.ok){const me=await r.json();IS_ADMIN=!!me.is_admin;IS_SUPER=(me.email||'').toLowerCase()===SUPER_EMAIL}}catch(e){}
+  try{const r=await fetch('/auth/me');if(r.ok){const me=await r.json();IS_ADMIN=!!me.is_admin;IS_SUPER=SUPER_EMAILS.includes((me.email||'').toLowerCase())}}catch(e){}
   if(!IS_ADMIN){const um=document.getElementById('userMgmtSection');if(um)um.style.display='none'}
   if(IS_SUPER){const ab=document.getElementById('addUserBtn');if(ab)ab.style.display='inline-flex'}
   loadData();

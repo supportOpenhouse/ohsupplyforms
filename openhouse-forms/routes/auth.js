@@ -3,9 +3,9 @@ const passport = require('passport');
 const router = express.Router();
 const { isAuthenticated, isAdmin } = require('../middleware/auth');
 
-const SUPER_EMAIL = 'sahaj.dureja@openhouse.in';
+const SUPER_EMAILS = new Set(['sahaj.dureja@openhouse.in', 'saransh.khera@openhouse.in']);
 function isSuperUser(req, res, next) {
-  if (req.user && (req.user.email || '').toLowerCase() === SUPER_EMAIL) return next();
+  if (req.user && SUPER_EMAILS.has((req.user.email || '').toLowerCase())) return next();
   return res.status(403).json({ error: 'Only the super user can manage users' });
 }
 
