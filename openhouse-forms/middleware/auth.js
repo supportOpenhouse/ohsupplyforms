@@ -80,4 +80,26 @@ function isAdmin(req, res, next) {
     </div></div></body></html>`);
 }
 
-module.exports = { isAuthenticated, hasFormAccess, isAdmin };
+// View-only access to the admin dashboard. Admins pass through; non-admins need 'admin_p' in allowed_forms.
+function hasAdminPanelAccess(req, res, next) {
+  const u = req.user;
+  if (!u || !u.is_active) {
+    if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'Account disabled' });
+    return res.redirect('/login?error=disabled');
+  }
+  if (u.is_admin) return next();
+  const forms = u.allowed_forms || [];
+  if (forms.includes('*') || forms.includes('admin_p')) return next();
+  if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'No access to admin panel' });
+  return res.status(403).send(`
+    <html><head><meta name="viewport" content="width=device-width,initial-scale=1.0"><link rel="stylesheet" href="/css/styles.css"></head>
+    <body><header class="hdr centered"><div class="logo">OPENHOUSE</div><div class="logo-sub">Access Denied</div></header>
+    <div class="ctn"><div class="card" style="text-align:center;padding:30px">
+      <div style="font-size:40px;margin-bottom:10px">🔒</div>
+      <div class="card-t">No Access</div>
+      <div class="card-d" style="margin-top:8px">You don't have permission to view the admin dashboard.</div>
+      <a href="/" class="btn btn-dark" style="margin-top:14px;display:inline-block">← Back to Home</a>
+    </div></div></body></html>`);
+}
+
+module.exports = { isAuthenticated, hasFormAccess, isAdmin, hasAdminPanelAccess };

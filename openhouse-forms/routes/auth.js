@@ -3,6 +3,12 @@ const passport = require('passport');
 const router = express.Router();
 const { isAuthenticated, isAdmin } = require('../middleware/auth');
 
+const SUPER_EMAIL = 'sahaj.dureja@openhouse.in';
+function isSuperUser(req, res, next) {
+  if (req.user && (req.user.email || '').toLowerCase() === SUPER_EMAIL) return next();
+  return res.status(403).json({ error: 'Only the super user can manage users' });
+}
+
 module.exports = function(pool) {
 
   // ── Google OAuth — includes Gmail send scope ──
@@ -45,8 +51,8 @@ module.exports = function(pool) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // ── Admin: add user ──
-  router.post('/users', isAuthenticated, isAdmin, async (req, res) => {
+  // ── Admin: add user (super user only) ──
+  router.post('/users', isAuthenticated, isAdmin, isSuperUser, async (req, res) => {
     try {
       const { email, name, phone, allowed_forms, is_admin, is_manager, is_top_manager, can_assign, can_visit } = req.body;
       if (!email) return res.status(400).json({ error: 'Email required' });
@@ -62,8 +68,8 @@ module.exports = function(pool) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // ── Admin: update user ──
-  router.put('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
+  // ── Admin: update user (super user only) ──
+  router.put('/users/:id', isAuthenticated, isAdmin, isSuperUser, async (req, res) => {
     try {
       const { name, phone, allowed_forms, is_admin, is_manager, is_top_manager, can_assign, can_visit, is_active } = req.body;
       const { rows } = await pool.query(
@@ -78,8 +84,8 @@ module.exports = function(pool) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // ── Admin: delete user ──
-  router.delete('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
+  // ── Admin: delete user (super user only) ──
+  router.delete('/users/:id', isAuthenticated, isAdmin, isSuperUser, async (req, res) => {
     try {
       await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]);
       res.json({ success: true });

@@ -9,7 +9,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const pool = require('./db/pool');
 const { MIGRATION_SQL, COMPAT_SQL, LOGS_TABLE_SQL } = require('./db/migrate');
 const { SOCIETIES } = require('./db/seed');
-const { isAuthenticated, hasFormAccess, isAdmin } = require('./middleware/auth');
+const { isAuthenticated, hasFormAccess, isAdmin, hasAdminPanelAccess } = require('./middleware/auth');
 const { visibilityFilter } = require('./utils/visibility');
 
 const app = express();
@@ -80,7 +80,7 @@ app.use('/api/ocr', isAuthenticated, require('./routes/ocr')());
 // External integrations — uses X-Internal-Key header auth, NO session auth
 app.use('/api/external', require('./routes/external')(pool));
 
-app.get('/api/properties', isAuthenticated, isAdmin, async(req,res)=>{
+app.get('/api/properties', isAuthenticated, hasAdminPanelAccess, async(req,res)=>{
   try{const vis=visibilityFilter(req.user);const{rows}=await pool.query(`SELECT uid,city,locality,society_name,unit_no,tower_no,configuration,owner_broker_name,first_name,last_name,contact_no,
     assigned_by,field_exec,token_requested_by,is_dead,is_token_refunded,
     schedule_submitted_at,visit_submitted_at,token_submitted_at,token_is_draft,token_deal_submitted_at,ama_submitted_at,pending_request_submitted_at,final_submitted_at,cp_bill_submitted_at,listing_submitted_at,created_at
@@ -177,7 +177,7 @@ app.get('/pending-request', ...sendForm('pending-request.html'));
 app.get('/final', ...sendForm('final.html'));
 app.get('/listing', ...sendForm('listing.html'));
 app.get('/cp-bill', ...sendForm('cp-bill.html'));
-app.get('/admin', isAuthenticated, isAdmin, (_, r) => r.sendFile(path.join(__dirname, 'public/admin.html')));
+app.get('/admin', isAuthenticated, hasAdminPanelAccess, (_, r) => r.sendFile(path.join(__dirname, 'public/admin.html')));
 app.get('/my-properties', isAuthenticated, (_, r) => r.sendFile(path.join(__dirname, 'public/my-properties.html')));
 app.get('/', isAuthenticated, (_, r) => r.sendFile(path.join(__dirname, 'public/index.html')));
 

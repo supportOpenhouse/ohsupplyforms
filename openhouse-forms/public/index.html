@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     visible.forEach(f=>{
       grid.innerHTML+=`<a href="${f.href}" class="form-link"><div class="fl-num">${f.num}</div><div class="fl-body"><div class="fl-title">${f.title}</div></div><div class="fl-arrow">→</div></a>`;
     });
-    if(user.is_admin)document.getElementById('adminLink').style.display='block';
+    if(user.is_admin||allowed.includes('admin_p'))document.getElementById('adminLink').style.display='block';
   }catch(e){window.location.href='/login'}
 });
 </script>

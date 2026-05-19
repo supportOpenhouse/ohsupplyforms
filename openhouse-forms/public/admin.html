@@ -159,6 +159,8 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
 <script>
 const API=window.location.origin;let allData=[],filteredData=[],sortCol='',sortDir='desc';
 let dateFilterStart=null,dateFilterEnd=null,activeStatFilter='';
+let IS_ADMIN=false,IS_SUPER=false;
+const SUPER_EMAIL='sahaj.dureja@openhouse.in';
 let FORM_OPTS={sources:['CP','Direct'],configurations:[],directions:[],parkingOptions:[],furnishingLevels:[],banks:[],assignedByList:[],assignedToList:[],yesNo:['Yes','No']};
 fetch('/api/config').then(r=>r.json()).then(d=>{if(d&&d.options)FORM_OPTS={...FORM_OPTS,...d.options}}).catch(()=>{});
 
@@ -255,7 +257,8 @@ function render(){let d=[...allData];const q=document.getElementById('fQ').value
     const refundBadge=refunded&&!dead?'<span class="badge refund-badge">Cancelled PT</span>':'';
     const rowCls=dead?'row-dead':refunded?'row-refunded':'';
     const noActs=dead||refunded;
-    return`<tr class="${rowCls}"><td class="col-sn" style="font-size:10px;color:var(--tx3);text-align:center">${idx+1}</td><td class="col-uid" style="font-family:var(--mono);font-size:10px;font-weight:600"><a href="#" class="link uid-link" data-uid="${p.uid}">${p.uid}</a>${deadBadge}${refundBadge}</td>
+    const uidCell=IS_ADMIN?`<a href="#" class="link uid-link" data-uid="${p.uid}">${p.uid}</a>`:p.uid;
+    return`<tr class="${rowCls}"><td class="col-sn" style="font-size:10px;color:var(--tx3);text-align:center">${idx+1}</td><td class="col-uid" style="font-family:var(--mono);font-size:10px;font-weight:600">${uidCell}${deadBadge}${refundBadge}</td>
       <td class="col-stage"><span class="stage-pill ${stage.cls}">${stage.label}</span></td>
       <td class="col-act">${noActs?'<span style="font-size:10px">—</span>':acts.join(' ')}</td>
       <td class="col-city">${p.city||'—'}</td><td class="col-soc">${p.society_name||'—'}</td><td class="col-unit">${unitCol(p)||'—'}</td><td class="col-owner">${p.owner_broker_name||'—'}</td><td class="col-phone" style="font-family:var(--mono);font-size:10px">${p.contact_no||'—'}</td>
@@ -318,6 +321,7 @@ function exportCSV(){
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();document.getElementById('fQ').focus();document.getElementById('fQ').select()}});
 
 async function openModal(uid){
+  if(!IS_ADMIN)return;
   document.getElementById('modalTitle').textContent=uid;document.getElementById('modalBody').innerHTML='<div style="text-align:center;padding:30px;color:var(--tx3)">Loading...</div>';
   document.getElementById('uidModal').classList.add('open');
   try{const r=await fetch(`${API}/api/admin/property/${uid}`);if(!r.ok)throw new Error('Not found');const p=await r.json();buildModal(p)}
@@ -476,12 +480,21 @@ async function saveModal(){
 
 document.querySelectorAll('.tbl th[data-s]').forEach(th=>{th.addEventListener('click',()=>{const c=th.dataset.s;if(sortCol===c)sortDir=sortDir==='asc'?'desc':'asc';else{sortCol=c;sortDir='asc'}render()})});
 document.getElementById('fQ').addEventListener('input',render);document.getElementById('fCity').addEventListener('change',render);document.getElementById('fAb').addEventListener('change',render);document.getElementById('fSt').addEventListener('change',render);
-document.addEventListener('DOMContentLoaded',()=>{const todayStr=new Date().toISOString().split('T')[0];document.getElementById('fDateFrom').max=todayStr;document.getElementById('fDateTo').max=todayStr;loadData();const qUid=new URLSearchParams(window.location.search).get('uid');if(qUid)openModal(qUid)});
+document.addEventListener('DOMContentLoaded',async()=>{
+  const todayStr=new Date().toISOString().split('T')[0];
+  document.getElementById('fDateFrom').max=todayStr;document.getElementById('fDateTo').max=todayStr;
+  try{const r=await fetch('/auth/me');if(r.ok){const me=await r.json();IS_ADMIN=!!me.is_admin;IS_SUPER=(me.email||'').toLowerCase()===SUPER_EMAIL}}catch(e){}
+  if(!IS_ADMIN){const um=document.getElementById('userMgmtSection');if(um)um.style.display='none'}
+  if(IS_SUPER){const ab=document.getElementById('addUserBtn');if(ab)ab.style.display='inline-flex'}
+  loadData();
+  if(IS_ADMIN)loadUsers();
+  const qUid=new URLSearchParams(window.location.search).get('uid');if(qUid&&IS_ADMIN)openModal(qUid);
+});
 
-const FORM_KEYS=['schedule','visit','token-request','token-deal','ama-details','pending-request','cp-bill','final','listing'];
-const FORM_LABELS={schedule:'Schedule',visit:'Audit','token-request':'Token Req','token-deal':'Deal Terms','ama-details':'AMA Req','pending-request':'AMA Signed',final:'Key Handover','cp-bill':'CP Bill',listing:'Listing'};
+const FORM_KEYS=['schedule','visit','token-request','token-deal','ama-details','pending-request','cp-bill','final','listing','admin_p'];
+const FORM_LABELS={schedule:'Schedule',visit:'Audit','token-request':'Token Req','token-deal':'Deal Terms','ama-details':'AMA Req','pending-request':'AMA Signed',final:'Key Handover','cp-bill':'CP Bill',listing:'Listing',admin_p:'Admin Panel'};
 let allUsers=[],userSortCol='email',userSortDir='asc';
-async function loadUsers(){try{const r=await fetch('/auth/users');if(!r.ok)return;allUsers=await r.json();renderUsers()}catch(e){console.error(e)}}
+async function loadUsers(){if(!IS_ADMIN)return;try{const r=await fetch('/auth/users');if(!r.ok)return;allUsers=await r.json();renderUsers()}catch(e){console.error(e)}}
 function getUserRole(u){return u.is_admin?3:u.is_top_manager?2:u.is_manager?1:0}
 function renderUsers(){
   let sorted=[...allUsers];
@@ -499,7 +512,8 @@ function renderUsers(){
     const flags=[];
     if(u.can_assign)flags.push('<span class="badge" style="background:#ede9fe;color:#6d28d9">BD</span>');
     if(u.can_visit)flags.push('<span class="badge" style="background:#e0f2fe;color:#0369a1">Field</span>');
-    return`<tr><td style="font-size:10px;color:var(--tx3);text-align:center">${idx+1}</td><td>${u.email}</td><td>${u.name||'—'}</td><td style="font-family:var(--mono);font-size:10px">${u.phone||'—'}</td><td>${forms}</td><td>${roles.join(' ')||'—'}</td><td>${flags.join(' ')||'—'}</td><td>${u.is_active?'<span class="badge ok">Active</span>':'<span class="badge draft">Disabled</span>'}</td><td><!-- <button class="btn btn-out btn-sm" onclick="editUser(${u.id})" style="font-size:10px">✏ Edit</button> --></td></tr>`}).join('')}
+    const actionCell=IS_SUPER?`<button class="btn btn-out btn-sm" onclick="editUser(${u.id})" style="font-size:10px">✏ Edit</button>`:'';
+    return`<tr><td style="font-size:10px;color:var(--tx3);text-align:center">${idx+1}</td><td>${u.email}</td><td>${u.name||'—'}</td><td style="font-family:var(--mono);font-size:10px">${u.phone||'—'}</td><td>${forms}</td><td>${roles.join(' ')||'—'}</td><td>${flags.join(' ')||'—'}</td><td>${u.is_active?'<span class="badge ok">Active</span>':'<span class="badge draft">Disabled</span>'}</td><td>${actionCell}</td></tr>`}).join('')}
 // User table sort click handlers
 document.querySelectorAll('#userTbl th[data-us]').forEach(th=>{th.addEventListener('click',()=>{const c=th.dataset.us;if(userSortCol===c)userSortDir=userSortDir==='asc'?'desc':'asc';else{userSortCol=c;userSortDir='asc'}renderUsers()})});
 async function addUser(){const email=prompt('Enter email:');if(!email)return;const name=prompt('Name (optional):');const phone=prompt('Phone (10 digits, optional):');const allForms=confirm('ALL form access?');let forms=allForms?['*']:[];if(!allForms){FORM_KEYS.forEach(k=>{if(confirm(`Access to ${FORM_LABELS[k]}?`))forms.push(k)})}const admin=confirm('Admin?');const topMgr=!admin&&confirm('Top Manager? (gets all WhatsApp notifications)');const manager=!admin&&confirm('Manager? (manages a team)');const canAssign=confirm('Can Assign Visits? (appears in Assigned By)');const canVisit=confirm('Can Do Visits? (appears in Assigned To)');
@@ -514,13 +528,12 @@ async function editUser(id){const u=allUsers.find(x=>x.id===id);if(!u)return;
   const canVisit=confirm(`Can Do Visits? ${u.can_visit?'(Currently YES)':'(Currently NO)'}`);
   try{const r=await fetch(`/auth/users/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,phone,allowed_forms:forms,is_admin:admin,is_top_manager:topMgr,is_manager:manager,can_assign:canAssign,can_visit:canVisit})});const d=await r.json();if(!r.ok)throw new Error(d.error);loadUsers();alert('Updated!')}catch(e){alert('Error: '+e.message)}}
 async function toggleUser(id,active){if(!confirm(`${active?'Enable':'Disable'} this user?`))return;try{const r=await fetch(`/auth/users/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({is_active:active})});const d=await r.json();if(!r.ok)throw new Error(d.error);loadUsers()}catch(e){alert('Error: '+e.message)}}
-document.addEventListener('DOMContentLoaded',loadUsers);
 </script>
-<div class="ctn wide" style="margin-top:10px">
+<div class="ctn wide" id="userMgmtSection" style="margin-top:10px">
   <div class="card" style="padding:0;overflow:hidden">
     <div style="padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center">
       <div><strong style="font-size:14px">User Management</strong><div style="font-size:10px;color:var(--tx3)">Manage access & permissions</div></div>
-      <!-- <button class="btn btn-dark btn-sm" onclick="addUser()">+ Add User</button> -->
+      <button class="btn btn-dark btn-sm" id="addUserBtn" onclick="addUser()" style="display:none">+ Add User</button>
     </div>
     <div><table class="tbl" id="userTbl"><thead><tr><th style="width:42px">#</th><th data-us="email" style="cursor:pointer">Email</th><th data-us="name" style="cursor:pointer">Name</th><th>Phone</th><th>Form Access</th><th data-us="role" style="cursor:pointer">Role</th><th>Flags</th><th>Status</th><th></th></tr></thead>
     <tbody id="utb"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--tx3)">Loading...</td></tr></tbody></table></div>
