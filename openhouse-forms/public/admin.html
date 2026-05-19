@@ -156,6 +156,38 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="userModal">
+  <div class="modal-box" style="max-width:680px">
+    <div class="modal-hdr"><h3 id="userModalTitle">Edit User</h3><button class="btn btn-out btn-sm" onclick="closeUserModal()">✕</button></div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div><label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Email</label><input type="email" id="u_email" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px"></div>
+        <div><label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Name</label><input type="text" id="u_name" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px"></div>
+        <div><label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Phone (10 digits)</label><input type="tel" id="u_phone" maxlength="10" inputmode="numeric" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px;font-family:var(--mono)"></div>
+      </div>
+      <div class="prev-section-t">Form Access</div>
+      <label style="display:flex;gap:6px;align-items:center;margin-bottom:8px;font-size:12px;font-weight:600;cursor:pointer"><input type="checkbox" id="u_allForms" onchange="toggleAllForms()"> ALL forms (*)</label>
+      <div id="u_formChecks" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px"></div>
+      <div class="prev-section-t">Roles</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:12px">
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_admin" onchange="toggleAdmin()"> Admin</label>
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_topMgr"> Top Manager</label>
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_mgr"> Manager</label>
+      </div>
+      <div class="prev-section-t">Flags</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px">
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_canAssign"> Can Assign Visits (BD)</label>
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_canVisit"> Can Do Visits (Field)</label>
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_active"> Active</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span class="save-status" id="userSaveStatus"></span>
+      <button class="btn btn-out btn-sm" onclick="closeUserModal()">Cancel</button>
+      <button class="btn btn-dark btn-sm" id="userSaveBtn" onclick="saveUserModal()">💾 Save</button>
+    </div>
+  </div>
+</div>
 <script>
 const API=window.location.origin;let allData=[],filteredData=[],sortCol='',sortDir='desc';
 let dateFilterStart=null,dateFilterEnd=null,activeStatFilter='';
@@ -328,7 +360,7 @@ async function openModal(uid){
   catch(e){document.getElementById('modalBody').innerHTML=`<div style="text-align:center;padding:30px;color:var(--red)">${e.message}</div>`}}
 function closeModal(){document.getElementById('uidModal').classList.remove('open')}
 document.getElementById('uidModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();if(typeof closeUserModal==='function')closeUserModal()}});
 
 let currentModalUid=null;
 function pv(l,v){const isEmpty=v===null||v===undefined||v===''||v==='null';return`<div class="prev-item"><div class="pi-label">${l}</div><div class="pi-value${isEmpty?' empty':''}">${isEmpty?'Not filled':v}</div></div>`}
@@ -516,17 +548,65 @@ function renderUsers(){
     return`<tr><td style="font-size:10px;color:var(--tx3);text-align:center">${idx+1}</td><td>${u.email}</td><td>${u.name||'—'}</td><td style="font-family:var(--mono);font-size:10px">${u.phone||'—'}</td><td>${forms}</td><td>${roles.join(' ')||'—'}</td><td>${flags.join(' ')||'—'}</td><td>${u.is_active?'<span class="badge ok">Active</span>':'<span class="badge draft">Disabled</span>'}</td><td>${actionCell}</td></tr>`}).join('')}
 // User table sort click handlers
 document.querySelectorAll('#userTbl th[data-us]').forEach(th=>{th.addEventListener('click',()=>{const c=th.dataset.us;if(userSortCol===c)userSortDir=userSortDir==='asc'?'desc':'asc';else{userSortCol=c;userSortDir='asc'}renderUsers()})});
-async function addUser(){const email=prompt('Enter email:');if(!email)return;const name=prompt('Name (optional):');const phone=prompt('Phone (10 digits, optional):');const allForms=confirm('ALL form access?');let forms=allForms?['*']:[];if(!allForms){FORM_KEYS.forEach(k=>{if(confirm(`Access to ${FORM_LABELS[k]}?`))forms.push(k)})}const admin=confirm('Admin?');const topMgr=!admin&&confirm('Top Manager? (gets all WhatsApp notifications)');const manager=!admin&&confirm('Manager? (manages a team)');const canAssign=confirm('Can Assign Visits? (appears in Assigned By)');const canVisit=confirm('Can Do Visits? (appears in Assigned To)');
-  try{const r=await fetch('/auth/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,name,phone,allowed_forms:forms,is_admin:admin,is_top_manager:topMgr,is_manager:manager,can_assign:canAssign,can_visit:canVisit})});const d=await r.json();if(!r.ok)throw new Error(d.error);loadUsers();alert('Added!')}catch(e){alert('Error: '+e.message)}}
-async function editUser(id){const u=allUsers.find(x=>x.id===id);if(!u)return;
-  const name=prompt(`Name:`,u.name||'');const phone=prompt(`Phone (10 digits):`,u.phone||'');
-  const allForms=confirm(`Edit ${u.email}\n\nALL form access?`);let forms=allForms?['*']:[];if(!allForms){FORM_KEYS.forEach(k=>{if(confirm(`${FORM_LABELS[k]}? ${(u.allowed_forms||[]).includes(k)||(u.allowed_forms||[]).includes('*')?'(YES)':'(NO)'}`))forms.push(k)})}
-  const admin=confirm(`Admin? ${u.is_admin?'(Currently YES)':'(Currently NO)'}`);
-  const topMgr=!admin&&confirm(`Top Manager? ${u.is_top_manager?'(Currently YES)':'(Currently NO)'}`);
-  const manager=!admin&&confirm(`Manager? ${u.is_manager?'(Currently YES)':'(Currently NO)'}`);
-  const canAssign=confirm(`Can Assign Visits? ${u.can_assign?'(Currently YES)':'(Currently NO)'}`);
-  const canVisit=confirm(`Can Do Visits? ${u.can_visit?'(Currently YES)':'(Currently NO)'}`);
-  try{const r=await fetch(`/auth/users/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,phone,allowed_forms:forms,is_admin:admin,is_top_manager:topMgr,is_manager:manager,can_assign:canAssign,can_visit:canVisit})});const d=await r.json();if(!r.ok)throw new Error(d.error);loadUsers();alert('Updated!')}catch(e){alert('Error: '+e.message)}}
+let userModalMode='edit',userModalId=null;
+function addUser(){openUserModal(null)}
+function editUser(id){const u=allUsers.find(x=>x.id===id);if(u)openUserModal(u)}
+function openUserModal(user){
+  userModalMode=user?'edit':'add';userModalId=user?user.id:null;
+  document.getElementById('userModalTitle').textContent=user?`Edit User: ${user.email}`:'Add User';
+  const emailEl=document.getElementById('u_email');emailEl.value=user?.email||'';emailEl.readOnly=!!user;
+  document.getElementById('u_name').value=user?.name||'';
+  document.getElementById('u_phone').value=user?.phone||'';
+  const allowed=user?.allowed_forms||[];const hasAll=allowed.includes('*');
+  document.getElementById('u_formChecks').innerHTML=FORM_KEYS.map(k=>`<label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;padding:4px 6px;border:1px solid var(--bd);border-radius:6px"><input type="checkbox" class="u_form" value="${k}" ${allowed.includes(k)||hasAll?'checked':''}> ${FORM_LABELS[k]||k}</label>`).join('');
+  document.getElementById('u_allForms').checked=hasAll;
+  document.getElementById('u_admin').checked=!!user?.is_admin;
+  document.getElementById('u_topMgr').checked=!!user?.is_top_manager;
+  document.getElementById('u_mgr').checked=!!user?.is_manager;
+  document.getElementById('u_canAssign').checked=!!user?.can_assign;
+  document.getElementById('u_canVisit').checked=!!user?.can_visit;
+  document.getElementById('u_active').checked=user?!!user.is_active:true;
+  toggleAllForms();toggleAdmin();
+  document.getElementById('userSaveStatus').textContent='';
+  document.getElementById('userModal').classList.add('open');
+}
+function closeUserModal(){document.getElementById('userModal').classList.remove('open')}
+function toggleAllForms(){const all=document.getElementById('u_allForms').checked;document.querySelectorAll('.u_form').forEach(cb=>{cb.disabled=all;if(all)cb.checked=true})}
+function toggleAdmin(){const adm=document.getElementById('u_admin').checked;const tm=document.getElementById('u_topMgr'),mg=document.getElementById('u_mgr');if(adm){tm.checked=false;mg.checked=false}tm.disabled=adm;mg.disabled=adm}
+async function saveUserModal(){
+  const email=document.getElementById('u_email').value.trim();
+  if(!email){document.getElementById('userSaveStatus').textContent='✗ Email required';document.getElementById('userSaveStatus').style.color='var(--red)';return}
+  const phone=document.getElementById('u_phone').value.trim();
+  if(phone&&!/^\d{10}$/.test(phone)){document.getElementById('userSaveStatus').textContent='✗ Phone must be 10 digits';document.getElementById('userSaveStatus').style.color='var(--red)';return}
+  const allChecked=document.getElementById('u_allForms').checked;
+  const forms=allChecked?['*']:[...document.querySelectorAll('.u_form:checked')].map(cb=>cb.value);
+  const isAdmin=document.getElementById('u_admin').checked;
+  const body={
+    name:document.getElementById('u_name').value.trim(),
+    phone:phone||null,
+    allowed_forms:forms,
+    is_admin:isAdmin,
+    is_top_manager:!isAdmin&&document.getElementById('u_topMgr').checked,
+    is_manager:!isAdmin&&document.getElementById('u_mgr').checked,
+    can_assign:document.getElementById('u_canAssign').checked,
+    can_visit:document.getElementById('u_canVisit').checked,
+    is_active:document.getElementById('u_active').checked
+  };
+  if(userModalMode==='add')body.email=email;
+  const btn=document.getElementById('userSaveBtn'),st=document.getElementById('userSaveStatus');
+  btn.disabled=true;btn.textContent='Saving...';st.textContent='';
+  try{
+    const url=userModalMode==='add'?'/auth/users':`/auth/users/${userModalId}`;
+    const method=userModalMode==='add'?'POST':'PUT';
+    const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();if(!r.ok)throw new Error(d.error||'Save failed');
+    st.textContent='✓ Saved';st.style.color='var(--grn)';
+    loadUsers();
+    setTimeout(closeUserModal,600);
+  }catch(e){st.textContent='✗ '+e.message;st.style.color='var(--red)'}
+  finally{btn.disabled=false;btn.textContent='💾 Save'}
+}
+document.getElementById('userModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeUserModal()});
 async function toggleUser(id,active){if(!confirm(`${active?'Enable':'Disable'} this user?`))return;try{const r=await fetch(`/auth/users/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({is_active:active})});const d=await r.json();if(!r.ok)throw new Error(d.error);loadUsers()}catch(e){alert('Error: '+e.message)}}
 </script>
 <div class="ctn wide" id="userMgmtSection" style="margin-top:10px">
