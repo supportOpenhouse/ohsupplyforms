@@ -62,6 +62,33 @@ function appendCityCc(ccStr, city) {
   return existing.join(', ');
 }
 
+// Senders for whom we tolerate a cross-mailbox threadId mismatch by retrying
+// without Gmail's mailbox-scoped threadId. Their own threads (threadId belongs
+// to their mailbox) still send normally and appear threaded in their Sent
+// folder; only sends that Gmail rejects with a thread-not-found error fall
+// back to header-only threading (In-Reply-To/References).
+const THREAD_FALLBACK_USERS = new Set(['priyanka.sharma@openhouse.in']);
+function isThreadNotFoundError(e) {
+  const msg = e?.message || '';
+  const code = e?.code || e?.response?.status;
+  if (code === 404) return true;
+  return /thread/i.test(msg) && /(not found|invalid|does not exist)/i.test(msg);
+}
+async function sendWithThreadFallback(gmail, requestBody, fromEmail) {
+  try {
+    return await gmail.users.messages.send({ userId: 'me', requestBody });
+  } catch (e) {
+    if (requestBody.threadId
+        && THREAD_FALLBACK_USERS.has((fromEmail||'').toLowerCase())
+        && isThreadNotFoundError(e)) {
+      console.log(`Thread ${requestBody.threadId} not in ${fromEmail}'s mailbox — retrying without threadId`);
+      const { threadId, ...rest } = requestBody;
+      return await gmail.users.messages.send({ userId: 'me', requestBody: rest });
+    }
+    throw e;
+  }
+}
+
 // Test UIDs — override recipients per email type
 // To add test UIDs: add entries below. To disable: remove the UID key.
 const TEST_OVERRIDES = {
@@ -234,10 +261,7 @@ ${p.owner_property_doc_url ? `<p><strong>Property Ownership Document:</strong> <
   console.log(`MIME raw length: ${raw.length} chars. Sending via Gmail API...`);
   const reqBody = { raw };
   if (threadId) reqBody.threadId = threadId;
-  const result = await gmail.users.messages.send({
-    userId: 'me',
-    requestBody: reqBody
-  });
+  const result = await sendWithThreadFallback(gmail, reqBody, fromEmail);
 
   console.log(`Email sent! messageId: ${result.data.id}`);
   logger.logEmailSent(p.uid,'email_token_request',fromEmail,emailTo,emailCcFinal,result.data.id,subject).catch(()=>{});
@@ -319,7 +343,7 @@ ${signatoryPhone ? signatoryPhone + '<br>' : ''}Website - <a href="https://www.o
 
   const dtReqBody = { raw };
   if (threadId) dtReqBody.threadId = threadId;
-  const result = await gmail.users.messages.send({ userId: 'me', requestBody: dtReqBody });
+  const result = await sendWithThreadFallback(gmail, dtReqBody, fromEmail);
   console.log(`Deal Terms email sent! messageId: ${result.data.id}`);
   logger.logEmailSent(p.uid,'email_deal_terms',fromEmail,dtTo,dtCcFinal,result.data.id,subject).catch(()=>{});
   const realMsgId = await getMessageId(gmail, result.data.id);
@@ -425,7 +449,7 @@ ${photoLinks.length?`<p style="margin-top:16px"><strong>Attached Documents:</str
 
   const cpReqBody = { raw };
   if (threadId) cpReqBody.threadId = threadId;
-  const result = await gmail.users.messages.send({ userId: 'me', requestBody: cpReqBody });
+  const result = await sendWithThreadFallback(gmail, cpReqBody, fromEmail);
   console.log(`CP Bill email sent! messageId: ${result.data.id}`);
   logger.logEmailSent(p.uid,'email_cp_bill',fromEmail,cpTo,cpCcFinal,result.data.id,subject).catch(()=>{});
   const realMsgId = await getMessageId(gmail, result.data.id);
@@ -487,7 +511,7 @@ ${p.signed_ama_url ? `<p><strong>AMA Link:</strong> <a href="${p.signed_ama_url}
 
   const paReqBody = { raw };
   if (threadId) paReqBody.threadId = threadId;
-  const result = await gmail.users.messages.send({ userId: 'me', requestBody: paReqBody });
+  const result = await sendWithThreadFallback(gmail, paReqBody, fromEmail);
   console.log(`Pending amount email sent! messageId: ${result.data.id}`);
   logger.logEmailSent(p.uid,'email_pending_amount',fromEmail,paTo,paCcFinal,result.data.id,subject).catch(()=>{});
   const realMsgId = await getMessageId(gmail, result.data.id);
@@ -532,7 +556,7 @@ async function sendKeyHandoverEmail({ accessToken, refreshToken, fromEmail, send
 
   const khReqBody = { raw };
   if (threadId) khReqBody.threadId = threadId;
-  const result = await gmail.users.messages.send({ userId: 'me', requestBody: khReqBody });
+  const result = await sendWithThreadFallback(gmail, khReqBody, fromEmail);
   console.log(`Key handover email sent! messageId: ${result.data.id}`);
   logger.logEmailSent(p.uid,'email_key_handover',fromEmail,khTo,khCcFinal,result.data.id,subject).catch(()=>{});
   const realMsgId = await getMessageId(gmail, result.data.id);
