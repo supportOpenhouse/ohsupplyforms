@@ -549,7 +549,7 @@ function renderUsers(){
     if(u.can_assign)flags.push('<span class="badge" style="background:#ede9fe;color:#6d28d9">BD</span>');
     if(u.can_visit)flags.push('<span class="badge" style="background:#e0f2fe;color:#0369a1">Field</span>');
     const actionCell=IS_SUPER?`<button class="btn btn-out btn-sm" onclick="editUser(${u.id})" style="font-size:10px">✏ Edit</button>`:'';
-    return`<tr><td style="font-size:10px;color:var(--tx3);text-align:center">${idx+1}</td><td>${u.email}</td><td>${u.name||'—'}</td><td style="font-family:var(--mono);font-size:10px">${u.phone||'—'}</td><td>${forms}</td><td>${roles.join(' ')||'—'}</td><td>${flags.join(' ')||'—'}</td><td>${u.is_active?'<span class="badge ok">Active</span>':'<span class="badge draft">Disabled</span>'}</td><td>${actionCell}</td></tr>`}).join('')}
+    return`<tr><td style="font-size:10px;color:var(--tx3);text-align:center">${idx+1}</td><td>${u.email}</td><td>${u.name||'—'}</td><td style="font-family:var(--mono);font-size:10px">${u.phone||'—'}</td><td style="white-space:normal;word-break:break-word;line-height:1.6">${forms}</td><td style="white-space:normal;line-height:1.6">${roles.join(' ')||'—'}</td><td style="white-space:normal;line-height:1.6">${flags.join(' ')||'—'}</td><td>${u.is_active?'<span class="badge ok">Active</span>':'<span class="badge draft">Disabled</span>'}</td><td>${actionCell}</td></tr>`}).join('')}
 // User table sort click handlers
 document.querySelectorAll('#userTbl th[data-us]').forEach(th=>{th.addEventListener('click',()=>{const c=th.dataset.us;if(userSortCol===c)userSortDir=userSortDir==='asc'?'desc':'asc';else{userSortCol=c;userSortDir='asc'}renderUsers()})});
 let userModalMode='edit',userModalId=null;
@@ -633,7 +633,7 @@ async function toggleUser(id,active){if(!confirm(`${active?'Enable':'Disable'} t
       <div><strong style="font-size:14px">User Management</strong><div style="font-size:10px;color:var(--tx3)">Manage access & permissions</div></div>
       <button class="btn btn-dark btn-sm" id="addUserBtn" onclick="addUser()" style="display:none">+ Add User</button>
     </div>
-    <div><table class="tbl" id="userTbl"><thead><tr><th style="width:42px">#</th><th data-us="email" style="cursor:pointer">Email</th><th data-us="name" style="cursor:pointer">Name</th><th>Phone</th><th>Form Access</th><th data-us="role" style="cursor:pointer">Role</th><th>Flags</th><th>Status</th><th></th></tr></thead>
+    <div><table class="tbl" id="userTbl"><thead><tr><th style="width:42px">#</th><th data-us="email" style="cursor:pointer;width:180px">Email</th><th data-us="name" style="cursor:pointer;width:120px">Name</th><th style="width:80px">Phone</th><th style="width:360px">Form Access</th><th data-us="role" style="cursor:pointer;width:100px">Role</th><th style="width:65px">Flags</th><th style="width:65px">Status</th><th style="width:60px"></th></tr></thead>
     <tbody id="utb"><tr><td colspan="9" style="text-align:center;padding:20px;color:var(--tx3)">Loading...</td></tr></tbody></table></div>
   </div>
 </div>
