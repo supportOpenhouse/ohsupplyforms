@@ -171,14 +171,18 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
       <div class="prev-section-t">Roles</div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:12px">
         <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_admin" onchange="toggleAdmin()"> Admin</label>
-        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_topMgr"> Top Manager</label>
-        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_mgr"> Manager</label>
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_topMgr" onchange="toggleTopMgr()"> Top Manager</label>
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_mgr" onchange="toggleMgr()"> Manager</label>
       </div>
       <div class="prev-section-t">Flags</div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:12px">
         <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_canAssign"> Can Assign Visits (BD)</label>
         <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_canVisit"> Can Do Visits (Field)</label>
-        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_active"> Active</label>
+      </div>
+      <div class="prev-section-t">Status</div>
+      <div style="display:flex;gap:16px;align-items:center;font-size:12px">
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="u_active" onchange="updateStatusLabel()"> <span id="u_activeLabel" style="font-weight:600">Active</span></label>
+        <span style="font-size:10px;color:var(--tx3)">Uncheck to disable the account</span>
       </div>
     </div>
     <div class="modal-footer">
@@ -566,13 +570,25 @@ function openUserModal(user){
   document.getElementById('u_canAssign').checked=!!user?.can_assign;
   document.getElementById('u_canVisit').checked=!!user?.can_visit;
   document.getElementById('u_active').checked=user?!!user.is_active:true;
-  toggleAllForms();toggleAdmin();
+  toggleAllForms();reconcileRoles();updateStatusLabel();
   document.getElementById('userSaveStatus').textContent='';
   document.getElementById('userModal').classList.add('open');
 }
 function closeUserModal(){document.getElementById('userModal').classList.remove('open')}
 function toggleAllForms(){const all=document.getElementById('u_allForms').checked;document.querySelectorAll('.u_form').forEach(cb=>{cb.disabled=all;if(all)cb.checked=true})}
-function toggleAdmin(){const adm=document.getElementById('u_admin').checked;const tm=document.getElementById('u_topMgr'),mg=document.getElementById('u_mgr');if(adm){tm.checked=false;mg.checked=false}tm.disabled=adm;mg.disabled=adm}
+function updateStatusLabel(){const a=document.getElementById('u_active').checked;const l=document.getElementById('u_activeLabel');l.textContent=a?'Active':'Disabled';l.style.color=a?'var(--grn)':'var(--red)'}
+function reconcileRoles(){
+  const adm=document.getElementById('u_admin').checked;
+  const tm=document.getElementById('u_topMgr'),mg=document.getElementById('u_mgr');
+  if(adm)mg.checked=false;
+  if(tm.checked)mg.checked=false;
+  if(mg.checked)tm.checked=false;
+  mg.disabled=adm||tm.checked;
+  tm.disabled=mg.checked;
+}
+function toggleAdmin(){reconcileRoles()}
+function toggleTopMgr(){reconcileRoles()}
+function toggleMgr(){reconcileRoles()}
 async function saveUserModal(){
   const email=document.getElementById('u_email').value.trim();
   if(!email){document.getElementById('userSaveStatus').textContent='✗ Email required';document.getElementById('userSaveStatus').style.color='var(--red)';return}
@@ -581,13 +597,15 @@ async function saveUserModal(){
   const allChecked=document.getElementById('u_allForms').checked;
   const forms=allChecked?['*']:[...document.querySelectorAll('.u_form:checked')].map(cb=>cb.value);
   const isAdmin=document.getElementById('u_admin').checked;
+  const isTopMgr=document.getElementById('u_topMgr').checked;
+  const isMgr=!isAdmin&&!isTopMgr&&document.getElementById('u_mgr').checked;
   const body={
     name:document.getElementById('u_name').value.trim(),
     phone:phone||null,
     allowed_forms:forms,
     is_admin:isAdmin,
-    is_top_manager:!isAdmin&&document.getElementById('u_topMgr').checked,
-    is_manager:!isAdmin&&document.getElementById('u_mgr').checked,
+    is_top_manager:isTopMgr,
+    is_manager:isMgr,
     can_assign:document.getElementById('u_canAssign').checked,
     can_visit:document.getElementById('u_canVisit').checked,
     is_active:document.getElementById('u_active').checked
