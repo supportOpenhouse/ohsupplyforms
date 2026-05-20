@@ -212,7 +212,12 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='total_deposit') THEN ALTER TABLE properties ADD COLUMN total_deposit REAL; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='refundable_deposit') THEN ALTER TABLE properties ADD COLUMN refundable_deposit REAL; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='core_home_id') THEN ALTER TABLE properties ADD COLUMN core_home_id INTEGER; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_super') THEN ALTER TABLE users ADD COLUMN is_super BOOLEAN DEFAULT FALSE; END IF;
 END $$;
+-- One-time bootstrap: grant super-user to the original hardcoded emails if no super exists yet
+UPDATE users SET is_super=TRUE
+  WHERE LOWER(email) IN ('sahaj.dureja@openhouse.in','saransh.khera@openhouse.in')
+    AND NOT EXISTS (SELECT 1 FROM users WHERE is_super=TRUE);
 `;
 
 const LOGS_TABLE_SQL = `
