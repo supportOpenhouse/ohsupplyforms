@@ -548,7 +548,6 @@ function renderUsers(){
     const flags=[];
     if(u.can_assign)flags.push('<span class="badge" style="background:#ede9fe;color:#6d28d9">BD</span>');
     if(u.can_visit)flags.push('<span class="badge" style="background:#e0f2fe;color:#0369a1">Field</span>');
-    if(u.is_super)flags.push('<span class="badge" style="background:#fee2e2;color:#b91c1c">Super</span>');
     const actionCell=IS_SUPER?`<button class="btn btn-out btn-sm" onclick="editUser(${u.id})" style="font-size:10px">✏ Edit</button>`:'';
     return`<tr><td style="font-size:10px;color:var(--tx3);text-align:center">${idx+1}</td><td>${u.email}</td><td>${u.name||'—'}</td><td style="font-family:var(--mono);font-size:10px">${u.phone||'—'}</td><td style="white-space:normal;word-break:break-word;line-height:1.6">${forms}</td><td style="white-space:normal;line-height:1.6">${roles.join(' ')||'—'}</td><td style="white-space:normal;line-height:1.6">${flags.join(' ')||'—'}</td><td>${u.is_active?'<span class="badge ok">Active</span>':'<span class="badge draft">Disabled</span>'}</td><td>${actionCell}</td></tr>`}).join('')}
 // User table sort click handlers
