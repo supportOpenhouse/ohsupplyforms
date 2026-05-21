@@ -210,7 +210,10 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
   const _city=(d?.city||'').toLowerCase();
   const _cityCc=_city.includes('gurgaon')||_city.includes('gurugram')?'shashank.kumar@openhouse.in':_city.includes('ghaziabad')||_city.includes('gzb')?'animesh.singh@openhouse.in':_city.includes('noida')?'abhishek.rathore@openhouse.in':null;
   const ccList=['supply@openhouse.in','bookings@openhouse.in','accounts@openhouse.in',document.getElementById('dBrokerEmail').value,_cityCc].filter(Boolean);
-  document.getElementById('emailRecipients').innerHTML=`<strong>To:</strong> ${toList.join(', ')}${ccList.length?'<br><strong>Cc:</strong> '+ccList.join(', '):''}`;
+  const _existCc=[...toList,...ccList].map(x=>(x||'').trim().toLowerCase());
+  const _staffCc=[d?.assigned_by_email,d?.token_requested_by_email].filter(Boolean).filter(e=>!_existCc.includes(e.toLowerCase()));
+  const ccListFull=[...ccList,..._staffCc];
+  document.getElementById('emailRecipients').innerHTML=`<strong>To:</strong> ${toList.join(', ')}${ccListFull.length?'<br><strong>Cc:</strong> '+ccListFull.join(', '):''}`;
 
   document.getElementById('emailPreviewBody').innerHTML=`
 <p><strong>Subject:</strong> ${currentUid} - Openhouse Offer | ${propData?.tower_no||''} ${propData?.unit_no||''} - ${propData?.society_name||'Property'} | ${sellerName}</p>

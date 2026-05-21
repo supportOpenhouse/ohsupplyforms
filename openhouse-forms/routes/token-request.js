@@ -7,7 +7,10 @@ const{notifyTokenRequest}=require('../utils/whatsapp');
 
 module.exports=function(pool){
   router.get('/prefill/:uid',async(req,res)=>{
-    try{const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
+    try{const{rows}=await pool.query(`SELECT p.*,
+        (SELECT email FROM users WHERE LOWER(name)=LOWER(p.assigned_by) AND is_active=TRUE LIMIT 1) AS assigned_by_email,
+        (SELECT email FROM users WHERE LOWER(name)=LOWER(p.token_requested_by) AND is_active=TRUE LIMIT 1) AS token_requested_by_email
+      FROM properties p WHERE p.uid=$1`,[req.params.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});res.json(rows[0])}catch(e){res.status(500).json({error:e.message})}
   });
   router.get('/uids',async(req,res)=>{

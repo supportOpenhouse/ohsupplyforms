@@ -539,7 +539,10 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
   if(docUrls.cp_ama_signed)photoLines.push(`• <a href="${docUrls.cp_ama_signed}" target="_blank">AMA Signed (PDF)</a>`);
   const _city=(loadedData?.city||'').toLowerCase();
   const _cityCc=_city.includes('gurgaon')||_city.includes('gurugram')?'shashank.kumar@openhouse.in':_city.includes('ghaziabad')||_city.includes('gzb')?'animesh.singh@openhouse.in':_city.includes('noida')?'abhishek.rathore@openhouse.in':null;
-  const _cpCc=['supply@openhouse.in',_cityCc].filter(Boolean).join(', ');
+  const _cpCcArr=['supply@openhouse.in',_cityCc].filter(Boolean);
+  const _existCc=[..._cpCcArr,'prashant@openhouse.in','accounts@openhouse.in'].map(x=>x.trim().toLowerCase());
+  const _staffCc=[loadedData?.assigned_by_email,loadedData?.token_requested_by_email].filter(Boolean).filter(e=>!_existCc.includes(e.toLowerCase()));
+  const _cpCc=[..._cpCcArr,..._staffCc].join(', ');
   const html=`<div style="font-size:13px;line-height:1.8">
 <p><strong>To:</strong> prashant@openhouse.in, accounts@openhouse.in</p>
 <p><strong>CC:</strong> ${_cpCc}</p>

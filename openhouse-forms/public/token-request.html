@@ -703,9 +703,12 @@ function showEmailPreview(){
   const _cityCc=city.includes('gurgaon')||city.includes('gurugram')?'shashank.kumar@openhouse.in':city.includes('ghaziabad')||city.includes('gzb')?'animesh.singh@openhouse.in':city.includes('noida')?'abhishek.rathore@openhouse.in':null;
   const _baseCc=isNoidaOrGzb?'supply@openhouse.in, bookings@openhouse.in, shrey.vohra@openhouse.in':'supply@openhouse.in, bookings@openhouse.in';
   const ccStr=_cityCc?`${_baseCc}, ${_cityCc}`:_baseCc;
+  const _existCc=[...ccStr.split(','),'accounts@openhouse.in','rahool@openhouse.in'].map(x=>x.trim().toLowerCase());
+  const _staffCc=[p.assigned_by_email,p.token_requested_by_email].filter(Boolean).filter(e=>!_existCc.includes(e.toLowerCase()));
+  const ccStrFull=[ccStr,..._staffCc].filter(Boolean).join(', ');
   const html=`<div style="font-size:13px;line-height:1.8">
 <p><strong>To:</strong> accounts@openhouse.in, rahool@openhouse.in</p>
-<p><strong>CC:</strong> ${ccStr}</p>
+<p><strong>CC:</strong> ${ccStrFull}</p>
 <p><strong>Subject:</strong> ${currentUid} - Token Request | ${p.tower_no||''} ${p.unit_no||''} - ${p.society_name||'Property'} | ${ownerName}</p>
 <hr style="border:none;border-top:1px solid var(--bd);margin:10px 0">
 <p>Greetings of the day!</p>

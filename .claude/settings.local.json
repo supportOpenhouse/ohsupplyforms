@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep -n \"form-name\\\\|form.*Internal\\\\|Deal Terms\\\\|Visit.*Schedule\\\\|Visit Form.*Audit\" \"/c/Users/Administrator/Documents/GitHub/backend-form-automation-oh/openhouse-forms/public\"/*.html)"
+      "Bash(grep -n \"form-name\\\\|form.*Internal\\\\|Deal Terms\\\\|Visit.*Schedule\\\\|Visit Form.*Audit\" \"/c/Users/Administrator/Documents/GitHub/backend-form-automation-oh/openhouse-forms/public\"/*.html)",
+      "Bash(node -c routes/auth.js)",
+      "Bash(node -c db/migrate.js)"
     ]
   }
 }

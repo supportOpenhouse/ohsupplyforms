@@ -99,7 +99,10 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
   const toList=[propData.owner_email,propData.co_owner_email,propData.third_owner_email].filter(Boolean).join(', ');
   const _city=(propData?.city||'').toLowerCase();
   const _cityCc=_city.includes('gurgaon')||_city.includes('gurugram')?'shashank.kumar@openhouse.in':_city.includes('ghaziabad')||_city.includes('gzb')?'animesh.singh@openhouse.in':_city.includes('noida')?'abhishek.rathore@openhouse.in':null;
-  const ccList=['supply@openhouse.in','bookings@openhouse.in','accounts@openhouse.in',propData.broker_email,_cityCc].filter(Boolean).join(', ');
+  const _ccArr=['supply@openhouse.in','bookings@openhouse.in','accounts@openhouse.in',propData.broker_email,_cityCc].filter(Boolean);
+  const _existCc=[...toList.split(','),..._ccArr].map(x=>x.trim().toLowerCase());
+  const _staffCc=[propData?.assigned_by_email,propData?.token_requested_by_email].filter(Boolean).filter(e=>!_existCc.includes(e.toLowerCase()));
+  const ccList=[..._ccArr,..._staffCc].join(', ');
   const html=`<div style="font-size:13px;line-height:1.8">
 <p><strong>To:</strong> ${toList}</p>
 ${ccList?`<p><strong>CC:</strong> ${ccList}</p>`:''}

@@ -39,7 +39,10 @@ module.exports=function(pool){
   });
 
   router.get('/prefill/:uid',async(req,res)=>{
-    try{const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
+    try{const{rows}=await pool.query(`SELECT p.*,
+        (SELECT email FROM users WHERE LOWER(name)=LOWER(p.assigned_by) AND is_active=TRUE LIMIT 1) AS assigned_by_email,
+        (SELECT email FROM users WHERE LOWER(name)=LOWER(p.token_requested_by) AND is_active=TRUE LIMIT 1) AS token_requested_by_email
+      FROM properties p WHERE p.uid=$1`,[req.params.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
       const p=rows[0];if(!p.pending_request_submitted_at)return res.status(400).json({error:'AMA Acknowledgement (Form 6) must be submitted first'});
       res.json(p)}catch(e){res.status(500).json({error:e.message})}

@@ -45,6 +45,31 @@ async function addManagerEmails(toStr, ccStr, fromEmail) {
   } catch (e) { console.error('addManagerEmails error:', e.message); return ccStr; }
 }
 
+// Add the property's Assigned By + Token By staff to CC by resolving their
+// names (stored on the property) to emails via the users table.
+async function addStaffEmails(toStr, ccStr, property) {
+  if (!_pool) return ccStr;
+  try {
+    const names = [property?.assigned_by, property?.token_requested_by]
+      .map(n => (n||'').trim().toLowerCase()).filter(Boolean);
+    if (!names.length) return ccStr;
+
+    const { rows } = await _pool.query(
+      `SELECT email FROM users WHERE LOWER(name) = ANY($1) AND is_active=TRUE`,
+      [names]
+    );
+
+    const existing = (ccStr || '').split(',').map(e => e.trim()).filter(Boolean);
+    const blocked = [...existing, ...(toStr||'').split(',').map(e => e.trim())]
+      .map(e => e.toLowerCase()).filter(Boolean);
+    const toAdd = rows.map(r => r.email).filter(e => e && !blocked.includes(e.toLowerCase()));
+    if (!toAdd.length) return existing.join(', ');
+
+    console.log(`Staff CC added: ${toAdd.join(', ')}`);
+    return [...existing, ...toAdd].join(', ');
+  } catch (e) { console.error('addStaffEmails error:', e.message); return ccStr; }
+}
+
 // City-based CC routing — cluster heads receive a copy of all property emails for their city
 function getCityCc(city) {
   const c = (city || '').toLowerCase();
@@ -246,7 +271,7 @@ ${p.owner_property_doc_url ? `<p><strong>Property Ownership Document:</strong> <
   const tokenCc = isNoidaOrGzb ? 'supply@openhouse.in, bookings@openhouse.in, shrey.vohra@openhouse.in' : 'supply@openhouse.in, bookings@openhouse.in';
   const tokenCcWithCity = appendCityCc(tokenCc, p.city);
   const {to:emailTo,cc:emailCc}=testOverride(p.uid,'token_request','accounts@openhouse.in, rahool@openhouse.in',tokenCcWithCity,fromEmail);
-  const emailCcFinal = await addManagerEmails(emailTo, emailCc, fromEmail);
+  const emailCcFinal = await addStaffEmails(emailTo, await addManagerEmails(emailTo, emailCc, fromEmail), p);
   const { raw, msgId } = buildMimeEmail({
     from: fromEmail,
     to: emailTo,
@@ -329,7 +354,7 @@ ${signatoryPhone ? signatoryPhone + '<br>' : ''}Website - <a href="https://www.o
 
   console.log('Building MIME email with PDF attachment...');
   const {to:dtTo,cc:dtCc}=testOverride(p.uid,'deal_terms',toList.join(', '),dtCcStr||null,fromEmail);
-  const dtCcFinal = await addManagerEmails(dtTo, dtCc, fromEmail);
+  const dtCcFinal = await addStaffEmails(dtTo, await addManagerEmails(dtTo, dtCc, fromEmail), p);
   const { raw, msgId } = buildMimeEmail({
     from: fromEmail,
     to: dtTo,
@@ -437,7 +462,7 @@ ${photoLinks.length?`<p style="margin-top:16px"><strong>Attached Documents:</str
 
   const cpCcStr = appendCityCc('supply@openhouse.in', p.city);
   const {to:cpTo,cc:cpCc}=testOverride(p.uid,'cp_bill','prashant@openhouse.in,accounts@openhouse.in',cpCcStr,fromEmail);
-  const cpCcFinal = await addManagerEmails(cpTo, cpCc, fromEmail);
+  const cpCcFinal = await addStaffEmails(cpTo, await addManagerEmails(cpTo, cpCc, fromEmail), p);
   const { raw, msgId } = buildSimpleMimeEmail({
     from: fromEmail,
     to: cpTo,
@@ -499,7 +524,7 @@ ${p.signed_ama_url ? `<p><strong>AMA Link:</strong> <a href="${p.signed_ama_url}
   const paCcStr = appendCityCc(ccList.join(', '), p.city);
 
   const {to:paTo,cc:paCc}=testOverride(p.uid,'pending_amount',toList.join(', '),paCcStr||'',fromEmail);
-  const paCcFinal = await addManagerEmails(paTo, paCc, fromEmail);
+  const paCcFinal = await addStaffEmails(paTo, await addManagerEmails(paTo, paCc, fromEmail), p);
   const { raw, msgId } = buildSimpleMimeEmail({
     from: fromEmail,
     to: paTo,
@@ -544,7 +569,7 @@ async function sendKeyHandoverEmail({ accessToken, refreshToken, fromEmail, send
   const khCcStr = appendCityCc(ccList.join(', '), p.city);
 
   const {to:khTo,cc:khCc}=testOverride(p.uid,'key_handover',toList.join(', '),khCcStr||null,fromEmail);
-  const khCcFinal = await addManagerEmails(khTo, khCc, fromEmail);
+  const khCcFinal = await addStaffEmails(khTo, await addManagerEmails(khTo, khCc, fromEmail), p);
   const { raw, msgId } = buildSimpleMimeEmail({
     from: fromEmail,
     to: khTo,
