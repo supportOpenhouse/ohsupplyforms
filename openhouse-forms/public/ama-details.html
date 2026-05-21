@@ -273,7 +273,8 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   if(docsVerifyVisible&&!document.getElementById('docsVerifyDd').value){missingPropDocs.push('Documents Verification Done (select mode)')}
   if(missingPropDocs.length){toast(`${missingPropDocs[0]}`,'err');return}
   const body={uid:currentUid};
-  if(docsVerifyVisible)body.docs_verification_mode=document.getElementById('docsVerifyDd').value||null;
+  // Loan exists (Form 3 has_loan=Yes) → field hidden, send null to clear the DB column
+  body.docs_verification_mode=docsVerifyVisible?(document.getElementById('docsVerifyDd').value||null):null;
   body.ama_prop_docs=JSON.stringify(propDocState);
 
   submitBtn(document.getElementById('submitBtn'),async()=>{

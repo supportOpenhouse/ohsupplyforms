@@ -20,7 +20,7 @@ module.exports=function(pool){
       if(!rows.length)return res.status(404).json({error:'UID not found'});
       await pool.query(`UPDATE properties SET
         ama_prop_docs=$1,
-        docs_verification_mode=COALESCE($2,docs_verification_mode),
+        docs_verification_mode=$2,
         ama_submitted_at=NOW(),updated_at=NOW()
         WHERE uid=$3`,
         [d.ama_prop_docs||'{}',
