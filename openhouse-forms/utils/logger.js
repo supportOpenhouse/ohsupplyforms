@@ -53,4 +53,13 @@ function logWhatsApp(uid, templateName, recipients, actorEmail, actorName) {
   return log(uid, action, 'whatsapp', actorEmail || null, actorName || null, { template: templateName, recipients: recipients || [] });
 }
 
-module.exports = { init, log, logFormSubmit, logEmailSent, logWhatsApp, logStatusChange, logAssignment, logScheduleChange, logAdminEdit };
+// ── User Management — action: user_created | user_updated | user_deleted ──
+function logUserChange(action, targetUser, changes, actorEmail, actorName) {
+  return log(null, action, 'user_mgmt', actorEmail || null, actorName || null, {
+    target_email: targetUser?.email || null,
+    target_id: targetUser?.id || null,
+    changes: changes || null,
+  });
+}
+
+module.exports = { init, log, logFormSubmit, logEmailSent, logWhatsApp, logStatusChange, logAssignment, logScheduleChange, logAdminEdit, logUserChange };
