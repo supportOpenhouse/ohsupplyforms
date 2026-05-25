@@ -30,6 +30,7 @@ module.exports=function(pool){
         initial_period=$12,rent_payable_initial_period=$13,
         grace_period=$14,rent_payable_grace_period=$15,
         documents_available=$16,token_remarks=$17,token_is_draft=$18,
+        has_loan=$41,
         token_remarks_printed=$20,co_owner=$21,co_owner_number=$27,
         owner_pan_url=$28,owner_aadhaar_front_url=$29,owner_aadhaar_back_url=$30,owner_property_doc_url=$31,
         total_deposit=$32,refundable_deposit=$33,
@@ -52,7 +53,8 @@ module.exports=function(pool){
          d.total_deposit!=null&&d.total_deposit!==''?parseFloat(d.total_deposit):null,d.refundable_deposit!=null&&d.refundable_deposit!==''?parseFloat(d.refundable_deposit):null,
          d.ama_pg_non_forfeitable||null,d.ama_beta_max_pct!=null&&d.ama_beta_max_pct!==''?parseFloat(d.ama_beta_max_pct):null,d.ama_beta_min_pct!=null&&d.ama_beta_min_pct!==''?parseFloat(d.ama_beta_min_pct):null,
          d.ama_maint_alignment||null,d.ama_elec_alignment||null,d.ama_special_terms||null,
-         d.ama_payment_structure||null]);
+         d.ama_payment_structure||null,
+         d.has_loan||null]);
       res.json({success:true,uid:d.uid,draft:isDraft});
       logger.logFormSubmit(d.uid,'token_request_submitted',3,req.user?.email,req.user?.name,isDraft).catch(()=>{});
     }catch(e){console.error('TokenReq:',e);res.status(500).json({error:e.message})}

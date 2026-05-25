@@ -116,6 +116,13 @@
         <div class="fg"><label>Rent Payable (in ₹) <span class="req">*</span></label><input type="text" inputmode="numeric" name="rent_payable_grace_period" id="rgp" oninput="this.value=this.value.replace(/\D/g,'')" required><div class="err-msg">Required</div></div></div>
       <label class="na-toggle"><input type="checkbox" id="rgp_na" onchange="toggleNA('rgp','No rent');document.getElementById('rgp').required=!this.checked"><span>No rent payable during grace period</span></label></div>
 
+    <div class="card"><div class="card-t">Loan</div>
+      <div class="fg"><label>Any Loan? <span class="req">*</span></label>
+        <div class="radios"><label><input type="radio" name="has_loan" value="Yes" id="loanYes"><span>Yes</span></label><label><input type="radio" name="has_loan" value="No" id="loanNo"><span>No</span></label></div>
+        <div style="font-size:10px;color:var(--tx3);margin-top:4px">Loan details will be collected in the AMA Details form.</div>
+      </div>
+    </div>
+
     <div class="card"><div class="card-t">Deal Summary</div>
       <div class="fg"><label>Performance Guarantee Forfeitable <span class="req">*</span></label>
         <div class="radios"><label><input type="radio" name="ama_pg_non_forfeitable" value="Yes"><span>Yes</span></label><label><input type="radio" name="ama_pg_non_forfeitable" value="No"><span>No</span></label></div></div>
@@ -403,6 +410,9 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     sv('initial_period',d.initial_period);sv('grace_period',d.grace_period);
     if(d.rent_payable_initial_period&&String(d.rent_payable_initial_period).toUpperCase()==='N/A'){document.getElementById('rip_na').checked=true;toggleNA('rip','No rent');document.getElementById('rip').required=false}else sv('rent_payable_initial_period',d.rent_payable_initial_period);
     if(d.rent_payable_grace_period&&String(d.rent_payable_grace_period).toUpperCase()==='N/A'){document.getElementById('rgp_na').checked=true;toggleNA('rgp','No rent');document.getElementById('rgp').required=false}else sv('rent_payable_grace_period',d.rent_payable_grace_period);
+    // Loan Yes/No prefill (details collected in Form 5)
+    if(d.has_loan){const rb=document.querySelector(`input[name="has_loan"][value="${d.has_loan}"]`);if(rb)rb.checked=true}
+    else{document.querySelectorAll('input[name="has_loan"]').forEach(x=>x.checked=false)}
     // Deal Summary prefill
     if(d.ama_pg_non_forfeitable){const rb=document.querySelector(`input[name="ama_pg_non_forfeitable"][value="${d.ama_pg_non_forfeitable}"]`);if(rb)rb.checked=true}
     if(d.ama_payment_structure){const rb=document.querySelector(`input[name="ama_payment_structure"][value="${d.ama_payment_structure}"]`);if(rb)rb.checked=true}
@@ -428,10 +438,11 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     st.className='pf-st show ok';st.textContent=`Loaded: ${uid}${d.token_is_draft?' (Draft)':''}`;
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('tokenForm').style.display='none'}}
 function collectBody(){const fd=new FormData(document.getElementById('tokenForm'));const body=Object.fromEntries(fd.entries());
+  body.has_loan=getRadio('has_loan')||null;
   body.documents_available=docsMsel.getSelected();
   if(document.getElementById('rip').dataset.na==='1')body.rent_payable_initial_period='N/A';
   if(document.getElementById('rgp').dataset.na==='1')body.rent_payable_grace_period='N/A';
-  const skipKeys=['documents_available','uid','cheque_image_url','cheque_bank_name','cheque_ifsc','registry_status','occupancy_status','token_remarks','token_remarks_printed','token_requested_by','rent_payable_initial_period','rent_payable_grace_period','key_handover_date','other_documents_text','unit_no','tower_no','floor','area_sqft','demand_price','co_owner','co_owner_number','performance_guarantee','total_deposit','refundable_deposit'];
+  const skipKeys=['documents_available','uid','cheque_image_url','cheque_bank_name','cheque_ifsc','registry_status','occupancy_status','token_remarks','token_remarks_printed','token_requested_by','rent_payable_initial_period','rent_payable_grace_period','key_handover_date','other_documents_text','unit_no','tower_no','floor','area_sqft','demand_price','co_owner','co_owner_number','performance_guarantee','total_deposit','refundable_deposit','has_loan'];
   for(const k of Object.keys(body)){if(typeof body[k]==='string'&&!skipKeys.includes(k))body[k]=body[k].replace(/,/g,'')}
   body.performance_guarantee=body.performance_guarantee!==''?parseFloat(String(body.performance_guarantee).replace(/,/g,'')):null;
   body.total_deposit=body.total_deposit!==''?parseFloat(String(body.total_deposit).replace(/,/g,'')):null;
@@ -450,6 +461,7 @@ document.getElementById('draftBtn').addEventListener('click',()=>{const body=col
     const res=await r.json();if(!r.ok)throw new Error(res.error);toast('Draft saved!','ok')})});
 document.getElementById('submitBtn').addEventListener('click',()=>{
   const{valid,missing}=validateForm('tokenForm');if(!valid){toast(`Missing: ${missing.slice(0,3).join(', ')}`,'err');return}
+  if(!getRadio('has_loan')){toast('Select Any Loan?','err');return}
   const docs=JSON.parse(docsMsel.getSelected()||'[]');if(!docs.length){toast('Select at least one document','err');return}
   // Validate owner documents — skip if already submitted (docs already in DB)
   const alreadySubmitted=!!(loadedData&&loadedData.token_submitted_at&&!loadedData.token_is_draft);

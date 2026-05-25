@@ -52,22 +52,18 @@
       <div class="fg"><label>Type of Agreement</label><input type="text" value="AMA" class="pre" readonly></div>
     </div>
 
-    <!-- Card: Loan Details -->
-    <div class="card"><div class="card-t">Loan Details</div>
-      <div class="fg"><label>Any Loan? <span class="req">*</span></label>
-        <div class="radios"><label><input type="radio" name="has_loan" value="Yes" id="loanYes"><span>Yes</span></label><label><input type="radio" name="has_loan" value="No" id="loanNo"><span>No</span></label></div></div>
-      <div id="loanFields" style="display:none">
-        <div class="r2">
-          <div class="fg"><label>Applicant Name <span class="req">*</span></label><input type="text" name="loan_applicant_name" id="loanApplicant"></div>
-          <div class="fg"><label>Co-applicant Name</label><input type="text" name="loan_co_applicant_name" id="loanCoApplicant"></div>
-        </div>
-        <div class="fg"><label>Bank Name <span class="req">*</span></label><select name="bank_name_loan" id="selBankLoan"><option value="">Select bank...</option></select>
-          <input type="text" name="bank_name_loan_other" id="bankOther" style="display:none;margin-top:4px" placeholder="Specify bank name"></div>
-        <div class="fg"><label>Loan A/C Number <span class="req">*</span></label><input type="text" name="loan_account_number" id="loanAc"></div>
-        <div class="fg"><label>Outstanding Loan (in ₹) <span class="req">*</span></label><input type="text" inputmode="numeric" name="outstanding_loan" id="loanAmt" oninput="this.value=this.value.replace(/\D/g,'')"></div>
-        <div class="fg"><label>Willing to pay loan? <span class="req">*</span></label>
-          <div class="radios"><label><input type="radio" name="loan_pay_willingness" value="Yes"><span>Yes</span></label><label><input type="radio" name="loan_pay_willingness" value="No"><span>No</span></label></div></div>
+    <!-- Card: Loan Details (visible only when Form 3 has_loan=Yes) -->
+    <div class="card" id="loanDetailsCard" style="display:none"><div class="card-t">Loan Details</div>
+      <div class="r2">
+        <div class="fg"><label>Applicant Name <span class="req">*</span></label><input type="text" name="loan_applicant_name" id="loanApplicant"></div>
+        <div class="fg"><label>Co-applicant Name</label><input type="text" name="loan_co_applicant_name" id="loanCoApplicant"></div>
       </div>
+      <div class="fg"><label>Bank Name <span class="req">*</span></label><select name="bank_name_loan" id="selBankLoan"><option value="">Select bank...</option></select>
+        <input type="text" name="bank_name_loan_other" id="bankOther" style="display:none;margin-top:4px" placeholder="Specify bank name"></div>
+      <div class="fg"><label>Loan A/C Number <span class="req">*</span></label><input type="text" name="loan_account_number" id="loanAc"></div>
+      <div class="fg"><label>Outstanding Loan (in ₹) <span class="req">*</span></label><input type="text" inputmode="numeric" name="outstanding_loan" id="loanAmt" oninput="this.value=this.value.replace(/\D/g,'')"></div>
+      <div class="fg"><label>Willing to pay loan? <span class="req">*</span></label>
+        <div class="radios"><label><input type="radio" name="loan_pay_willingness" value="Yes"><span>Yes</span></label><label><input type="radio" name="loan_pay_willingness" value="No"><span>No</span></label></div></div>
     </div>
 
     <!-- Card: Loan Documents -->
@@ -151,9 +147,10 @@ async function uploadLoanDoc(input,key){
 }
 
 function applyLoanVisibility(hasLoan){
-  document.getElementById('loanFields').style.display=hasLoan==='Yes'?'block':'none';
-  document.getElementById('loanDocsCard').style.display=hasLoan==='Yes'?'block':'none';
-  document.getElementById('docsVerifyRow').style.display=hasLoan==='Yes'?'none':'flex';
+  const show=hasLoan==='Yes';
+  document.getElementById('loanDetailsCard').style.display=show?'block':'none';
+  document.getElementById('loanDocsCard').style.display=show?'block':'none';
+  document.getElementById('docsVerifyRow').style.display=show?'none':'flex';
 }
 
 // Property document definitions
@@ -254,25 +251,6 @@ document.addEventListener('DOMContentLoaded',async()=>{
     const bankSel=document.getElementById('selBankLoan');
     banks.forEach(b=>{bankSel.innerHTML+=`<option value="${b}">${b}</option>`});
     bankSel.addEventListener('change',()=>{document.getElementById('bankOther').style.display=bankSel.value==='Others'?'block':'none'});
-    document.querySelectorAll('input[name="has_loan"]').forEach(rb=>{
-      rb.addEventListener('change',function(){
-        applyLoanVisibility(this.value);
-        if(this.value==='Yes'){
-          if(!document.getElementById('loanApplicant').value)document.getElementById('loanApplicant').value=loadedData?.owner_broker_name||'';
-          if(!document.getElementById('loanCoApplicant').value)document.getElementById('loanCoApplicant').value=loadedData?.co_owner||'';
-        }
-        if(this.value==='No'){
-          document.getElementById('loanApplicant').value='';
-          document.getElementById('loanCoApplicant').value='';
-          document.getElementById('loanAc').value='';
-          document.getElementById('loanAmt').value='';
-          document.getElementById('selBankLoan').value='';
-          document.getElementById('bankOther').style.display='none';
-          document.getElementById('bankOther').value='';
-          document.querySelectorAll('input[name="loan_pay_willingness"]').forEach(x=>x.checked=false);
-        }
-      });
-    });
     const r=await fetch(`${API}/api/ama-details/uids`);const uids=await r.json();
     const sel=document.getElementById('uidSel');
     sel.innerHTML='<option value="">Select UID...</option>';
@@ -313,10 +291,8 @@ async function loadUID(uid){
       document.getElementById('ro_srcPhone').value=d.contact_no||'';
     }
 
-    // Loan prefill
-    const hasLoan=d.has_loan||((d.bank_name_loan||d.outstanding_loan||d.loan_account_number)?'Yes':'No');
-    const loanRadio=document.querySelector(`input[name="has_loan"][value="${hasLoan}"]`);
-    if(loanRadio)loanRadio.checked=true;
+    // Loan prefill — has_loan is owned by Form 3; show details only if Yes
+    const hasLoan=d.has_loan==='Yes'?'Yes':'No';
     applyLoanVisibility(hasLoan);
     document.getElementById('loanApplicant').value=d.loan_applicant_name||(hasLoan==='Yes'?(d.owner_broker_name||''):'');
     document.getElementById('loanCoApplicant').value=d.loan_co_applicant_name||(hasLoan==='Yes'?(d.co_owner||''):'');
@@ -379,10 +355,8 @@ async function uploadPropDoc(input,key){
 function getRadioVal(name){const el=document.querySelector(`input[name="${name}"]:checked`);return el?el.value:''}
 document.getElementById('submitBtn').addEventListener('click',()=>{
   if(!currentUid){toast('Select a UID','warn');return}
-  // Validate Any Loan? selection
-  const hasLoan=getRadioVal('has_loan');
-  if(!hasLoan){toast('Select Any Loan?','err');return}
-  // Validate loan details when has_loan=Yes
+  // has_loan is owned by Form 3; AMA only requires loan details when it was Yes
+  const hasLoan=loadedData?.has_loan==='Yes'?'Yes':'No';
   if(hasLoan==='Yes'){
     if(!document.getElementById('loanApplicant').value.trim()){toast('Loan Applicant Name required','err');return}
     if(!document.getElementById('selBankLoan').value){toast('Loan Bank Name required','err');return}
@@ -414,8 +388,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   // When loan exists, docs verification field is hidden → send null
   body.docs_verification_mode=docsVerifyVisible?(document.getElementById('docsVerifyDd').value||null):null;
   body.ama_prop_docs=JSON.stringify(propDocState);
-  // Loan payload
-  body.has_loan=hasLoan;
+  // Loan payload — has_loan stays owned by Form 3; only details written here
   if(hasLoan==='Yes'){
     const bankVal=document.getElementById('selBankLoan').value;
     body.loan_applicant_name=document.getElementById('loanApplicant').value.trim()||null;
