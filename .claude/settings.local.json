@@ -5,7 +5,8 @@
       "Bash(node -c routes/auth.js)",
       "Bash(node -c db/migrate.js)",
       "Bash(node -c \"C:\\\\Users\\\\Administrator\\\\Documents\\\\GitHub\\\\ohsupplyforms\\\\openhouse-forms\\\\routes\\\\ama-details.js\")",
-      "Bash(node -c \"C:\\\\Users\\\\Administrator\\\\Documents\\\\GitHub\\\\ohsupplyforms\\\\openhouse-forms\\\\routes\\\\token-request.js\")"
+      "Bash(node -c \"C:\\\\Users\\\\Administrator\\\\Documents\\\\GitHub\\\\ohsupplyforms\\\\openhouse-forms\\\\routes\\\\token-request.js\")",
+      "Bash(node -c \"C:\\\\Users\\\\Administrator\\\\Documents\\\\GitHub\\\\ohsupplyforms\\\\openhouse-forms\\\\utils\\\\pdf-template.js\")"
     ]
   }
 }

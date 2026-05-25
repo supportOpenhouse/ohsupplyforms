@@ -74,9 +74,9 @@
 
     <div class="card"><div class="card-t">Token Request</div>
       <div class="fg"><label>Requested By <span class="req">*</span></label><select name="token_requested_by" id="selReqBy" required><option value="">Select...</option></select><div class="err-msg">Required</div></div>
-      <div class="fg"><label>Token Amount (₹) <span class="req">*</span></label><input type="text" inputmode="numeric" name="deal_token_amount" oninput="this.value=this.value.replace(/\D/g,'')" required><div class="err-msg">Required</div></div></div>
+      <div class="fg"><label>Token Amount (₹) <span class="req">*</span></label><input type="text" inputmode="numeric" name="deal_token_amount" id="tokenAmt" oninput="this.value=this.value.replace(/\D/g,'')" required><div class="err-msg">Required</div></div></div>
 
-    <div class="card" style="border-left:3px solid var(--ac2)"><div class="card-t">Cheque Details</div>
+    <div class="card" id="chequeCard" style="border-left:3px solid var(--ac2)"><div class="card-t">Cheque Details</div>
       <div class="fg"><label>Cancelled Cheque</label>
         <div class="img-single"><button type="button" class="img-single-btn" id="chequeBtn">Upload Cheque</button>
           <div class="img-single-preview" id="chequePrev"><img></div><input type="hidden" name="cheque_image_url" id="chequeUrl">
@@ -274,6 +274,18 @@ async function uploadOwnerDoc(input,key){
 }
 function autoFillBank(ifsc){const bank=bankFromIFSC(ifsc);if(bank){const sel=document.getElementById('ocrBank');for(const o of sel.options){if(o.value===bank){sel.value=bank;return}}}}
 
+function isZeroToken(){const v=(document.getElementById('tokenAmt')?.value??'').trim();return v!==''&&Number(v)===0}
+function applyChequeVisibility(){
+  const hide=isZeroToken();
+  const card=document.getElementById('chequeCard');if(card)card.style.display=hide?'none':'';
+  const ac=document.getElementById('ocrAc'),bk=document.getElementById('ocrBank'),ifsc=document.getElementById('ocrIfsc');
+  [ac,bk,ifsc].forEach(el=>{if(!el)return;if(hide){el.required=false;el.value='';el.closest('.fg')?.classList.remove('invalid')}else{el.required=true}});
+  if(hide){const u=document.getElementById('chequeUrl');if(u)u.value='';
+    const prev=document.getElementById('chequePrev');if(prev){const img=prev.querySelector('img');if(img)img.src='';prev.classList?.remove('show')}
+    const st=document.getElementById('ocrStatus');if(st)st.textContent='';
+  }
+}
+
 function fmtDt(d){if(!d)return'—';const dt=new Date(d);return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}
 function fmtTime12(t){if(!t)return'—';const[h,m]=t.split(':');const hr=parseInt(h);return`${hr===0?12:hr>12?hr-12:hr}:${m} ${hr>=12?'PM':'AM'}`}
 function pRow(l,v){return v&&v!=='—'&&v!==''&&v!==null&&v!==undefined?`<div class="pc-row"><span class="pc-l">${l}</span><span class="pc-v">${v}</span></div>`:''}
@@ -301,6 +313,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
     const r=await fetch(`${API}/api/config`);allOpts=(await r.json()).options;
     docsMsel=makeMultiSelect(document.getElementById('docsSelect'),'documents_available',allOpts.documentsAvailable);
     chequeUploader=initSingleUpload('chequeBtn','chequePrev','chequeUrl');
+    document.getElementById('tokenAmt').addEventListener('input',applyChequeVisibility);
+    applyChequeVisibility();
     fillSelect(document.getElementById('selReqBy'),allOpts.assignedByList,'Select...');
     const ocrBankSel=document.getElementById('ocrBank');
     allOpts.banks.forEach(b=>{ocrBankSel.innerHTML+=`<option value="${b}">${b}</option>`});
@@ -398,6 +412,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     sv('deal_token_amount',d.deal_token_amount!=null?d.deal_token_amount:'');sv('token_requested_by',d.token_requested_by);
     sv('cheque_account_number',d.cheque_account_number);sv('cheque_bank_name',d.cheque_bank_name);sv('cheque_ifsc',d.cheque_ifsc);
     if(d.cheque_image_url)chequeUploader.setUrl(d.cheque_image_url);
+    applyChequeVisibility();
     sv('registry_status',d.registry_status);sv('occupancy_status',d.occupancy_status);
     if(d.occupancy_status==='Tenant'){document.getElementById('hdWrap').style.display='block';document.getElementById('hdDate').required=true;if(d.key_handover_date)sv('key_handover_date',d.key_handover_date.split('T')[0])}
     sv('guaranteed_sale_price',d.guaranteed_sale_price);
@@ -439,6 +454,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('tokenForm').style.display='none'}}
 function collectBody(){const fd=new FormData(document.getElementById('tokenForm'));const body=Object.fromEntries(fd.entries());
   body.has_loan=getRadio('has_loan')||null;
+  if(isZeroToken()){body.cheque_image_url=null;body.cheque_account_number=null;body.cheque_bank_name=null;body.cheque_ifsc=null}
   body.documents_available=docsMsel.getSelected();
   if(document.getElementById('rip').dataset.na==='1')body.rent_payable_initial_period='N/A';
   if(document.getElementById('rgp').dataset.na==='1')body.rent_payable_grace_period='N/A';

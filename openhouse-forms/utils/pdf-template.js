@@ -181,12 +181,12 @@ function generateReceiptHTML(p, mode='deal', baseUrl=''){
   </div>`:''}
   ${missingDocs.length?`<div class="section-label">Documents Missing</div>
   <div class="doc-grid">${missingDocs.map(d=>`<div class="doc-item missing"><div class="doc-box"></div>${esc(d.replace('issued by the Builder','').replace('/Certificate by the Builder','').replace('Conveyance Deed/Sale Deed/Registry','Conveyance Deed').trim())}</div>`).join('\n    ')}</div>`:''}
-  <div class="section-label">Seller Bank Details</div>
+  ${(p.cheque_bank_name||p.cheque_account_number||p.cheque_ifsc||neftBank||p.deal_bank_account_number||p.deal_ifsc_code)?`<div class="section-label">Seller Bank Details</div>
   <div class="field-grid col3">
     <div class="field"><div class="f-label">Bank Name</div>${fval(p.cheque_bank_name||neftBank)}</div>
     <div class="field"><div class="f-label">Account Number</div>${fval(p.cheque_account_number||p.deal_bank_account_number,'mono')}</div>
     <div class="field"><div class="f-label">IFSC Code</div>${fval(p.cheque_ifsc||p.deal_ifsc_code,'mono')}</div>
-  </div>
+  </div>`:''}
   ${hasNEFT?`<div class="section-label">Token Transaction</div>
   <div class="token-strip">
     <div class="token-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
