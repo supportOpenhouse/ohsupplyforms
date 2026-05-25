@@ -426,9 +426,7 @@ function buildModal(p){
     ${ef('GSP (Lakhs)','guaranteed_sale_price',p.guaranteed_sale_price,'number')}${ef('Total Deposit (₹)','total_deposit',p.total_deposit,'number')}${ef('PG (₹)','performance_guarantee',p.performance_guarantee,'number')}
     ${ef('Refundable Deposit (₹)','refundable_deposit',p.refundable_deposit,'number')}${ef('Initial Period (d)','initial_period',p.initial_period,'number')}${ef('Rent (Initial)','rent_payable_initial_period',p.rent_payable_initial_period)}
     ${ef('Grace Period (d)','grace_period',p.grace_period,'number')}${ef('Rent (Grace)','rent_payable_grace_period',p.rent_payable_grace_period)}
-    ${efSel('Has Loan?','has_loan',p.has_loan,['Yes','No'])}${ef('Loan Applicant','loan_applicant_name',p.loan_applicant_name)}${ef('Loan Co-applicant','loan_co_applicant_name',p.loan_co_applicant_name)}
-    ${ef('Outstanding Loan (₹)','outstanding_loan',p.outstanding_loan,'number')}${efSel('Loan Bank','bank_name_loan',p.bank_name_loan,FORM_OPTS.banks)}${ef('Loan A/C','loan_account_number',p.loan_account_number)}
-    ${efSel('Willing to Pay','loan_pay_willingness',p.loan_pay_willingness,FORM_OPTS.yesNo)}${efRO('Documents',docs.length?docs.join(', '):'—')}
+    ${efRO('Documents',docs.length?docs.join(', '):'—')}
     ${pvLink('Owner PAN',p.owner_pan_url)}${pvLink('Owner Aadhaar Front',p.owner_aadhaar_front_url)}${pvLink('Owner Aadhaar Back',p.owner_aadhaar_back_url)}${pvLink('Owner Property Doc',p.owner_property_doc_url)}
     ${efArea('Remarks (Printed)','token_remarks_printed',p.token_remarks_printed)}${efArea('Remarks (Internal)','token_remarks',p.token_remarks)}${efRO('Submitted',fmtDtFull(p.token_submitted_at))}
   </div></div>`;
@@ -442,7 +440,7 @@ function buildModal(p){
   </div></div>`;
 
   html+=`<div class="prev-section"><div class="prev-section-t">AMA Details (Form 5)</div><div class="prev-grid">
-    ${ef('Loan Applicant','loan_applicant_name',p.loan_applicant_name)}${ef('Loan Co-applicant','loan_co_applicant_name',p.loan_co_applicant_name)}${efSel('Loan Bank','bank_name_loan',p.bank_name_loan,FORM_OPTS.banks)}
+    ${efSel('Has Loan?','has_loan',p.has_loan,['Yes','No'])}${ef('Loan Applicant','loan_applicant_name',p.loan_applicant_name)}${ef('Loan Co-applicant','loan_co_applicant_name',p.loan_co_applicant_name)}${efSel('Loan Bank','bank_name_loan',p.bank_name_loan,FORM_OPTS.banks)}
     ${ef('Loan A/C','loan_account_number',p.loan_account_number)}${ef('Outstanding (₹)','outstanding_loan',p.outstanding_loan,'number')}${efSel('Willing to Pay','loan_pay_willingness',p.loan_pay_willingness,FORM_OPTS.yesNo)}
     ${efSel('PG Non Forfeitable','ama_pg_non_forfeitable',p.ama_pg_non_forfeitable,FORM_OPTS.yesNo)}
     ${efSel('Payment Structure','ama_payment_structure',p.ama_payment_structure,['Flexible','Non Flexible'])}

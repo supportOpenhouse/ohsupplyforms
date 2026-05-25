@@ -21,11 +21,31 @@ module.exports=function(pool){
       await pool.query(`UPDATE properties SET
         ama_prop_docs=$1,
         docs_verification_mode=$2,
+        has_loan=$4,
+        loan_applicant_name=$5,
+        loan_co_applicant_name=$6,
+        bank_name_loan=$7,
+        loan_account_number=$8,
+        outstanding_loan=$9,
+        loan_pay_willingness=$10,
+        ama_sanction_url=$11,
+        ama_soa_url=$12,
+        ama_lod_url=$13,
         ama_submitted_at=NOW(),updated_at=NOW()
         WHERE uid=$3`,
         [d.ama_prop_docs||'{}',
          d.docs_verification_mode||null,
-         d.uid]);
+         d.uid,
+         d.has_loan||'No',
+         d.loan_applicant_name||null,
+         d.loan_co_applicant_name||null,
+         d.bank_name_loan||null,
+         d.loan_account_number||null,
+         d.outstanding_loan!=null&&d.outstanding_loan!==''?parseFloat(d.outstanding_loan):null,
+         d.loan_pay_willingness||null,
+         d.ama_sanction_url||null,
+         d.ama_soa_url||null,
+         d.ama_lod_url||null]);
       res.json({success:true,uid:d.uid});
       logger.logFormSubmit(d.uid,'ama_details_submitted',5,req.user?.email,req.user?.name).catch(()=>{});
       pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows})=>{

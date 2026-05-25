@@ -116,53 +116,6 @@
         <div class="fg"><label>Rent Payable (in ₹) <span class="req">*</span></label><input type="text" inputmode="numeric" name="rent_payable_grace_period" id="rgp" oninput="this.value=this.value.replace(/\D/g,'')" required><div class="err-msg">Required</div></div></div>
       <label class="na-toggle"><input type="checkbox" id="rgp_na" onchange="toggleNA('rgp','No rent');document.getElementById('rgp').required=!this.checked"><span>No rent payable during grace period</span></label></div>
 
-    <div class="card"><div class="card-t">Loan Details</div>
-      <div class="fg"><label>Any Loan? <span class="req">*</span></label>
-        <div class="radios"><label><input type="radio" name="has_loan" value="Yes" id="loanYes"><span>Yes</span></label><label><input type="radio" name="has_loan" value="No" id="loanNo"><span>No</span></label></div></div>
-      <div id="loanFields" style="display:none">
-        <div class="r2">
-          <div class="fg"><label>Applicant Name <span class="req">*</span></label><input type="text" name="loan_applicant_name" id="loanApplicant"></div>
-          <div class="fg"><label>Co-applicant Name</label><input type="text" name="loan_co_applicant_name" id="loanCoApplicant"></div>
-        </div>
-        <label class="na-toggle" style="margin-bottom:10px"><input type="checkbox" id="loanCopy"><span>Same as bank details above</span></label>
-        <div id="loanBankFields">
-          <div class="fg"><label>Bank Name <span class="req">*</span></label><select name="bank_name_loan" id="selBankLoan"><option value="">Select bank...</option></select>
-            <input type="text" name="bank_name_loan_other" id="bankOther" style="display:none;margin-top:4px"></div>
-          <div class="fg"><label>Loan A/C Number <span class="req">*</span></label><input type="text" name="loan_account_number" id="loanAc"></div>
-        </div>
-        <div class="fg"><label>Outstanding Loan (in ₹) <span class="req">*</span></label><input type="text" inputmode="numeric" name="outstanding_loan" id="loanAmt" oninput="this.value=this.value.replace(/\D/g,'')"></div>
-        <div class="fg"><label>Willing to pay loan? <span class="req">*</span></label>
-          <div class="radios"><label><input type="radio" name="loan_pay_willingness" value="Yes"><span>Yes</span></label><label><input type="radio" name="loan_pay_willingness" value="No"><span>No</span></label></div></div>
-      </div>
-    </div>
-
-    <div class="card" id="loanDocsCard" style="display:none"><div class="card-t">Loan Documents</div>
-      <div class="fg">
-        <label>Sanction Letter</label>
-        <div class="upload-row" id="up_sanction" onclick="document.getElementById('fi_sanction').click()">
-          📄 Upload Sanction Letter
-          <input type="file" id="fi_sanction" accept="image/*,.pdf" onchange="uploadLoanDoc(this,'sanction')">
-        </div>
-        <div class="doc-upload-status" id="st_sanction"></div>
-      </div>
-      <div class="fg">
-        <label>Statement of Accounts <span class="req">*</span></label>
-        <div class="upload-row" id="up_soa" onclick="document.getElementById('fi_soa').click()">
-          📄 Upload Statement of Accounts
-          <input type="file" id="fi_soa" accept="image/*,.pdf" onchange="uploadLoanDoc(this,'soa')">
-        </div>
-        <div class="doc-upload-status" id="st_soa"></div>
-      </div>
-      <div class="fg">
-        <label>List of Documents (LOD)</label>
-        <div class="upload-row" id="up_lod" onclick="document.getElementById('fi_lod').click()">
-          📄 Upload LOD
-          <input type="file" id="fi_lod" accept="image/*,.pdf" onchange="uploadLoanDoc(this,'lod')">
-        </div>
-        <div class="doc-upload-status" id="st_lod"></div>
-      </div>
-    </div>
-
     <div class="card"><div class="card-t">Deal Summary</div>
       <div class="fg"><label>Performance Guarantee Forfeitable <span class="req">*</span></label>
         <div class="radios"><label><input type="radio" name="ama_pg_non_forfeitable" value="Yes"><span>Yes</span></label><label><input type="radio" name="ama_pg_non_forfeitable" value="No"><span>No</span></label></div></div>
@@ -291,24 +244,6 @@
 <script>
 let docsMsel,currentUid,chequeUploader,allOpts,loadedData=null;
 const ownerDocUrls={owner_pan:'',owner_aadhaar_front:'',owner_aadhaar_back:'',owner_property_doc:''};
-const loanDocUrls={sanction:'',soa:'',lod:''};
-const LOAN_DOC_LABEL={sanction:'Sanction Letter',soa:'Statement of Accounts',lod:'List of Documents (LOD)'};
-async function uploadLoanDoc(input,key){
-  if(!input.files.length)return;if(!ownerCloudCfg){toast('Upload not ready','warn');return}
-  const file=input.files[0];if(file.size>10*1024*1024){toast('File exceeds 10MB','err');return}
-  const row=document.getElementById('up_'+key);const stEl=document.getElementById('st_'+key);
-  row.textContent='Uploading...';
-  try{
-    const fd=new FormData();fd.append('file',file);fd.append('upload_preset',ownerCloudCfg.uploadPreset);fd.append('folder','ama-docs');
-    const r=await fetch(`https://api.cloudinary.com/v1_1/${ownerCloudCfg.cloudName}/auto/upload`,{method:'POST',body:fd});
-    const d=await r.json();if(!d.secure_url)throw new Error('Upload failed');
-    loanDocUrls[key]=d.secure_url;
-    row.className='upload-row done';row.innerHTML=`✓ Uploaded — click to replace<input type="file" id="fi_${key}" accept="image/*,.pdf" onchange="uploadLoanDoc(this,'${key}')">`;
-    stEl.innerHTML=`<a href="${d.secure_url}" target="_blank" style="color:var(--ac2);font-size:10px">View</a>`;
-    toast('Uploaded','ok');
-  }catch(e){toast('Upload failed','err');row.innerHTML=`📄 Upload ${LOAN_DOC_LABEL[key]}<input type="file" id="fi_${key}" accept="image/*,.pdf" onchange="uploadLoanDoc(this,'${key}')">`}
-  input.value='';
-}
 const OWNER_DOC_COL={owner_pan:'owner_pan_url',owner_aadhaar_front:'owner_aadhaar_front_url',owner_aadhaar_back:'owner_aadhaar_back_url',owner_property_doc:'owner_property_doc_url'};
 const OWNER_DOC_ITEM={owner_pan:'pu_ownerPan',owner_aadhaar_front:'pu_ownerAadhaarFront',owner_aadhaar_back:'pu_ownerAadhaarBack',owner_property_doc:'pu_ownerPropDoc'};
 const OWNER_DOC_LABEL={owner_pan:'PAN Card',owner_aadhaar_front:'Aadhaar Front',owner_aadhaar_back:'Aadhaar Back',owner_property_doc:'Property Ownership Doc'};
@@ -361,9 +296,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     chequeUploader=initSingleUpload('chequeBtn','chequePrev','chequeUrl');
     fillSelect(document.getElementById('selReqBy'),allOpts.assignedByList,'Select...');
     const ocrBankSel=document.getElementById('ocrBank');
-    const bankSel=document.getElementById('selBankLoan');
-    allOpts.banks.forEach(b=>{ocrBankSel.innerHTML+=`<option value="${b}">${b}</option>`;bankSel.innerHTML+=`<option value="${b}">${b}</option>`});
-    bankSel.addEventListener('change',()=>{document.getElementById('bankOther').style.display=bankSel.value==='Others'?'block':'none'});
+    allOpts.banks.forEach(b=>{ocrBankSel.innerHTML+=`<option value="${b}">${b}</option>`});
     document.getElementById('selOcc').addEventListener('change',e=>{const w=document.getElementById('hdWrap'),d=document.getElementById('hdDate');
       if(e.target.value==='Tenant'){w.style.display='block';d.required=true}else{w.style.display='none';d.required=false;d.value=''}});
     // ══ GSP + Deposit bidirectional calc ══
@@ -404,31 +337,6 @@ document.addEventListener('DOMContentLoaded',async()=>{
     rdAmt.addEventListener('input',()=>amtToPct(rdAmt,rdPct));
     document.getElementById('rip').addEventListener('input',function(){if(this.value==='0'){document.getElementById('rip_na').checked=true;toggleNA('rip','No rent');this.required=false}});
     document.getElementById('rgp').addEventListener('input',function(){if(this.value==='0'){document.getElementById('rgp_na').checked=true;toggleNA('rgp','No rent');this.required=false}});
-    // Loan Yes/No toggle
-    document.querySelectorAll('input[name="has_loan"]').forEach(r=>{
-      r.addEventListener('change',function(){
-        document.getElementById('loanFields').style.display=this.value==='Yes'?'block':'none';
-        document.getElementById('loanDocsCard').style.display=this.value==='Yes'?'block':'none';
-        if(this.value==='Yes'){
-          if(!document.getElementById('loanApplicant').value)document.getElementById('loanApplicant').value=document.getElementById('d_owner').value||'';
-          if(!document.getElementById('loanCoApplicant').value)document.getElementById('loanCoApplicant').value=document.getElementById('d_coowner').value||'';
-        }
-        if(this.value==='No'){
-          document.getElementById('loanApplicant').value='';
-          document.getElementById('loanCoApplicant').value='';
-          document.querySelector('[name="outstanding_loan"]').value='';
-          document.querySelector('[name="loan_account_number"]').value='';
-          document.getElementById('selBankLoan').value='';
-          document.querySelectorAll('input[name="loan_pay_willingness"]').forEach(x=>x.checked=false);
-        }
-      });
-    });
-    document.getElementById('loanCopy').addEventListener('change',function(){
-      if(this.checked){document.getElementById('loanBankFields').style.display='none';
-        const bk=document.getElementById('ocrBank').value;const ac=document.getElementById('ocrAc').value;
-        if(bk)document.getElementById('selBankLoan').value=bk;
-        if(ac)document.querySelector('[name="loan_account_number"]').value=ac;
-      }else{document.getElementById('loanBankFields').style.display='block'}});
     setInterval(()=>{const has=[...document.querySelectorAll('#docsSelect input:checked')].some(c=>c.value.includes('Other'));
       document.getElementById('otherDocWrap').style.display=has?'block':'none'},500);
     document.getElementById('historyBtn').addEventListener('click',()=>{
@@ -495,25 +403,6 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     sv('initial_period',d.initial_period);sv('grace_period',d.grace_period);
     if(d.rent_payable_initial_period&&String(d.rent_payable_initial_period).toUpperCase()==='N/A'){document.getElementById('rip_na').checked=true;toggleNA('rip','No rent');document.getElementById('rip').required=false}else sv('rent_payable_initial_period',d.rent_payable_initial_period);
     if(d.rent_payable_grace_period&&String(d.rent_payable_grace_period).toUpperCase()==='N/A'){document.getElementById('rgp_na').checked=true;toggleNA('rgp','No rent');document.getElementById('rgp').required=false}else sv('rent_payable_grace_period',d.rent_payable_grace_period);
-    // Loan prefill
-    const hasLoan=d.has_loan||((d.bank_name_loan||d.outstanding_loan||d.loan_account_number)?'Yes':'No');
-    const loanRadio=document.querySelector(`input[name="has_loan"][value="${hasLoan}"]`);
-    if(loanRadio){loanRadio.checked=true;document.getElementById('loanFields').style.display=hasLoan==='Yes'?'block':'none';document.getElementById('loanDocsCard').style.display=hasLoan==='Yes'?'block':'none'}
-    if(d.bank_name_loan){const bs=document.getElementById('selBankLoan');bs.value=d.bank_name_loan;if(d.bank_name_loan==='Others')document.getElementById('bankOther').style.display='block'}
-    document.getElementById('loanApplicant').value=d.loan_applicant_name||d.owner_broker_name||'';
-    document.getElementById('loanCoApplicant').value=d.loan_co_applicant_name||d.co_owner||'';
-    sv('outstanding_loan',d.outstanding_loan);sv('loan_account_number',d.loan_account_number);
-    sr('loan_pay_willingness',d.loan_pay_willingness);
-    // Loan docs prefill
-    ['sanction','soa','lod'].forEach(k=>{
-      const col={sanction:'ama_sanction_url',soa:'ama_soa_url',lod:'ama_lod_url'}[k];
-      loanDocUrls[k]=d[col]||'';
-      if(d[col]){
-        const row=document.getElementById('up_'+k);const stEl=document.getElementById('st_'+k);
-        row.className='upload-row done';row.innerHTML=`✓ Uploaded — click to replace<input type="file" id="fi_${k}" accept="image/*,.pdf" onchange="uploadLoanDoc(this,'${k}')">`;
-        stEl.innerHTML=`<a href="${d[col]}" target="_blank" style="color:var(--ac2);font-size:10px">View</a>`;
-      }
-    });
     // Deal Summary prefill
     if(d.ama_pg_non_forfeitable){const rb=document.querySelector(`input[name="ama_pg_non_forfeitable"][value="${d.ama_pg_non_forfeitable}"]`);if(rb)rb.checked=true}
     if(d.ama_payment_structure){const rb=document.querySelector(`input[name="ama_payment_structure"][value="${d.ama_payment_structure}"]`);if(rb)rb.checked=true}
@@ -539,22 +428,15 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     st.className='pf-st show ok';st.textContent=`Loaded: ${uid}${d.token_is_draft?' (Draft)':''}`;
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('tokenForm').style.display='none'}}
 function collectBody(){const fd=new FormData(document.getElementById('tokenForm'));const body=Object.fromEntries(fd.entries());
-  body.loan_pay_willingness=getRadio('loan_pay_willingness');
-  body.has_loan=getRadio('has_loan')||'No';
-  if(body.has_loan==='No'){body.outstanding_loan='';body.bank_name_loan='';body.loan_account_number='';body.loan_pay_willingness='';body.loan_applicant_name='';body.loan_co_applicant_name=''}
   body.documents_available=docsMsel.getSelected();
-  if(body.bank_name_loan==='Others')body.bank_name_loan=document.getElementById('bankOther').value||'Others';
   if(document.getElementById('rip').dataset.na==='1')body.rent_payable_initial_period='N/A';
   if(document.getElementById('rgp').dataset.na==='1')body.rent_payable_grace_period='N/A';
-  const skipKeys=['documents_available','uid','cheque_image_url','cheque_bank_name','cheque_ifsc','registry_status','occupancy_status','bank_name_loan','loan_pay_willingness','token_remarks','token_remarks_printed','token_requested_by','rent_payable_initial_period','rent_payable_grace_period','key_handover_date','bank_name_loan_other','other_documents_text','unit_no','tower_no','floor','area_sqft','demand_price','has_loan','co_owner','co_owner_number','loan_applicant_name','loan_co_applicant_name','performance_guarantee','total_deposit','refundable_deposit'];
+  const skipKeys=['documents_available','uid','cheque_image_url','cheque_bank_name','cheque_ifsc','registry_status','occupancy_status','token_remarks','token_remarks_printed','token_requested_by','rent_payable_initial_period','rent_payable_grace_period','key_handover_date','other_documents_text','unit_no','tower_no','floor','area_sqft','demand_price','co_owner','co_owner_number','performance_guarantee','total_deposit','refundable_deposit'];
   for(const k of Object.keys(body)){if(typeof body[k]==='string'&&!skipKeys.includes(k))body[k]=body[k].replace(/,/g,'')}
   body.performance_guarantee=body.performance_guarantee!==''?parseFloat(String(body.performance_guarantee).replace(/,/g,'')):null;
   body.total_deposit=body.total_deposit!==''?parseFloat(String(body.total_deposit).replace(/,/g,'')):null;
   body.refundable_deposit=body.refundable_deposit!==''?parseFloat(String(body.refundable_deposit).replace(/,/g,'')):null;
   for(const[key,col]of Object.entries(OWNER_DOC_COL)){body[col]=ownerDocUrls[key]||null}
-  body.ama_sanction_url=loanDocUrls.sanction||null;
-  body.ama_soa_url=loanDocUrls.soa||null;
-  body.ama_lod_url=loanDocUrls.lod||null;
   body.ama_pg_non_forfeitable=document.querySelector('input[name="ama_pg_non_forfeitable"]:checked')?.value||null;
   body.ama_payment_structure=document.querySelector('input[name="ama_payment_structure"]:checked')?.value||null;
   const isFlex=body.ama_payment_structure==='Flexible';
@@ -568,20 +450,7 @@ document.getElementById('draftBtn').addEventListener('click',()=>{const body=col
     const res=await r.json();if(!r.ok)throw new Error(res.error);toast('Draft saved!','ok')})});
 document.getElementById('submitBtn').addEventListener('click',()=>{
   const{valid,missing}=validateForm('tokenForm');if(!valid){toast(`Missing: ${missing.slice(0,3).join(', ')}`,'err');return}
-  if(!getRadio('has_loan')){toast('Select Any Loan?','err');return}
   const docs=JSON.parse(docsMsel.getSelected()||'[]');if(!docs.length){toast('Select at least one document','err');return}
-  // Validate loan details fields when has_loan=Yes
-  if(getRadio('has_loan')==='Yes'){
-    if(!document.getElementById('loanApplicant').value.trim()){toast('Loan Applicant Name required','err');return}
-    if(!document.getElementById('selBankLoan').value){toast('Loan Bank Name required','err');return}
-    if(document.getElementById('selBankLoan').value==='Others'&&!document.getElementById('bankOther').value.trim()){toast('Specify Loan Bank Name','err');return}
-    if(!document.getElementById('loanAc').value.trim()){toast('Loan A/C Number required','err');return}
-    if(!document.getElementById('loanAmt').value){toast('Outstanding Loan required','err');return}
-    if(!document.querySelector('input[name="loan_pay_willingness"]:checked')){toast('Select Willing to pay loan','err');return}
-    // Validate loan documents (only SOA is mandatory)
-    document.getElementById('up_soa').classList.remove('missing');
-    if(!loanDocUrls.soa){document.getElementById('up_soa').classList.add('missing');toast(`Upload required: ${LOAN_DOC_LABEL.soa}`,'err');return}
-  }
   // Validate owner documents — skip if already submitted (docs already in DB)
   const alreadySubmitted=!!(loadedData&&loadedData.token_submitted_at&&!loadedData.token_is_draft);
   if(!alreadySubmitted){
