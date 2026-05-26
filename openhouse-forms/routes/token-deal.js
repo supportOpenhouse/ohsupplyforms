@@ -26,6 +26,7 @@ function buildCorePayload(row){
     contact_no:row.contact_no,
     listing_asking_price:row.listing_asking_price,
     demand_price:0,
+    token_requested_by:row.token_requested_by,
   };
 }
 
