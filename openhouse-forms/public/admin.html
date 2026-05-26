@@ -15,7 +15,7 @@
 .filter-row{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center}
 .tbl{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap;table-layout:fixed}
 .tbl th,.tbl td{overflow:hidden;text-overflow:ellipsis}
-.tbl .col-sn{width:42px}.tbl .col-uid{width:90px}.tbl .col-stage{width:72px}.tbl .col-act{width:60px}
+.tbl .col-sn{width:42px}.tbl .col-uid{width:140px;white-space:normal;word-break:break-word}.tbl .col-stage{width:72px}.tbl .col-act{width:60px}
 .tbl .col-city{width:70px}.tbl .col-soc{width:140px;white-space:normal;word-break:break-word}.tbl .col-unit{width:70px}
 .tbl .col-owner{width:110px}.tbl .col-phone{width:90px}.tbl .col-name{width:100px}.tbl .col-dt{width:85px}
 .tbl th{position:sticky;top:0;background:var(--bg);z-index:2;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);border-bottom:2px solid var(--bd);cursor:pointer;user-select:none}
@@ -105,7 +105,7 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
   <div class="card" style="padding:0;overflow:hidden">
     <div style="padding:8px 10px;border-bottom:1px solid var(--bd)">
       <div class="fbar">
-        <input type="text" id="fQ" placeholder="🔍 Search UID, society, owner, phone...  (Ctrl+K)" style="font-size:14px;flex:2">
+        <input type="text" id="fQ" placeholder="🔍 Search UID, Lead ID, society, owner, phone...  (Ctrl+K)" style="font-size:14px;flex:2">
         <select id="fCity" style="font-size:14px"><option value="">All Cities</option></select>
         <select id="fAb" style="font-size:14px"><option value="">All Assigned By</option></select>
         <select id="fSt" style="font-size:14px"><option value="">All Stages</option>
@@ -245,7 +245,7 @@ async function loadData(){try{const r=await fetch(`${API}/api/properties`);allDa
 function render(){let d=[...allData];const q=document.getElementById('fQ').value.toLowerCase();const city=document.getElementById('fCity').value;const ab=document.getElementById('fAb').value;const st=document.getElementById('fSt').value||activeStatFilter;
   const hasFilters=q||city||ab||st||dateFilterStart||dateFilterEnd;
   document.getElementById('btnClearDate').style.display=hasFilters?'inline-flex':'none';
-  if(q)d=d.filter(p=>(p.uid||'').toLowerCase().includes(q)||(p.society_name||'').toLowerCase().includes(q)||(p.owner_broker_name||'').toLowerCase().includes(q)||(p.assigned_by||'').toLowerCase().includes(q)||(p.token_requested_by||'').toLowerCase().includes(q)||(p.contact_no||'').includes(q)||(p.field_exec||'').toLowerCase().includes(q));
+  if(q)d=d.filter(p=>(p.uid||'').toLowerCase().includes(q)||(p.lead_id||'').toLowerCase().includes(q)||(p.society_name||'').toLowerCase().includes(q)||(p.owner_broker_name||'').toLowerCase().includes(q)||(p.assigned_by||'').toLowerCase().includes(q)||(p.token_requested_by||'').toLowerCase().includes(q)||(p.contact_no||'').includes(q)||(p.field_exec||'').toLowerCase().includes(q));
   if(city)d=d.filter(p=>p.city===city);
   if(ab)d=d.filter(p=>p.assigned_by===ab);
   if(st==='scheduled')d=d.filter(p=>p._stage.key==='scheduled');
@@ -294,7 +294,8 @@ function render(){let d=[...allData];const q=document.getElementById('fQ').value
     const rowCls=dead?'row-dead':refunded?'row-refunded':'';
     const noActs=dead||refunded;
     const uidCell=IS_ADMIN?`<a href="#" class="link uid-link" data-uid="${p.uid}">${p.uid}</a>`:p.uid;
-    return`<tr class="${rowCls}"><td class="col-sn" style="font-size:10px;color:var(--tx3);text-align:center">${idx+1}</td><td class="col-uid" style="font-family:var(--mono);font-size:10px;font-weight:600">${uidCell}${deadBadge}${refundBadge}</td>
+    const leadSuffix=p.lead_id?` <span style="color:var(--tx3);font-weight:400">(${p.lead_id})</span>`:'';
+    return`<tr class="${rowCls}"><td class="col-sn" style="font-size:10px;color:var(--tx3);text-align:center">${idx+1}</td><td class="col-uid" style="font-family:var(--mono);font-size:10px;font-weight:600">${uidCell}${leadSuffix}${deadBadge}${refundBadge}</td>
       <td class="col-stage"><span class="stage-pill ${stage.cls}">${stage.label}</span></td>
       <td class="col-act">${noActs?'<span style="font-size:10px">—</span>':acts.join(' ')}</td>
       <td class="col-city">${p.city||'—'}</td><td class="col-soc">${p.society_name||'—'}</td><td class="col-unit">${unitCol(p)||'—'}</td><td class="col-owner">${p.owner_broker_name||'—'}</td><td class="col-phone" style="font-family:var(--mono);font-size:10px">${p.contact_no||'—'}</td>
@@ -346,8 +347,8 @@ function clearAllFilters(){
 
 function exportCSV(){
   if(!filteredData.length){alert('No data to export');return}
-  const headers=['#','UID','Stage','City','Society','Unit','Tower','Floor','Owner','Phone','Assigned By','Assigned To','Token By','Schedule Date','Last Activity'];
-  const rows=filteredData.map((p,i)=>[i+1,p.uid,p._stage.label,p.city,p.society_name,p.unit_no,p.tower_no,p.floor,p.owner_broker_name,p.contact_no,p.assigned_by,p.field_exec,p.token_requested_by,p.schedule_date?fmtDt(p.schedule_date):'',p.last_activity?fmtDt(p.last_activity):'']);
+  const headers=['#','UID','Lead ID','Stage','City','Society','Unit','Tower','Floor','Owner','Phone','Assigned By','Assigned To','Token By','Schedule Date','Last Activity'];
+  const rows=filteredData.map((p,i)=>[i+1,p.uid,p.lead_id||'',p._stage.label,p.city,p.society_name,p.unit_no,p.tower_no,p.floor,p.owner_broker_name,p.contact_no,p.assigned_by,p.field_exec,p.token_requested_by,p.schedule_date?fmtDt(p.schedule_date):'',p.last_activity?fmtDt(p.last_activity):'']);
   const csv=[headers.join(','),...rows.map(r=>r.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
   const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download=`openhouse_properties_${new Date().toISOString().split('T')[0]}.csv`;a.click();URL.revokeObjectURL(url);

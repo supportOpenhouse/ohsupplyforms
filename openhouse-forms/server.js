@@ -81,7 +81,7 @@ app.use('/api/ocr', isAuthenticated, require('./routes/ocr')());
 app.use('/api/external', require('./routes/external')(pool));
 
 app.get('/api/properties', isAuthenticated, hasAdminPanelAccess, async(req,res)=>{
-  try{const vis=visibilityFilter(req.user);const{rows}=await pool.query(`SELECT uid,city,locality,society_name,unit_no,tower_no,configuration,owner_broker_name,first_name,last_name,contact_no,
+  try{const vis=visibilityFilter(req.user);const{rows}=await pool.query(`SELECT uid,lead_id,city,locality,society_name,unit_no,tower_no,configuration,owner_broker_name,first_name,last_name,contact_no,
     assigned_by,field_exec,token_requested_by,is_dead,is_token_refunded,
     schedule_submitted_at,visit_submitted_at,token_submitted_at,token_is_draft,token_deal_submitted_at,ama_submitted_at,pending_request_submitted_at,final_submitted_at,cp_bill_submitted_at,listing_submitted_at,created_at
     FROM properties WHERE TRUE${vis.clause} ORDER BY created_at DESC`,vis.params);res.json(rows)}catch(e){console.error('Properties list error:',e.message);res.status(500).json({error:e.message})}
