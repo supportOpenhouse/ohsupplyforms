@@ -163,7 +163,7 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
         <div><label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Email</label><input type="email" id="u_email" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px"></div>
         <div><label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Name</label><input type="text" id="u_name" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px"></div>
-        <div><label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Phone (10 digits)</label><input type="tel" id="u_phone" maxlength="10" inputmode="numeric" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px;font-family:var(--mono)"></div>
+        <div><label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Phone (10 digits)</label><input type="tel" id="u_phone" maxlength="10" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px;font-family:var(--mono)"></div>
       </div>
       <div class="prev-section-t">Form Access</div>
       <label style="display:flex;gap:6px;align-items:center;margin-bottom:8px;font-size:12px;font-weight:600;cursor:pointer"><input type="checkbox" id="u_allForms" onchange="toggleAllForms()"> ALL forms (*)</label>
@@ -552,14 +552,36 @@ function renderUsers(){
 // User table sort click handlers
 document.querySelectorAll('#userTbl th[data-us]').forEach(th=>{th.addEventListener('click',()=>{const c=th.dataset.us;if(userSortCol===c)userSortDir=userSortDir==='asc'?'desc':'asc';else{userSortCol=c;userSortDir='asc'}renderUsers()})});
 let userModalMode='edit',userModalId=null;
+function normalizePhone(raw){
+  let d=String(raw||'').replace(/\D/g,'');
+  if(d.length===12&&d.startsWith('91'))d=d.slice(2);
+  if(d.length===11&&d.startsWith('0'))d=d.slice(1);
+  return d.slice(0,10);
+}
+function resetUserModalState(){
+  document.getElementById('u_email').value='';
+  document.getElementById('u_email').readOnly=false;
+  document.getElementById('u_name').value='';
+  document.getElementById('u_phone').value='';
+  document.getElementById('u_formChecks').innerHTML='';
+  ['u_admin','u_topMgr','u_mgr','u_canAssign','u_canVisit','u_super','u_allForms','u_active'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.checked=false;el.disabled=false}
+  });
+  const sb=document.getElementById('userSaveBtn');
+  if(sb){sb.disabled=false;sb.textContent='💾 Save'}
+  const st=document.getElementById('userSaveStatus');
+  if(st){st.textContent='';st.style.color=''}
+}
 function addUser(){openUserModal(null)}
 function editUser(id){const u=allUsers.find(x=>x.id===id);if(u)openUserModal(u)}
 function openUserModal(user){
+  resetUserModalState();
   userModalMode=user?'edit':'add';userModalId=user?user.id:null;
   document.getElementById('userModalTitle').textContent=user?`Edit User: ${user.email}`:'Add User';
   const emailEl=document.getElementById('u_email');emailEl.value=user?.email||'';emailEl.readOnly=!!user;
   document.getElementById('u_name').value=user?.name||'';
-  document.getElementById('u_phone').value=user?.phone||'';
+  document.getElementById('u_phone').value=normalizePhone(user?.phone||'');
   const allowed=user?.allowed_forms||[];const hasAll=allowed.includes('*');
   document.getElementById('u_formChecks').innerHTML=FORM_KEYS.map(k=>`<label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;padding:4px 6px;border:1px solid var(--bd);border-radius:6px"><input type="checkbox" class="u_form" value="${k}" ${allowed.includes(k)||hasAll?'checked':''}> ${FORM_LABELS[k]||k}</label>`).join('');
   document.getElementById('u_allForms').checked=hasAll;
@@ -571,8 +593,8 @@ function openUserModal(user){
   document.getElementById('u_super').checked=!!user?.is_super;
   document.getElementById('u_active').checked=user?!!user.is_active:true;
   toggleAllForms();reconcileRoles();updateStatusLabel();
-  document.getElementById('userSaveStatus').textContent='';
   document.getElementById('userModal').classList.add('open');
+  setTimeout(()=>document.getElementById('u_name').focus(),50);
 }
 function closeUserModal(){document.getElementById('userModal').classList.remove('open')}
 function toggleAllForms(){const all=document.getElementById('u_allForms').checked;document.querySelectorAll('.u_form').forEach(cb=>{cb.disabled=all;if(all)cb.checked=true})}
@@ -592,8 +614,9 @@ function toggleMgr(){reconcileRoles()}
 async function saveUserModal(){
   const email=document.getElementById('u_email').value.trim();
   if(!email){document.getElementById('userSaveStatus').textContent='✗ Email required';document.getElementById('userSaveStatus').style.color='var(--red)';return}
-  const phone=document.getElementById('u_phone').value.trim();
-  if(phone&&!/^\d{10}$/.test(phone)){document.getElementById('userSaveStatus').textContent='✗ Phone must be 10 digits';document.getElementById('userSaveStatus').style.color='var(--red)';return}
+  const phone=normalizePhone(document.getElementById('u_phone').value);
+  if(phone&&phone.length!==10){document.getElementById('userSaveStatus').textContent='✗ Phone must be 10 digits';document.getElementById('userSaveStatus').style.color='var(--red)';return}
+  document.getElementById('u_phone').value=phone;
   const allChecked=document.getElementById('u_allForms').checked;
   const forms=allChecked?['*']:[...document.querySelectorAll('.u_form:checked')].map(cb=>cb.value);
   const isAdmin=document.getElementById('u_admin').checked;
