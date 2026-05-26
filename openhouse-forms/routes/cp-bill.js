@@ -124,10 +124,12 @@ module.exports=function(pool){
       if(!pRows.length)return res.status(404).json({error:'Property not found'});
       const p=pRows[0];
       if(!p.cp_bill_submitted_at)return res.status(400).json({error:'CP Bill form must be submitted first'});
+      if(p.cp_bill_email_sent===true)return res.status(409).json({error:'Email Sent Already',alreadySent:true});
       const result=await sendCPBillEmail({
         accessToken:user.google_access_token,refreshToken:user.google_refresh_token,
         fromEmail:user.email,senderName:user.name||user.email,property:p
       });
+      await pool.query('UPDATE properties SET cp_bill_email_sent=TRUE,updated_at=NOW() WHERE uid=$1',[req.params.uid]);
       console.log(`CP Bill email sent for ${req.params.uid} by ${user.email} — msgId: ${result.messageId}`);
       res.json({success:true,messageId:result.messageId});
     }catch(e){

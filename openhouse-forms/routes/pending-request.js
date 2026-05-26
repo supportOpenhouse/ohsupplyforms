@@ -49,6 +49,7 @@ module.exports=function(pool){
       const{rows:pRows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
       if(!pRows.length)return res.status(404).json({error:'Property not found'});
       if(!pRows[0].pending_request_submitted_at)return res.status(400).json({error:'Form must be submitted first'});
+      if(pRows[0].pending_request_email_sent===true)return res.status(409).json({error:'Email Sent Already',alreadySent:true});
       const result=await sendPendingAmountEmail({
         accessToken:user.google_access_token,refreshToken:user.google_refresh_token,
         fromEmail:user.email,senderName:user.name||user.email,property:pRows[0],
@@ -59,6 +60,7 @@ module.exports=function(pool){
       if(!pRows[0].email_thread_id&&result.threadId){
         await pool.query('UPDATE properties SET email_thread_id=$1,email_message_id=COALESCE($3,email_message_id) WHERE uid=$2',[result.threadId,req.params.uid,result.rfc822MsgId||null]);
       }
+      await pool.query('UPDATE properties SET pending_request_email_sent=TRUE,updated_at=NOW() WHERE uid=$1',[req.params.uid]);
       console.log(`Pending amount email sent for ${req.params.uid} by ${user.email} — msgId: ${result.messageId}`);
       notifyAMASigned(pRows[0],user.name||user.email,{email:user.email,name:user.name}).catch(e=>console.error('WA ama_signed error:', e));
       res.json({success:true,messageId:result.messageId});

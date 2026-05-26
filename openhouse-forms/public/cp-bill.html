@@ -408,6 +408,7 @@ async function loadUID(uid){
     }
     document.getElementById('cpBillForm').style.display='block';
     document.getElementById('emailBtn').style.display=d.cp_bill_submitted_at?'block':'none';
+    if(d.cp_bill_email_sent===true){const eb=document.getElementById('emailBtn');eb.disabled=true;eb.innerHTML='✓ Email Sent Already';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)'}
     st.className='pf-st show ok';st.textContent=`Loaded: ${uid}${d.cp_bill_submitted_at?' (Submitted)':''}`;
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('cpBillForm').style.display='none'}
 }
@@ -585,6 +586,7 @@ async function confirmSendEmail(){
     const r=await fetch(`${API}/api/cp-bill/send-email/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'}});
     const d=await r.json();if(!r.ok)throw new Error(d.error);
     toast('Email sent successfully!','ok',5000);closeEmailModal();
+    const eb=document.getElementById('emailBtn');eb.disabled=true;eb.innerHTML='✓ Email Sent Already';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)';
   }catch(e){toast(e.message||'Failed','err');
     if(e.message&&e.message.includes('log out'))toast('Please logout and login again','warn',8000);
   }finally{btn.disabled=false;btn.textContent='✉ Confirm & Send'}

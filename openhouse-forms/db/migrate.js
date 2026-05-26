@@ -213,6 +213,11 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='refundable_deposit') THEN ALTER TABLE properties ADD COLUMN refundable_deposit REAL; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='core_home_id') THEN ALTER TABLE properties ADD COLUMN core_home_id INTEGER; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_super') THEN ALTER TABLE users ADD COLUMN is_super BOOLEAN DEFAULT FALSE; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='token_request_email_sent') THEN ALTER TABLE properties ADD COLUMN token_request_email_sent BOOLEAN DEFAULT FALSE; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='token_deal_email_sent') THEN ALTER TABLE properties ADD COLUMN token_deal_email_sent BOOLEAN DEFAULT FALSE; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='pending_request_email_sent') THEN ALTER TABLE properties ADD COLUMN pending_request_email_sent BOOLEAN DEFAULT FALSE; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='cp_bill_email_sent') THEN ALTER TABLE properties ADD COLUMN cp_bill_email_sent BOOLEAN DEFAULT FALSE; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='final_email_sent') THEN ALTER TABLE properties ADD COLUMN final_email_sent BOOLEAN DEFAULT FALSE; END IF;
 END $$;
 -- One-time bootstrap: grant super-user to the original hardcoded emails if no super exists yet
 UPDATE users SET is_super=TRUE

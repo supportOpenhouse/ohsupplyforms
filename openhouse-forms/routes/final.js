@@ -55,6 +55,7 @@ module.exports=function(pool){
       if(!pRows.length)return res.status(404).json({error:'Property not found'});
       const p=pRows[0];
       if(!p.final_submitted_at)return res.status(400).json({error:'Form must be submitted first'});
+      if(p.final_email_sent===true)return res.status(409).json({error:'Email Sent Already',alreadySent:true});
       if(!p.owner_email)return res.status(400).json({error:'Owner email not found. Set it in Deal Terms form.'});
       const senderName=user.name||user.email.split('@')[0];
       const result=await sendKeyHandoverEmail({
@@ -64,6 +65,7 @@ module.exports=function(pool){
       if(!p.email_thread_id&&result.threadId){
         await pool.query('UPDATE properties SET email_thread_id=$1,email_message_id=COALESCE($3,email_message_id) WHERE uid=$2',[result.threadId,req.params.uid,result.rfc822MsgId||null]);
       }
+      await pool.query('UPDATE properties SET final_email_sent=TRUE,updated_at=NOW() WHERE uid=$1',[req.params.uid]);
       console.log(`Key handover email sent for ${req.params.uid} by ${user.email} — msgId: ${result.messageId}`);
       notifyKeyHandover(p,senderName,{email:user.email,name:user.name}).catch(e=>console.error('WA key_handover error:', e));
       res.json({success:true,messageId:result.messageId});

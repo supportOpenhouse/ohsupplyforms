@@ -450,6 +450,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     document.getElementById('tokenForm').style.display='block';
     document.getElementById('pdfBtn').disabled=!d.token_submitted_at;
     document.getElementById('emailBtn').disabled=!d.token_submitted_at;
+    if(d.token_request_email_sent===true){const eb=document.getElementById('emailBtn');eb.disabled=true;eb.innerHTML='✓ Email Sent Already';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)'}
     st.className='pf-st show ok';st.textContent=`Loaded: ${uid}${d.token_is_draft?' (Draft)':''}`;
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('tokenForm').style.display='none'}}
 function collectBody(){const fd=new FormData(document.getElementById('tokenForm'));const body=Object.fromEntries(fd.entries());
@@ -629,8 +630,7 @@ async function sendEmail(){
   try{
     const r=await fetch(`${API}/api/token-request/send-email/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'}});
     const d=await r.json();if(!r.ok)throw new Error(d.error);
-    toast('Email sent successfully!','ok',5000);btn.innerHTML='✓ Email Sent';btn.style.borderColor='var(--grn)';btn.style.color='var(--grn)';
-    setTimeout(()=>{btn.innerHTML=orig;btn.style.borderColor='var(--ac2)';btn.style.color='var(--ac2)';btn.disabled=false},5000);
+    toast('Email sent successfully!','ok',5000);btn.innerHTML='✓ Email Sent Already';btn.style.borderColor='var(--grn)';btn.style.color='var(--grn)';btn.disabled=true;
   }catch(e){toast(e.message||'Failed to send email','err');btn.innerHTML=orig;btn.disabled=false;
     if(e.message&&e.message.includes('log out')){toast('Please logout and login again to authorize Gmail','warn',8000)}}
 }

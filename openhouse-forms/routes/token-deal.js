@@ -82,6 +82,7 @@ module.exports=function(pool){
       if(!pRows.length)return res.status(404).json({error:'Property not found'});
       if(!pRows[0].token_deal_submitted_at)return res.status(400).json({error:'Deal terms must be submitted first'});
       const p=pRows[0];
+      if(p.token_deal_email_sent===true)return res.status(409).json({error:'Email Sent Already',alreadySent:true});
       if(!p.owner_email)return res.status(400).json({error:'Owner email is required to send'});
       const baseUrl=process.env.APP_URL||'';
       const pdfHtml=generateReceiptHTML(p,'deal',baseUrl);
@@ -95,6 +96,7 @@ module.exports=function(pool){
       if(result.threadId){
         await pool.query('UPDATE properties SET email_thread_id=$1,email_message_id=$3 WHERE uid=$2',[result.threadId,req.params.uid,result.rfc822MsgId||null]);
       }
+      await pool.query('UPDATE properties SET token_deal_email_sent=TRUE,updated_at=NOW() WHERE uid=$1',[req.params.uid]);
       console.log(`Deal email sent for ${req.params.uid} by ${user.email} — msgId: ${result.messageId}`);
       notifyDealTermsShared(p,signatoryName,{email:user.email,name:user.name}).catch(e=>console.error('WA deal_terms error:', e));
       res.json({success:true,messageId:result.messageId});

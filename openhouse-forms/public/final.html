@@ -75,6 +75,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     if(emails.length){document.getElementById('ownerEmailsList').innerHTML=emails.join('');document.getElementById('ownerEmailsCard').style.display='block'}
     else{document.getElementById('ownerEmailsCard').style.display='none'}
     document.getElementById('emailBtn').disabled=!propData.final_submitted_at;
+    if(propData.final_email_sent===true){const eb=document.getElementById('emailBtn');eb.disabled=true;eb.innerHTML='✓ Email Sent Already';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)'}
     document.getElementById('finalForm').style.display='block';
     st.className='pf-st show ok';st.textContent=`Loaded: ${uid}${propData.final_submitted_at?' (Submitted)':''}`;
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('finalForm').style.display='none'}}
@@ -122,6 +123,7 @@ document.getElementById('confirmSendBtn').addEventListener('click',async()=>{
     const r=await fetch(`${API}/api/final/send-email/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'}});
     const d=await r.json();if(!r.ok)throw new Error(d.error);
     toast('Email sent to owner!','ok',5000);closeEmailModal();
+    const eb=document.getElementById('emailBtn');eb.disabled=true;eb.innerHTML='✓ Email Sent Already';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)';
   }catch(e){toast(e.message||'Failed','err');
     if(e.message&&e.message.includes('log out'))toast('Please logout and login again','warn',8000);
   }finally{btn.disabled=false;btn.textContent='✉ Confirm & Send'}

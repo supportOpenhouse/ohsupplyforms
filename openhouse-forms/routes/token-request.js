@@ -102,12 +102,14 @@ module.exports=function(pool){
       if(!pRows.length)return res.status(404).json({error:'Property not found'});
       const p=pRows[0];
       if(!p.token_submitted_at)return res.status(400).json({error:'Token request must be submitted first'});
+      if(p.token_request_email_sent===true)return res.status(409).json({error:'Email Sent Already',alreadySent:true});
       const baseUrl=process.env.APP_URL||'';
       const pdfHtml=generateReceiptHTML(p,'deal',baseUrl);
       const result=await sendTokenRequestEmail({
         accessToken:user.google_access_token,refreshToken:user.google_refresh_token,
         fromEmail:user.email,property:p,pdfHtml
       });
+      await pool.query('UPDATE properties SET token_request_email_sent=TRUE,updated_at=NOW() WHERE uid=$1',[req.params.uid]);
       console.log(`Email sent for ${req.params.uid} by ${user.email} — msgId: ${result.messageId}`);
       res.json({success:true,messageId:result.messageId});
       notifyTokenRequest(p,{email:req.user?.email,name:req.user?.name}).catch(e=>console.error('WA token notify error:',e));
