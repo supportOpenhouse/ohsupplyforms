@@ -83,6 +83,7 @@ module.exports=function(pool){
       if(!pRows[0].token_deal_submitted_at)return res.status(400).json({error:'Deal terms must be submitted first'});
       const p=pRows[0];
       if(p.token_deal_email_sent===true)return res.status(409).json({error:'Email Sent Already',alreadySent:true});
+      if(!p.core_home_id)return res.status(400).json({error:'Seller Dashboard Not Created Yet',noDashboard:true});
       if(!p.owner_email)return res.status(400).json({error:'Owner email is required to send'});
       const baseUrl=process.env.APP_URL||'';
       const pdfHtml=generateReceiptHTML(p,'deal',baseUrl);

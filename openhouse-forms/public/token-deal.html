@@ -79,6 +79,7 @@
     <div class="email-recipients" id="emailRecipients"></div>
     <div class="email-body" id="emailPreviewBody"></div>
     <div class="email-ftr">
+      <span id="emailFooterErr" style="display:none;color:var(--red);font-size:12px;font-weight:600;margin-right:auto;text-align:left;line-height:1.4"></span>
       <button class="btn btn-out btn-sm" onclick="closeEmailModal()">Cancel</button>
       <button class="btn btn-dark btn-sm" id="confirmSendBtn" onclick="confirmSendEmail()">✉ Confirm & Send</button>
     </div>
@@ -245,6 +246,7 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
 Website - <a href="https://www.openhouse.in" style="color:#1a73e8">www.openhouse.in</a></p>
 <p style="font-size:11px;color:#999;margin-top:12px"><em>📎 Deal Terms PDF will be attached automatically</em></p>`;
   syncListPropBtn();
+  const efe=document.getElementById('emailFooterErr');if(efe){efe.style.display='none';efe.textContent=''}
   document.getElementById('emailModal').classList.add('open');
 });
 
@@ -268,6 +270,7 @@ document.getElementById('listPropBtn').addEventListener('click',async()=>{
     const hid=j.homeId??j.home_id;
     if(hid!=null&&propData)propData.core_home_id=hid;
     syncListPropBtn();
+    const efe=document.getElementById('emailFooterErr');if(efe){efe.style.display='none';efe.textContent=''}
   }catch(e){toast(e.message||'Failed','err');btn.disabled=false}
 });
 
@@ -276,10 +279,20 @@ document.getElementById('emailModal').addEventListener('click',e=>{if(e.target==
 document.getElementById('successModal').addEventListener('click',e=>{if(e.target===e.currentTarget)e.target.classList.remove('open')});
 
 async function confirmSendEmail(){
-  const btn=document.getElementById('confirmSendBtn');btn.disabled=true;btn.textContent='Sending...';
+  const btn=document.getElementById('confirmSendBtn');const efe=document.getElementById('emailFooterErr');
+  if(efe){efe.style.display='none';efe.textContent=''}
+  btn.disabled=true;btn.textContent='Sending...';
   try{
     const r=await fetch(`${API}/api/token-deal/send-email/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'}});
-    const d=await r.json();if(!r.ok)throw new Error(d.error);
+    const d=await r.json();
+    if(!r.ok){
+      if(d&&d.noDashboard){
+        if(efe){efe.textContent='⚠ Seller Dashboard Not Created Yet — click "Create Seller Dashboard" above first';efe.style.display='inline-block'}
+        btn.disabled=false;btn.textContent='✉ Confirm & Send';
+        return;
+      }
+      throw new Error(d.error);
+    }
     toast('Email sent to seller!','ok',5000);closeEmailModal();
     document.getElementById('successModal').classList.add('open');
     const eb=document.getElementById('emailBtn');eb.innerHTML='✓ Email Sent Already';eb.style.color='var(--grn)';eb.style.borderColor='var(--grn)';eb.disabled=true;
