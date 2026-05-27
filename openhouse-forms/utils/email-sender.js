@@ -92,7 +92,12 @@ function appendCityCc(ccStr, city) {
 // to their mailbox) still send normally and appear threaded in their Sent
 // folder; only sends that Gmail rejects with a thread-not-found error fall
 // back to header-only threading (In-Reply-To/References).
-const THREAD_FALLBACK_USERS = new Set(['priyanka.sharma@openhouse.in']);
+const THREAD_FALLBACK_USERS = new Set([
+  'priyanka.sharma@openhouse.in',
+  'shashank.kumar@openhouse.in',
+  'animesh.singh@openhouse.in',
+  'abhishek.rathore@openhouse.in',
+]);
 function isThreadNotFoundError(e) {
   const msg = e?.message || '';
   const code = e?.code || e?.response?.status;
