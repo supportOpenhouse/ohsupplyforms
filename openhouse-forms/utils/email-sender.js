@@ -87,18 +87,11 @@ function appendCityCc(ccStr, city) {
   return existing.join(', ');
 }
 
-// Senders for whom we tolerate a cross-mailbox threadId mismatch by retrying
+// For every sender we tolerate a cross-mailbox threadId mismatch by retrying
 // without Gmail's mailbox-scoped threadId. Their own threads (threadId belongs
 // to their mailbox) still send normally and appear threaded in their Sent
 // folder; only sends that Gmail rejects with a thread-not-found error fall
 // back to header-only threading (In-Reply-To/References).
-const THREAD_FALLBACK_USERS = new Set([
-  'priyanka.sharma@openhouse.in',
-  'shashank.kumar@openhouse.in',
-  'animesh.singh@openhouse.in',
-  'abhishek.rathore@openhouse.in',
-  'priyesh.kumar@openhouse.in'
-]);
 function isThreadNotFoundError(e) {
   const msg = e?.message || '';
   const code = e?.code || e?.response?.status;
@@ -109,9 +102,7 @@ async function sendWithThreadFallback(gmail, requestBody, fromEmail) {
   try {
     return await gmail.users.messages.send({ userId: 'me', requestBody });
   } catch (e) {
-    if (requestBody.threadId
-        && THREAD_FALLBACK_USERS.has((fromEmail||'').toLowerCase())
-        && isThreadNotFoundError(e)) {
+    if (requestBody.threadId && isThreadNotFoundError(e)) {
       console.log(`Thread ${requestBody.threadId} not in ${fromEmail}'s mailbox — retrying without threadId`);
       const { threadId, ...rest } = requestBody;
       return await gmail.users.messages.send({ userId: 'me', requestBody: rest });
