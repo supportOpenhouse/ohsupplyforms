@@ -21,7 +21,7 @@ app.use(session({
   store: new PgSession({ pool, tableName: 'session', createTableIfMissing: true }),
   secret: process.env.SESSION_SECRET || 'openhouse-secret-change-me',
   resave: false, saveUninitialized: false,
-  cookie: { secure: process.env.NODE_ENV === 'production' || process.env.APP_URL?.startsWith('https'), maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'lax' }
+  cookie: { secure: process.env.NODE_ENV === 'production' || process.env.APP_URL?.startsWith('https'), maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'lax' }
 }));
 
 app.use(passport.initialize());
