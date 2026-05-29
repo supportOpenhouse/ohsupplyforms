@@ -97,6 +97,7 @@ const THREAD_FALLBACK_USERS = new Set([
   'shashank.kumar@openhouse.in',
   'animesh.singh@openhouse.in',
   'abhishek.rathore@openhouse.in',
+  'priyesh.kumar@openhouse.in'
 ]);
 function isThreadNotFoundError(e) {
   const msg = e?.message || '';
