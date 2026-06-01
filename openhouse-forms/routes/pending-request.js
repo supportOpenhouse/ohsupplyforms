@@ -22,16 +22,19 @@ module.exports=function(pool){
 
   router.post('/submit',async(req,res)=>{
     try{
-      const d=req.body;const{rows}=await pool.query('SELECT uid FROM properties WHERE uid=$1',[d.uid]);
+      const d=req.body;const{rows}=await pool.query('SELECT uid,occupancy_status FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
+      // Owner staying & not vacating ("do nothing"): no tentative date — clear it so a stale value can't linger.
+      const ownerNo=rows[0].occupancy_status==='Owner Staying'&&d.owner_will_vacate==='No';
       await pool.query(`UPDATE properties SET ama_date=$1,signed_ama_url=COALESCE($3,signed_ama_url),
         co_owner_aadhaar_front_url=COALESCE($4,co_owner_aadhaar_front_url),co_owner_aadhaar_back_url=COALESCE($5,co_owner_aadhaar_back_url),
         co_owner_pan_url=COALESCE($6,co_owner_pan_url),co_owner_cheque_url=COALESCE($7,co_owner_cheque_url),
-        key_handover_date=COALESCE($8,key_handover_date),
+        owner_will_vacate=$9,
+        key_handover_date=${ownerNo?'NULL':'COALESCE($8,key_handover_date)'},
         pending_request_submitted_at=NOW(),updated_at=NOW() WHERE uid=$2`,
         [d.ama_date||null,d.uid,d.signed_ama_url||null,
          d.co_owner_aadhaar_front_url||null,d.co_owner_aadhaar_back_url||null,
-         d.co_owner_pan_url||null,d.co_owner_cheque_url||null,d.key_handover_date||null]);
+         d.co_owner_pan_url||null,d.co_owner_cheque_url||null,d.key_handover_date||null,d.owner_will_vacate||null]);
       res.json({success:true,uid:d.uid});
       logger.logFormSubmit(d.uid,'pending_request_submitted',6,req.user?.email,req.user?.name).catch(()=>{});
     }catch(e){console.error('PendingRequest:',e);res.status(500).json({error:e.message})}

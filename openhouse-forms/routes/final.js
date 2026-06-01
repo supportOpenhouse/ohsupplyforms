@@ -20,14 +20,24 @@ module.exports=function(pool){
   });
   router.post('/submit',async(req,res)=>{
     try{
-      const d=req.body;const{rows}=await pool.query('SELECT uid FROM properties WHERE uid=$1',[d.uid]);
+      const d=req.body;const{rows}=await pool.query('SELECT uid,occupancy_status,owner_will_vacate,ama_date FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
-      if(!d.key_handover_date)return res.status(400).json({error:'Key Handover Date required'});
+      const r=rows[0];
+      // Owner staying & not vacating → actual key handover date = Date of AMA (server is authoritative).
+      const ownerNo=r.occupancy_status==='Owner Staying'&&r.owner_will_vacate==='No';
+      let khd;
+      if(ownerNo){
+        if(!r.ama_date)return res.status(400).json({error:'Date of AMA missing — submit Form 6 first'});
+        khd=r.ama_date;
+      }else{
+        if(!d.key_handover_date)return res.status(400).json({error:'Actual Key Handover Date required'});
+        khd=d.key_handover_date;
+      }
       await pool.query(`UPDATE properties SET
         remaining_amount=$1,key_handover_date=$3,
         final_submitted_at=NOW(),updated_at=NOW()
         WHERE uid=$2`,
-        [parseFloat(d.remaining_amount)||null,d.uid,d.key_handover_date||null]);
+        [parseFloat(d.remaining_amount)||null,d.uid,khd]);
       res.json({success:true,uid:d.uid});
       logger.logFormSubmit(d.uid,'key_handover_submitted',9,req.user?.email,req.user?.name).catch(()=>{});
     }catch(e){console.error('Final:',e);res.status(500).json({error:e.message})}

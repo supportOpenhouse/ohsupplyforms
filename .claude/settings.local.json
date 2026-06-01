@@ -6,7 +6,15 @@
       "Bash(node -c db/migrate.js)",
       "Bash(node -c \"C:\\\\Users\\\\Administrator\\\\Documents\\\\GitHub\\\\ohsupplyforms\\\\openhouse-forms\\\\routes\\\\ama-details.js\")",
       "Bash(node -c \"C:\\\\Users\\\\Administrator\\\\Documents\\\\GitHub\\\\ohsupplyforms\\\\openhouse-forms\\\\routes\\\\token-request.js\")",
-      "Bash(node -c \"C:\\\\Users\\\\Administrator\\\\Documents\\\\GitHub\\\\ohsupplyforms\\\\openhouse-forms\\\\utils\\\\pdf-template.js\")"
+      "Bash(node -c \"C:\\\\Users\\\\Administrator\\\\Documents\\\\GitHub\\\\ohsupplyforms\\\\openhouse-forms\\\\utils\\\\pdf-template.js\")",
+      "Bash(cd openhouse-forms *)",
+      "Read(//Users/saranshkhera/Documents/GitHub/**)",
+      "Bash(node --check server.js)",
+      "Bash(node --check routes/pending-request.js)",
+      "Bash(node --check routes/final.js)",
+      "Bash(node --check db/migrate.js)",
+      "Bash(git --no-pager diff --stat)",
+      "Bash(git --no-pager diff routes/pending-request.js routes/final.js)"
     ]
   }
 }

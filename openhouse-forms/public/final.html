@@ -22,7 +22,8 @@
     <div class="pf-st" id="pfSt"></div></div>
 
   <form id="finalForm" style="display:none"><input type="hidden" name="uid" id="fUid">
-    <div class="card"><div class="fg"><label>Key Handover Date <span class="req">*</span></label><input type="date" name="key_handover_date" id="hdDate" required><div class="err-msg">Required</div></div></div>
+    <div class="card"><div class="fg"><label>Actual Key Handover Date <span class="req">*</span></label><input type="date" name="key_handover_date" id="hdDate" required><div class="err-msg">Required</div>
+      <div id="hdNote" style="display:none;font-size:12px;color:var(--tx3);margin-top:4px"></div></div></div>
 
     <div class="card" id="ownerEmailsCard" style="display:none"><div class="card-t">Owner Email(s)</div>
       <div id="ownerEmailsList" style="font-size:13px;line-height:1.8"></div>
@@ -64,8 +65,20 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
   try{const r=await fetch(`${API}/api/final/prefill/${uid}`);if(!r.ok)throw new Error((await r.json()).error);propData=await r.json();
     document.getElementById('fUid').value=propData.uid;currentUid=uid;
     const sv=(n,v)=>{const el=document.querySelector(`[name="${n}"]`);if(el&&v!=null)el.value=v};
-    // Key Handover Date — always show, prefill if exists
-    if(propData.key_handover_date)document.getElementById('hdDate').value=propData.key_handover_date.split('T')[0];
+    // Actual Key Handover Date — logic depends on occupancy.
+    const hd=document.getElementById('hdDate'),hdNote=document.getElementById('hdNote');
+    const ownerNo=propData.occupancy_status==='Owner Staying'&&propData.owner_will_vacate==='No';
+    if(ownerNo){
+      // Owner staying & not vacating → actual = Date of AMA (auto-filled & locked).
+      const ama=propData.ama_date?propData.ama_date.split('T')[0]:'';
+      hd.value=ama;hd.readOnly=true;hd.required=false;
+      hdNote.textContent=ama?`Owner is staying and will not vacate — set to the Date of AMA (${new Date(ama+'T00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}).`:'Owner is staying and will not vacate — will be set to the Date of AMA.';
+      hdNote.style.display='block';
+    }else{
+      hd.readOnly=false;hd.required=true;hdNote.style.display='none';
+      // Prefill with the tentative date captured in Form 3/6
+      if(propData.key_handover_date)hd.value=propData.key_handover_date.split('T')[0];
+    }
     // Show owner emails fetched from Form 4
     const emails=[];
     if(propData.owner_email)emails.push(`<div><strong>${propData.owner_broker_name||'Owner'}:</strong> ${propData.owner_email}</div>`);

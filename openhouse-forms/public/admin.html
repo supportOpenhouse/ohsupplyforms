@@ -423,7 +423,7 @@ function buildModal(p){
   html+=`<div class="prev-section"><div class="prev-section-t">Token Request (Form 3)</div><div class="prev-grid">
     ${ef('Requested By','token_requested_by',p.token_requested_by)}${ef('Token Amount (₹)','deal_token_amount',p.deal_token_amount,'number')}${pvLink('Cheque Image',p.cheque_image_url)}
     ${efSel('Cheque Bank','cheque_bank_name',p.cheque_bank_name,FORM_OPTS.banks)}${ef('Cheque A/C','cheque_account_number',p.cheque_account_number)}${ef('Cheque IFSC','cheque_ifsc',p.cheque_ifsc)}
-    ${efSel('Registry','registry_status',p.registry_status,['Registered','Unregistered','Under Process'])}${efSel('Occupancy','occupancy_status',p.occupancy_status,['Vacant','Tenant','Owner Staying'])}${ef('Key Handover','key_handover_date',p.key_handover_date,'date')}
+    ${efSel('Registry','registry_status',p.registry_status,['Registered','Unregistered','Under Process'])}${efSel('Occupancy','occupancy_status',p.occupancy_status,['Vacant','Tenant','Owner Staying'])}${ef('Tentative Key Handover','key_handover_date',p.key_handover_date,'date')}
     ${ef('GSP (Lakhs)','guaranteed_sale_price',p.guaranteed_sale_price,'number')}${ef('Total Deposit (₹)','total_deposit',p.total_deposit,'number')}${ef('PG (₹)','performance_guarantee',p.performance_guarantee,'number')}
     ${ef('Refundable Deposit (₹)','refundable_deposit',p.refundable_deposit,'number')}${ef('Initial Period (d)','initial_period',p.initial_period,'number')}${ef('Rent (Initial)','rent_payable_initial_period',p.rent_payable_initial_period)}
     ${ef('Grace Period (d)','grace_period',p.grace_period,'number')}${ef('Rent (Grace)','rent_payable_grace_period',p.rent_payable_grace_period)}
@@ -455,7 +455,7 @@ function buildModal(p){
   </div></div>`;
 
   html+=`<div class="prev-section"><div class="prev-section-t">AMA Ack & Pending Amount (Form 6)</div><div class="prev-grid">
-    ${ef('AMA Date','ama_date',p.ama_date,'date')}${pvLink('Signed AMA',p.signed_ama_url)}
+    ${ef('AMA Date','ama_date',p.ama_date,'date')}${efSel('Owner Will Vacate?','owner_will_vacate',p.owner_will_vacate,['Yes','No'])}${pvLink('Signed AMA',p.signed_ama_url)}
     ${pvLink('Co-owner Aadhaar Front',p.co_owner_aadhaar_front_url)}${pvLink('Co-owner Aadhaar Back',p.co_owner_aadhaar_back_url)}
     ${pvLink('Co-owner PAN',p.co_owner_pan_url)}${pvLink('Co-owner Cheque',p.co_owner_cheque_url)}
     ${efRO('Submitted',fmtDtFull(p.pending_request_submitted_at))}
@@ -488,7 +488,7 @@ function buildModal(p){
   </div></div>`;
 
   html+=`<div class="prev-section"><div class="prev-section-t">Key Handover (Form 9)</div><div class="prev-grid">
-    ${ef('Remaining (₹)','remaining_amount',p.remaining_amount,'number')}${ef('Key Handover Date','key_handover_date',p.key_handover_date,'date')}
+    ${ef('Remaining (₹)','remaining_amount',p.remaining_amount,'number')}${ef('Actual Key Handover Date','key_handover_date',p.key_handover_date,'date')}
     ${efRO('Submitted',fmtDtFull(p.final_submitted_at))}
   </div></div>`;
 

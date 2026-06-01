@@ -218,6 +218,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='pending_request_email_sent') THEN ALTER TABLE properties ADD COLUMN pending_request_email_sent BOOLEAN DEFAULT FALSE; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='cp_bill_email_sent') THEN ALTER TABLE properties ADD COLUMN cp_bill_email_sent BOOLEAN DEFAULT FALSE; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='final_email_sent') THEN ALTER TABLE properties ADD COLUMN final_email_sent BOOLEAN DEFAULT FALSE; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='owner_will_vacate') THEN ALTER TABLE properties ADD COLUMN owner_will_vacate TEXT; END IF;
 END $$;
 -- One-time bootstrap: grant super-user to the original hardcoded emails if no super exists yet
 UPDATE users SET is_super=TRUE

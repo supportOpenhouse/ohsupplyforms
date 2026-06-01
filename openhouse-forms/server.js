@@ -104,7 +104,7 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
       'schedule_date','schedule_time','co_owner','co_owner_number','lead_id',
       'extra_area','bathrooms','balconies','gas_pipeline','parking','furnishing','furnishing_details',
       'total_lifts','total_floors_tower','total_flats_floor','exit_facing','video_link','visit_remarks',
-      'token_requested_by','registry_status','occupancy_status','key_handover_date',
+      'token_requested_by','registry_status','occupancy_status','key_handover_date','owner_will_vacate',
       'guaranteed_sale_price','performance_guarantee','total_deposit','refundable_deposit',
       'initial_period','rent_payable_initial_period',
       'grace_period','rent_payable_grace_period','outstanding_loan','bank_name_loan','loan_account_number',

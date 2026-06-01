@@ -58,8 +58,10 @@
     </div>
 
     <div class="card"><div class="card-t">AMA Details</div>
-      <div class="fg"><label>Date of AMA <span class="req">*</span></label><input type="date" name="ama_date" id="amaDate" required><div class="err-msg">Required</div></div>
-      <div class="fg"><label>Key Handover Date <span class="req">*</span></label><input type="date" name="key_handover_date" id="hdDate" required><div class="err-msg">Required</div></div>
+      <div class="fg"><label>Date of AMA <span class="req">*</span></label><input type="date" name="ama_date" id="amaDate" class="pre" readonly required><div class="err-msg">Required</div></div>
+      <div class="fg" id="vacateWrap" style="display:none"><label>Will the owner vacate the property? <span class="req">*</span></label><select id="ownerVacate"><option value="">Select...</option><option>Yes</option><option>No</option></select><div class="err-msg">Required</div></div>
+      <div class="fg" id="hdWrap"><label>Tentative Key Handover Date <span class="req">*</span></label><input type="date" name="key_handover_date" id="hdDate" required><div class="err-msg">Required</div></div>
+      <div id="hdNote" style="display:none;font-size:12px;color:var(--tx3);margin-top:-4px">Owner is staying and will not vacate — the actual key handover date will be recorded as the Date of AMA in the Key Handover form (Form 9).</div>
     </div>
 
     <div class="card"><div class="card-t">Payment Split</div>
@@ -171,8 +173,11 @@ async function loadData(){
 
     // AMA date prefill
     if(propData.ama_date)document.getElementById('amaDate').value=propData.ama_date.split('T')[0];
-    // Key handover date prefill (submitted in Form 3) — shown and updatable
+    // Tentative key handover date prefill (Tenant: from Form 3; Vacant/Owner-vacating: updatable)
     if(propData.key_handover_date)document.getElementById('hdDate').value=propData.key_handover_date.split('T')[0];
+    // Occupancy-driven key-handover logic
+    if(propData.owner_will_vacate)document.getElementById('ownerVacate').value=propData.owner_will_vacate;
+    applyOccupancyUI();
 
     // Payment amounts — editable
     const hasCoOwner=!!(propData.co_owner&&propData.co_owner.trim());
@@ -205,13 +210,31 @@ async function loadData(){
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('parForm').style.display='none'}
 }
 
+// Show the "owner will vacate?" question only for Owner Staying, and hide the
+// tentative date when the owner stays and will NOT vacate ("do nothing").
+function applyOccupancyUI(){
+  const occ=propData?propData.occupancy_status:'';
+  const vacate=document.getElementById('ownerVacate').value;
+  const isOwnerStaying=occ==='Owner Staying';
+  const hideDate=isOwnerStaying&&vacate==='No';
+  document.getElementById('vacateWrap').style.display=isOwnerStaying?'block':'none';
+  document.getElementById('hdWrap').style.display=hideDate?'none':'block';
+  document.getElementById('hdNote').style.display=hideDate?'block':'none';
+  const hd=document.getElementById('hdDate');hd.required=!hideDate;if(hideDate)hd.value='';
+}
+document.getElementById('ownerVacate').addEventListener('change',applyOccupancyUI);
+
 // Submit
 document.getElementById('submitBtn').addEventListener('click',()=>{
   if(!currentUid){toast('Select a UID','warn');return}
   const amaDate=document.getElementById('amaDate').value;
   if(!amaDate){toast('AMA Date required','err');return}
+  const occ=propData?propData.occupancy_status:'';
+  const vacate=document.getElementById('ownerVacate').value;
+  const ownerNo=occ==='Owner Staying'&&vacate==='No';
+  if(occ==='Owner Staying'&&!vacate){toast('Select whether the owner will vacate','err');return}
   const hdDate=document.getElementById('hdDate').value;
-  if(!hdDate){toast('Key Handover Date required','err');return}
+  if(!ownerNo&&!hdDate){toast('Tentative Key Handover Date required','err');return}
   const alreadySubmitted=!!(propData&&propData.pending_request_submitted_at);
   if(!document.getElementById('owner1Amt').value){toast('Owner amount required','err');return}
   // Validate co-owner docs if card is visible
@@ -225,7 +248,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
     if(missing.length){toast(`Upload required: ${missing.join(', ')}`,'err');return}
   }
 
-  const body={uid:currentUid,ama_date:amaDate,key_handover_date:hdDate};
+  const body={uid:currentUid,ama_date:amaDate,key_handover_date:ownerNo?null:hdDate,owner_will_vacate:occ==='Owner Staying'?vacate:null};
   for(const[key,col]of Object.entries(CO_DOC_COL)){body[col]=coDocUrls[key]||null}
   submitBtn(document.getElementById('submitBtn'),async()=>{
     const r=await fetch(`${API}/api/pending-request/submit`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
