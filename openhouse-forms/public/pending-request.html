@@ -59,6 +59,7 @@
 
     <div class="card"><div class="card-t">AMA Details</div>
       <div class="fg"><label>Date of AMA <span class="req">*</span></label><input type="date" name="ama_date" id="amaDate" required><div class="err-msg">Required</div></div>
+      <div class="fg"><label>Key Handover Date <span class="req">*</span></label><input type="date" name="key_handover_date" id="hdDate" required><div class="err-msg">Required</div></div>
     </div>
 
     <div class="card"><div class="card-t">Payment Split</div>
@@ -170,6 +171,8 @@ async function loadData(){
 
     // AMA date prefill
     if(propData.ama_date)document.getElementById('amaDate').value=propData.ama_date.split('T')[0];
+    // Key handover date prefill (submitted in Form 3) — shown and updatable
+    if(propData.key_handover_date)document.getElementById('hdDate').value=propData.key_handover_date.split('T')[0];
 
     // Payment amounts — editable
     const hasCoOwner=!!(propData.co_owner&&propData.co_owner.trim());
@@ -207,6 +210,8 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   if(!currentUid){toast('Select a UID','warn');return}
   const amaDate=document.getElementById('amaDate').value;
   if(!amaDate){toast('AMA Date required','err');return}
+  const hdDate=document.getElementById('hdDate').value;
+  if(!hdDate){toast('Key Handover Date required','err');return}
   const alreadySubmitted=!!(propData&&propData.pending_request_submitted_at);
   if(!document.getElementById('owner1Amt').value){toast('Owner amount required','err');return}
   // Validate co-owner docs if card is visible
@@ -220,7 +225,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
     if(missing.length){toast(`Upload required: ${missing.join(', ')}`,'err');return}
   }
 
-  const body={uid:currentUid,ama_date:amaDate};
+  const body={uid:currentUid,ama_date:amaDate,key_handover_date:hdDate};
   for(const[key,col]of Object.entries(CO_DOC_COL)){body[col]=coDocUrls[key]||null}
   submitBtn(document.getElementById('submitBtn'),async()=>{
     const r=await fetch(`${API}/api/pending-request/submit`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
