@@ -216,11 +216,13 @@ function applyOccupancyUI(){
   const occ=propData?propData.occupancy_status:'';
   const vacate=document.getElementById('ownerVacate').value;
   const isOwnerStaying=occ==='Owner Staying';
-  const hideDate=isOwnerStaying&&vacate==='No';
+  // Owner Staying: ask the vacate question; show the tentative date ONLY when "Yes".
+  // Vacant/Tenant: no question, the tentative date is always shown.
+  const showDate=isOwnerStaying?(vacate==='Yes'):true;
   document.getElementById('vacateWrap').style.display=isOwnerStaying?'block':'none';
-  document.getElementById('hdWrap').style.display=hideDate?'none':'block';
-  document.getElementById('hdNote').style.display=hideDate?'block':'none';
-  const hd=document.getElementById('hdDate');hd.required=!hideDate;if(hideDate)hd.value='';
+  document.getElementById('hdWrap').style.display=showDate?'block':'none';
+  document.getElementById('hdNote').style.display=(isOwnerStaying&&vacate==='No')?'block':'none';
+  const hd=document.getElementById('hdDate');hd.required=showDate;if(!showDate)hd.value='';
 }
 document.getElementById('ownerVacate').addEventListener('change',applyOccupancyUI);
 

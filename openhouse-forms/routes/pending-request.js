@@ -30,11 +30,11 @@ module.exports=function(pool){
         co_owner_aadhaar_front_url=COALESCE($4,co_owner_aadhaar_front_url),co_owner_aadhaar_back_url=COALESCE($5,co_owner_aadhaar_back_url),
         co_owner_pan_url=COALESCE($6,co_owner_pan_url),co_owner_cheque_url=COALESCE($7,co_owner_cheque_url),
         owner_will_vacate=$9,
-        key_handover_date=${ownerNo?'NULL':'COALESCE($8,key_handover_date)'},
+        key_handover_date=${ownerNo?'$8::date':'COALESCE($8::date,key_handover_date)'},
         pending_request_submitted_at=NOW(),updated_at=NOW() WHERE uid=$2`,
         [d.ama_date||null,d.uid,d.signed_ama_url||null,
          d.co_owner_aadhaar_front_url||null,d.co_owner_aadhaar_back_url||null,
-         d.co_owner_pan_url||null,d.co_owner_cheque_url||null,d.key_handover_date||null,d.owner_will_vacate||null]);
+         d.co_owner_pan_url||null,d.co_owner_cheque_url||null,ownerNo?null:(d.key_handover_date||null),d.owner_will_vacate||null]);
       res.json({success:true,uid:d.uid});
       logger.logFormSubmit(d.uid,'pending_request_submitted',6,req.user?.email,req.user?.name).catch(()=>{});
     }catch(e){console.error('PendingRequest:',e);res.status(500).json({error:e.message})}
