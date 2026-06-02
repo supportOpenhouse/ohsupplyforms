@@ -522,7 +522,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
 
 document.getElementById('emailBtn').addEventListener('click',()=>{
   if(!currentUid){toast('Select a UID','warn');return}
-  const addr=[loadedData?.unit_no,loadedData?.tower_no,loadedData?.society_name,loadedData?.locality,loadedData?.city].filter(Boolean).join(', ');
+  const addr=[loadedData?.tower_no,loadedData?.unit_no,loadedData?.society_name,loadedData?.locality,loadedData?.city].filter(Boolean).join(', ');
   const amaStatus=docUrls.cp_ama_signed?'Signed (attached below)':'Not signed yet';
   const previewCpType=document.getElementById('f_cpType').value;
   const previewIsFirm=previewCpType==='HAS_FIRM';

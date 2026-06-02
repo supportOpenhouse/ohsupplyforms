@@ -414,7 +414,7 @@ async function sendCPBillEmail({ accessToken, refreshToken, fromEmail, senderNam
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   const p = property;
-  const addr = [p.unit_no, p.tower_no, p.society_name, p.locality, p.city].filter(Boolean).join(', ');
+  const addr = [p.tower_no, p.unit_no, p.society_name, p.locality, p.city].filter(Boolean).join(', ');
   const amaStatus = p.cp_ama_signed_url ? 'Signed (attached below)' : 'Not signed yet';
 
   const isFirm = p.cp_firm && p.cp_firm !== 'INDIVIDUAL';
@@ -487,7 +487,7 @@ async function sendPendingAmountEmail({ accessToken, refreshToken, fromEmail, se
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   const p = property;
-  const addr = [p.unit_no, p.tower_no, p.society_name, p.locality, p.city].filter(Boolean).join(', ');
+  const addr = [p.tower_no, p.unit_no, p.society_name, p.locality, p.city].filter(Boolean).join(', ');
   const amaDate = p.ama_date ? new Date(p.ama_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   const ownerName = owner1_name || p.owner_broker_name || 'Owner';
 
@@ -549,7 +549,7 @@ async function sendKeyHandoverEmail({ accessToken, refreshToken, fromEmail, send
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   const p = property;
-  const addr = [p.unit_no, p.tower_no, p.society_name, p.locality, p.city].filter(Boolean).join(', ');
+  const addr = [p.tower_no, p.unit_no, p.society_name, p.locality, p.city].filter(Boolean).join(', ');
   const sellerName = p.owner_broker_name || 'Seller';
   const hdDate = p.key_handover_date ? new Date(p.key_handover_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 

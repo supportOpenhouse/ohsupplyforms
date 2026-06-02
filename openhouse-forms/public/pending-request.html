@@ -265,7 +265,7 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
   if(!currentUid){toast('Load a property first','warn');return}
   if(!propData?.owner_email){toast('Owner email not found. Set it in Deal Terms form.','err');return}
   if(!propData?.signed_ama_url){toast('AMA is not yet uploaded by the Legal Team.','err');return}
-  const addr=[propData?.unit_no,propData?.tower_no,propData?.society_name,propData?.locality,propData?.city].filter(Boolean).join(', ');
+  const addr=[propData?.tower_no,propData?.unit_no,propData?.society_name,propData?.locality,propData?.city].filter(Boolean).join(', ');
   const amaDate=document.getElementById('amaDate').value?new Date(document.getElementById('amaDate').value+'T00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—';
   const o1Name=propData.owner_broker_name||'Owner';
   const o1Amt=Number(document.getElementById('owner1Amt').value)||0;
