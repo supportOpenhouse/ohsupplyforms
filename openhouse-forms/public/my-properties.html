@@ -30,6 +30,12 @@
 .ps.pending{background:#f3f4f6;color:#999}
 .ps.draft{background:#fef3c7;color:#92400e}
 .ps.dead{background:#fdecea;color:#b33a2e}
+.vbadge{padding:2px 8px;border-radius:12px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.vbadge.done{background:#e8f2ec;color:#2d5a3d}
+.vbadge.pending{background:#fff3d6;color:#b45309}
+.vbadge.overdue{background:#fdecea;color:#b33a2e}
+.visit-line{display:flex;align-items:center;gap:6px;padding:6px 14px 0;font-size:11px;color:var(--tx3);flex-wrap:wrap}
+.visit-line .vl-date{font-weight:600;color:var(--tx)}
 .pd-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:8px}
 .pd-grid.col3{grid-template-columns:1fr 1fr 1fr}
 .pd-item{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:5px 8px}
@@ -106,6 +112,22 @@ let allProps=[],assignedToList=[];
 function fmtDt(d){if(!d)return'—';const dt=new Date(d);return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}
 function fmtTime12(t){if(!t)return'—';const[h,m]=t.split(':');const hr=parseInt(h);return`${hr===0?12:hr>12?hr-12:hr}:${m} ${hr>=12?'PM':'AM'}`}
 
+// Local "today" as YYYY-MM-DD for day-level comparison against the scheduled visit date.
+function todayStr(){const t=new Date();return`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`}
+// Visit status for the scheduled visit: Done once visited, else Overdue if the date has passed, else Pending.
+function visitStatus(p){
+  if(p.is_dead)return null;
+  if(p.visit_submitted_at)return{label:'Done',cls:'done'};
+  const sd=(p.schedule_date||'').split('T')[0];
+  if(!sd)return{label:'Pending',cls:'pending'};
+  return sd<todayStr()?{label:'Overdue',cls:'overdue'}:{label:'Pending',cls:'pending'};
+}
+// Sort by scheduled visit date, latest on top (properties without a date go last).
+function bySchedDesc(a,b){
+  const da=(a.schedule_date||'').split('T')[0],db=(b.schedule_date||'').split('T')[0];
+  if(da===db)return 0;if(!da)return 1;if(!db)return -1;return da<db?1:-1;
+}
+
 function getStage(p){
   if(p.is_dead)return{label:'Cancelled',cls:'s-can',key:'dead',step:0};
   if(p.is_token_refunded)return{label:'Cancelled Post Token',cls:'s-ref',key:'refunded',step:0};
@@ -150,6 +172,7 @@ function renderProps(){
   let d=allProps;
   if(q)d=d.filter(p=>(p.uid||'').toLowerCase().includes(q)||(p.society_name||'').toLowerCase().includes(q)||(p.owner_broker_name||'').toLowerCase().includes(q));
   if(st)d=d.filter(p=>p._stage.key===st);
+  d=[...d].sort(bySchedDesc);
   document.getElementById('propCount').textContent=`${d.length} propert${d.length===1?'y':'ies'}`;
   const list=document.getElementById('propList');
   if(!d.length){list.innerHTML='<div style="text-align:center;padding:40px;color:var(--tx3)">No properties found</div>';return}
@@ -180,6 +203,9 @@ function renderProps(){
 
     const unit=[p.tower_no,p.unit_no].filter(Boolean).join('-');
     const subtitle=[unit,p.society_name].filter(Boolean).join(' | ');
+
+    const vstat=visitStatus(p);
+    const visitLine=p.schedule_date?`<div class="visit-line">🗓 <span>Visit Scheduled:</span> <span class="vl-date">${fmtDt(p.schedule_date)}${p.schedule_time?' · '+fmtTime12(p.schedule_time):''}</span>${vstat?` <span class="vbadge ${vstat.cls}">${vstat.label}</span>`:''}</div>`:'';
 
     const detailHtml=`
       <div class="pd-grid">
@@ -214,6 +240,7 @@ function renderProps(){
         <span class="prop-soc">${subtitle}</span>
         <span class="prop-arrow">▼</span>
       </div>
+      ${visitLine}
       <div class="prog-bar"><div class="prog-fill" style="width:${progPct}%;background:${progColor}"></div></div>
       <div class="prop-status">${statusHtml}</div>
       <div class="prop-body">${detailHtml}</div>
