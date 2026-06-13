@@ -1,7 +1,7 @@
 // External integrations — push from other Openhouse apps
 const express = require('express'), router = express.Router();
 const logger = require('../utils/logger');
-const { notifyVisitScheduled } = require('../utils/whatsapp');
+const { notifyVisitScheduled, notifyVisitCancelled } = require('../utils/whatsapp');
 
 const CITY_MAP = { 'Gurgaon': 'G', 'Noida': 'N', 'Ghaziabad': 'GH' };
 const SRC_MAP = { 'CP': 'C', 'Direct': 'D', 'CP Listing': 'C' };
@@ -181,6 +181,51 @@ module.exports = function (pool) {
 
     } catch (e) {
       console.error('External /schedule error:', e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // POST /api/external/cancel — cancel a previously-scheduled visit from another app.
+  // Mirrors the in-app /api/visits/dead/:uid handler: marks is_dead=TRUE and fires the
+  // visit-cancelled WhatsApp. Idempotent — re-cancelling an already-dead row is a no-op.
+  router.post('/cancel', authCheck, async (req, res) => {
+    try {
+      const d = req.body || {};
+      const leadId = d.lead_id ? String(d.lead_id) : '';
+      if (!leadId) return res.status(400).json({ error: 'lead_id required' });
+
+      const { rows } = await pool.query(
+        'SELECT * FROM properties WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 1',
+        [leadId]
+      );
+      if (!rows.length) return res.status(404).json({ error: `no visit found for lead_id ${leadId}` });
+      const prop = rows[0];
+
+      if (prop.is_dead) {
+        return res.json({ success: true, uid: prop.uid, already_cancelled: true });
+      }
+      if (prop.visit_submitted_at) {
+        return res.status(400).json({ error: 'visit already completed, cannot cancel' });
+      }
+
+      await pool.query(
+        'UPDATE properties SET is_dead = TRUE, updated_at = NOW() WHERE uid = $1',
+        [prop.uid]
+      );
+      res.json({ success: true, uid: prop.uid, already_cancelled: false });
+
+      const actorEmail = d.actor_email || null;
+      const actorName  = d.actor_name  || 'Direct Inventory App';
+      const reason     = d.reason || '';
+
+      logger.logStatusChange(prop.uid, 'visit_cancelled_via_external', false, true, actorEmail, actorName).catch(() => {});
+      if (reason) {
+        // Reason isn't part of logStatusChange's shape; record it as a separate entry.
+        logger.log(prop.uid, 'visit_cancel_reason', 'note', actorEmail, actorName, { reason, source_app: 'Direct Inventory' }).catch(() => {});
+      }
+      notifyVisitCancelled(prop, actorName, { email: actorEmail, name: actorName }).catch(e => console.error('External WA cancel notify error:', e));
+    } catch (e) {
+      console.error('External /cancel error:', e);
       res.status(500).json({ error: e.message });
     }
   });
