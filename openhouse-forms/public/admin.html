@@ -47,22 +47,42 @@
 .modal-body{padding:14px 18px;max-height:80vh;overflow-y:auto}
 .modal-footer{padding:12px 18px;border-top:1px solid var(--bd);background:var(--bg);display:flex;gap:8px;align-items:center;justify-content:flex-end}
 .modal-footer .save-status{font-size:11px;color:var(--tx3);margin-right:auto}
-.cal-nav{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:10px}
-.cal-nav #calLabel{font-weight:700;font-size:15px;min-width:170px;text-align:center}
-.cal-legend{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-bottom:12px;font-size:11px;color:var(--tx2)}
-.cal-legend .lg{display:inline-flex;align-items:center;gap:5px}
-.cal-legend .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.cal-dow{text-align:center;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;padding:4px 0}
-.cal-cell{min-height:88px;border:1px solid var(--bd);border-radius:6px;padding:4px;background:var(--sf);overflow:hidden}
-.cal-cell.other{background:var(--bg);opacity:.45}
-.cal-cell.today{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
-.cal-date{font-size:10px;font-weight:700;color:var(--tx3);margin-bottom:3px}
-.cal-ev{display:block;font-size:9px;padding:2px 4px;border-radius:4px;margin-bottom:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;font-weight:600}
-.cal-ev.done{background:#16a34a}
-.cal-ev.pending{background:#facc15;color:#1a1a1a}
-.cal-ev.overdue{background:#dc2626}
-.cal-ev.cancelled{background:#9ca3af}
+/* stack the property detail modal above the calendar so closing it returns here */
+#calModal{z-index:998}
+.cal-nav{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px}
+.cal-nav #calLabel{font-weight:700;font-size:16px;min-width:180px;text-align:center}
+.cal-legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:16px;font-size:11px;color:var(--tx2)}
+.cal-legend .lg{display:inline-flex;align-items:center;gap:6px}
+.cal-legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-dow{text-align:center;font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;padding:2px 0}
+.cal-cell{min-height:98px;border:1px solid var(--bd);border-radius:10px;padding:6px;background:var(--sf);display:flex;flex-direction:column;gap:4px}
+.cal-cell.other{background:transparent;border-color:transparent}
+.cal-cell.today{border-color:var(--ac);box-shadow:inset 0 0 0 1px var(--ac)}
+.cal-date{font-size:11px;font-weight:700;color:var(--tx3);line-height:1}
+.cal-cell.today .cal-date{color:var(--ac)}
+.cal-exec{display:flex;align-items:center;justify-content:space-between;gap:5px;font-size:10px;font-weight:600;padding:3px 7px;border-radius:7px;cursor:pointer;white-space:nowrap;overflow:hidden;transition:.12s}
+.cal-exec:hover{box-shadow:0 1px 4px rgba(0,0,0,.16)}
+.cal-exec .nm{overflow:hidden;text-overflow:ellipsis}
+.cal-exec .ct{background:rgba(0,0,0,.13);border-radius:9px;padding:0 6px;font-size:9px;font-weight:700;flex-shrink:0}
+.cal-exec.done{background:#e8f7ee;color:#1c6b3f}
+.cal-exec.pending{background:#fff3d6;color:#8a5200}
+.cal-exec.overdue{background:#fdecec;color:#b3261e}
+.cal-exec.cancelled{background:#eef0f2;color:#6b7280}
+/* day drill-down */
+.cal-day-hdr{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.cal-day-hdr #calDayTitle{font-weight:700;font-size:15px}
+.cal-visit{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--bd);border-radius:10px;margin-bottom:8px;cursor:pointer;background:var(--sf);transition:.12s}
+.cal-visit:hover{border-color:var(--ac);box-shadow:0 1px 5px rgba(0,0,0,.08)}
+.cal-visit .tm{font-weight:700;font-size:13px;min-width:78px;color:var(--tx)}
+.cal-visit .mid{flex:1;min-width:0}
+.cal-visit .mid .t1{font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-visit .mid .t2{font-size:11px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.vstat{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap;color:#fff;flex-shrink:0}
+.vstat.done{background:#16a34a}
+.vstat.pending{background:#f59e0b}
+.vstat.overdue{background:#dc2626}
+.vstat.cancelled{background:#9ca3af}
 .prev-section{margin-bottom:14px}
 .prev-section-t{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px}
 .prev-section-t::after{content:'';flex:1;height:1px;background:var(--bd)}
@@ -214,19 +234,28 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
   <div class="modal-box" style="max-width:1000px">
     <div class="modal-hdr"><h3>📅 Visit Calendar</h3><button class="btn btn-out btn-sm" onclick="closeCalModal()">✕</button></div>
     <div class="modal-body">
-      <div class="cal-nav">
-        <button class="btn btn-out btn-sm" onclick="calShift(-1)">‹ Prev</button>
-        <span id="calLabel"></span>
-        <button class="btn btn-out btn-sm" onclick="calShift(1)">Next ›</button>
-        <button class="btn btn-out btn-sm" onclick="calToday()">Today</button>
+      <div id="calMonthView">
+        <div class="cal-nav">
+          <button class="btn btn-out btn-sm" onclick="calShift(-1)">‹ Prev</button>
+          <span id="calLabel"></span>
+          <button class="btn btn-out btn-sm" onclick="calShift(1)">Next ›</button>
+          <button class="btn btn-out btn-sm" onclick="calToday()">Today</button>
+        </div>
+        <div class="cal-legend">
+          <span class="lg"><span class="dot" style="background:#16a34a"></span>Done</span>
+          <span class="lg"><span class="dot" style="background:#f59e0b"></span>Pending</span>
+          <span class="lg"><span class="dot" style="background:#dc2626"></span>Overdue</span>
+          <span class="lg"><span class="dot" style="background:#9ca3af"></span>Cancelled</span>
+        </div>
+        <div id="calGrid"></div>
       </div>
-      <div class="cal-legend">
-        <span class="lg"><span class="dot" style="background:#16a34a"></span>Done</span>
-        <span class="lg"><span class="dot" style="background:#facc15"></span>Pending</span>
-        <span class="lg"><span class="dot" style="background:#dc2626"></span>Overdue</span>
-        <span class="lg"><span class="dot" style="background:#9ca3af"></span>Cancelled</span>
+      <div id="calDayView" style="display:none">
+        <div class="cal-day-hdr">
+          <button class="btn btn-out btn-sm" onclick="calBackToMonth()">‹ Back</button>
+          <span id="calDayTitle"></span>
+        </div>
+        <div id="calDayList"></div>
       </div>
-      <div id="calGrid"></div>
     </div>
   </div>
 </div>
@@ -382,30 +411,38 @@ function clearAllFilters(){
   render();
 }
 
-// ══════ Visit Calendar (month view) ══════
+// ══════ Visit Calendar — month grid → field-exec day schedule → property detail ══════
 let calYear,calMonth; // calMonth: 0-11
+const CAL_PRIORITY={overdue:4,pending:3,done:2,cancelled:1};
+const CAL_LBL={done:'Done',pending:'Pending',overdue:'Overdue',cancelled:'Cancelled'};
+function calEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function calTime(t){if(!t)return'All day';const[h,m]=t.split(':');const hr=parseInt(h);return`${hr===0?12:hr>12?hr-12:hr}:${m} ${hr>=12?'PM':'AM'}`}
+function calDayKey(p){return(p.schedule_date==null?'':String(p.schedule_date)).split('T')[0]}
 function visitCalStatus(p){
   if(p.is_dead)return'cancelled';
   if(p.visit_submitted_at)return'done';
-  const sd=(p.schedule_date==null?'':String(p.schedule_date)).split('T')[0];
+  const sd=calDayKey(p);
   if(!sd)return'pending';
   const t=new Date();const today=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
   return sd<today?'overdue':'pending';
 }
-function openVisitCalendar(){const t=new Date();calYear=t.getFullYear();calMonth=t.getMonth();renderCalendar();document.getElementById('calModal').classList.add('open')}
+function openVisitCalendar(){const t=new Date();calYear=t.getFullYear();calMonth=t.getMonth();calBackToMonth();renderCalendar();document.getElementById('calModal').classList.add('open')}
 function closeCalModal(){document.getElementById('calModal').classList.remove('open')}
 function calShift(n){calMonth+=n;if(calMonth<0){calMonth=11;calYear--}else if(calMonth>11){calMonth=0;calYear++}renderCalendar()}
 function calToday(){const t=new Date();calYear=t.getFullYear();calMonth=t.getMonth();renderCalendar()}
+function calBackToMonth(){document.getElementById('calDayView').style.display='none';document.getElementById('calMonthView').style.display='block'}
 function renderCalendar(){
   const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('calLabel').textContent=`${MN[calMonth]} ${calYear}`;
+  // group: date → field exec → visits
   const byDate={};
   allData.forEach(p=>{
-    const sd=(p.schedule_date==null?'':String(p.schedule_date)).split('T')[0];
-    if(!sd)return;
-    const[y,m]=sd.split('-').map(Number);
+    const ds=calDayKey(p);if(!ds)return;
+    const[y,m]=ds.split('-').map(Number);
     if(y!==calYear||m-1!==calMonth)return;
-    (byDate[sd]=byDate[sd]||[]).push(p);
+    const exec=p.field_exec||'Unassigned';
+    const d=byDate[ds]=byDate[ds]||{};
+    (d[exec]=d[exec]||[]).push(p);
   });
   const startDow=new Date(calYear,calMonth,1).getDay();
   const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
@@ -415,18 +452,33 @@ function renderCalendar(){
   for(let i=0;i<startDow;i++)html+='<div class="cal-cell other"></div>';
   for(let day=1;day<=daysInMonth;day++){
     const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const evs=(byDate[ds]||[]).sort((a,b)=>(a.schedule_time||'').localeCompare(b.schedule_time||''));
-    html+=`<div class="cal-cell${ds===todayStr?' today':''}"><div class="cal-date">${day}</div>`+evs.map(p=>{
-      const st=visitCalStatus(p);
-      const unit=[p.tower_no,p.unit_no].filter(Boolean).join('-');
-      const tm=p.schedule_time?p.schedule_time.slice(0,5)+' ':'';
-      const label=`${tm}${unit||p.society_name||p.uid}`;
-      const title=`${p.uid} — ${[unit,p.society_name].filter(Boolean).join(' ')} — ${p.field_exec||'—'} [${st}]`;
-      return `<span class="cal-ev ${st}" title="${title.replace(/"/g,'&quot;')}" onclick="closeCalModal();openModal('${p.uid}')">${label.replace(/</g,'&lt;')}</span>`;
-    }).join('')+`</div>`;
+    const execs=byDate[ds]||{};
+    const chips=Object.keys(execs).sort().map(exec=>{
+      const visits=execs[exec];
+      const agg=visits.reduce((a,p)=>{const s=visitCalStatus(p);return CAL_PRIORITY[s]>CAL_PRIORITY[a]?s:a},'cancelled');
+      const firstName=exec.split(' ')[0];
+      return `<div class="cal-exec ${agg}" data-ds="${ds}" data-exec="${calEsc(exec)}" title="${calEsc(exec)} — ${visits.length} visit(s)" onclick="openCalDay(this)"><span class="nm">${calEsc(firstName)}</span><span class="ct">${visits.length}</span></div>`;
+    }).join('');
+    html+=`<div class="cal-cell${ds===todayStr?' today':''}"><div class="cal-date">${day}</div>${chips}</div>`;
   }
   html+='</div>';
   document.getElementById('calGrid').innerHTML=html;
+}
+function openCalDay(el){
+  const ds=el.dataset.ds, exec=el.dataset.exec;
+  const visits=allData.filter(p=>calDayKey(p)===ds&&(p.field_exec||'Unassigned')===exec)
+    .sort((a,b)=>(a.schedule_time||'').localeCompare(b.schedule_time||''));
+  const dt=new Date(ds+'T00:00');
+  document.getElementById('calDayTitle').textContent=`${exec} · ${dt.toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})}`;
+  document.getElementById('calDayList').innerHTML=visits.map(p=>{
+    const st=visitCalStatus(p);
+    const unit=[p.tower_no,p.unit_no].filter(Boolean).join('-');
+    const t1=[unit,p.society_name].filter(Boolean).join(' · ')||p.uid;
+    const t2=`${p.uid}${p.owner_broker_name?' · '+p.owner_broker_name:''}`;
+    return `<div class="cal-visit" onclick="openModal('${p.uid}')"><div class="tm">${calTime(p.schedule_time)}</div><div class="mid"><div class="t1">${calEsc(t1)}</div><div class="t2">${calEsc(t2)}</div></div><span class="vstat ${st}">${CAL_LBL[st]}</span></div>`;
+  }).join('')||'<div style="text-align:center;color:var(--tx3);padding:28px">No visits</div>';
+  document.getElementById('calMonthView').style.display='none';
+  document.getElementById('calDayView').style.display='block';
 }
 document.getElementById('calModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeCalModal()});
 
