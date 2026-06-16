@@ -2,6 +2,7 @@ const express=require('express'),router=express.Router();
 const logger=require('../utils/logger');
 const{notifyVisitScheduled}=require('../utils/whatsapp');
 const{syncVisitCalendar}=require('../utils/calendar');
+const{initHistory}=require('../utils/visit-history');
 
 const CITY_MAP={'Gurgaon':'G','Noida':'N','Ghaziabad':'GH'};
 const SRC_MAP={'CP':'C','Direct':'D'};
@@ -88,13 +89,14 @@ module.exports=function(pool){
       // Combine first+last into owner_broker_name for backward compat
       const ownerName=[d.first_name,d.last_name].filter(Boolean).join(' ');
       await pool.query(`INSERT INTO properties(uid,schedule_date,schedule_time,lead_id,source,first_name,last_name,owner_broker_name,contact_no,
-        area_sqft,demand_price,city,society_name,locality,unit_no,tower_no,floor,configuration,assigned_by,field_exec,schedule_submitted_at)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW())`,
+        area_sqft,demand_price,city,society_name,locality,unit_no,tower_no,floor,configuration,assigned_by,field_exec,visit_date_history,schedule_submitted_at)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())`,
         [uid,d.schedule_date||null,d.schedule_time||null,d.lead_id||null,d.source||null,
          d.first_name||null,d.last_name||null,ownerName||null,d.contact_no||null,
          parseFloat(d.area_sqft)||null,parseFloat(d.demand_price)||null,
          d.city||null,d.society_name||null,d.locality||null,d.unit_no||null,d.tower_no||null,
-         parseInt(d.floor)||null,d.configuration||null,d.assigned_by||null,d.field_exec||null]);
+         parseInt(d.floor)||null,d.configuration||null,d.assigned_by||null,d.field_exec||null,
+         JSON.stringify(initHistory(d.schedule_date||null))]);
       res.json({success:true,uid});
       logger.logFormSubmit(uid,'schedule_submitted',1,req.user?.email,req.user?.name).catch(()=>{});
       // Fire-and-forget WhatsApp notification to assigned_to

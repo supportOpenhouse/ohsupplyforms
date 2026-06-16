@@ -3,6 +3,7 @@ const logger=require('../utils/logger');
 const{visibilityFilter}=require('../utils/visibility');
 const{notifyVisitCompleted,notifyVisitReassigned,notifyVisitCancelled,notifyVisitScheduled}=require('../utils/whatsapp');
 const{syncVisitCalendar}=require('../utils/calendar');
+const{addReschedule,setCancelled,dateStr}=require('../utils/visit-history');
 module.exports=function(pool){
   router.get('/prefill/:uid',async(req,res)=>{
     try{const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
@@ -45,7 +46,8 @@ module.exports=function(pool){
     try{
       const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
-      await pool.query('UPDATE properties SET is_dead=TRUE,updated_at=NOW() WHERE uid=$1',[req.params.uid]);
+      await pool.query('UPDATE properties SET is_dead=TRUE,visit_date_history=$2,updated_at=NOW() WHERE uid=$1',
+        [req.params.uid,JSON.stringify(setCancelled(rows[0].visit_date_history,rows[0].schedule_date))]);
       res.json({success:true,uid:req.params.uid});
       logger.logStatusChange(req.params.uid,'visit_cancelled',false,true,req.user?.email,req.user?.name).catch(()=>{});
       // Notify assigned_by that visit is cancelled
@@ -82,7 +84,10 @@ module.exports=function(pool){
       const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
       if(rows[0].visit_submitted_at)return res.status(400).json({error:'Visit already completed, cannot reschedule'});
-      await pool.query('UPDATE properties SET schedule_date=$1,schedule_time=$2,updated_at=NOW() WHERE uid=$3',[schedule_date,schedule_time,req.params.uid]);
+      // Record the old date in the history when the date actually changes
+      const dateChanged=dateStr(rows[0].schedule_date)!==dateStr(schedule_date);
+      const newHist=dateChanged?JSON.stringify(addReschedule(rows[0].visit_date_history,rows[0].schedule_date,schedule_date)):null;
+      await pool.query('UPDATE properties SET schedule_date=$1,schedule_time=$2,visit_date_history=COALESCE($4,visit_date_history),updated_at=NOW() WHERE uid=$3',[schedule_date,schedule_time,req.params.uid,newHist]);
       res.json({success:true,uid:req.params.uid,schedule_date,schedule_time});
       logger.logScheduleChange(req.params.uid,'visit_rescheduled',{old_date:rows[0].schedule_date,new_date:schedule_date,old_time:rows[0].schedule_time,new_time:schedule_time},req.user?.email,req.user?.name).catch(()=>{});
       // Update calendar event time
@@ -104,6 +109,9 @@ module.exports=function(pool){
         sets.push(`schedule_date=$${n++}`);vals.push(schedule_date);
       }
       if(schedule_time){sets.push(`schedule_time=$${n++}`);vals.push(schedule_time)}
+      if(schedule_date&&dateStr(rows[0].schedule_date)!==dateStr(schedule_date)){
+        sets.push(`visit_date_history=$${n++}`);vals.push(JSON.stringify(addReschedule(rows[0].visit_date_history,rows[0].schedule_date,schedule_date)));
+      }
       if(!sets.length)return res.status(400).json({error:'Nothing to update'});
       sets.push(`updated_at=NOW()`);
       vals.push(req.params.uid);

@@ -3,6 +3,7 @@ const express = require('express'), router = express.Router();
 const logger = require('../utils/logger');
 const { notifyVisitScheduled, notifyVisitCancelled } = require('../utils/whatsapp');
 const { syncVisitCalendar } = require('../utils/calendar');
+const { initHistory, setCancelled } = require('../utils/visit-history');
 
 const CITY_MAP = { 'Gurgaon': 'G', 'Noida': 'N', 'Ghaziabad': 'GH' };
 const SRC_MAP = { 'CP': 'C', 'Direct': 'D', 'CP Listing': 'C' };
@@ -150,15 +151,15 @@ module.exports = function (pool) {
           first_name, last_name, owner_broker_name, contact_no,
           area_sqft, demand_price, city, society_name, locality,
           unit_no, tower_no, floor, configuration,
-          assigned_by, field_exec, schedule_submitted_at
-        ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW())`,
+          assigned_by, field_exec, visit_date_history, schedule_submitted_at
+        ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())`,
         [uid, d.schedule_date, d.schedule_time, String(d.lead_id), d.source,
          d.first_name, d.last_name || null, ownerName, phone,
          parseFloat(d.area_sqft) || null, parseFloat(d.demand_price) || null,
          d.city, d.society_name, d.locality,
          d.unit_no || null, d.tower_no || null,
          parseInt(d.floor) || null, d.configuration,
-         d.assigned_by, d.field_exec]
+         d.assigned_by, d.field_exec, JSON.stringify(initHistory(d.schedule_date))]
       );
 
       // 11. Respond immediately
@@ -214,8 +215,8 @@ module.exports = function (pool) {
       }
 
       await pool.query(
-        'UPDATE properties SET is_dead = TRUE, updated_at = NOW() WHERE uid = $1',
-        [prop.uid]
+        'UPDATE properties SET is_dead = TRUE, visit_date_history = $2, updated_at = NOW() WHERE uid = $1',
+        [prop.uid, JSON.stringify(setCancelled(prop.visit_date_history, prop.schedule_date))]
       );
       res.json({ success: true, uid: prop.uid, already_cancelled: false });
 
