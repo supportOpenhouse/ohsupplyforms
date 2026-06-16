@@ -173,10 +173,7 @@ async function syncVisitCalendar(pool, { uid, action, actorUserId }) {
         return;
       }
       const eventId = await createVisitEvent({ accessToken: creator.google_access_token, refreshToken: creator.google_refresh_token, property: p, assignedByEmail, assignedToEmail });
-      if (eventId) {
-        await pool.query('UPDATE properties SET gcal_event_id=$1,gcal_creator_id=$2 WHERE uid=$3', [eventId, creator.id, uid]);
-        console.log(`Cal: created event ${eventId} for ${uid} on ${creator.email}'s calendar (attendees: ${assignedByEmail||'-'}, ${assignedToEmail||'-'})`);
-      }
+      if (eventId) await pool.query('UPDATE properties SET gcal_event_id=$1,gcal_creator_id=$2 WHERE uid=$3', [eventId, creator.id, uid]);
       return;
     }
 
