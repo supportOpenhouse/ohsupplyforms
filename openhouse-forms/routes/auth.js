@@ -34,11 +34,11 @@ function isSuperUser(req, res, next) {
 
 module.exports = function(pool) {
 
-  // ── Google OAuth — includes Gmail send scope ──
+  // ── Google OAuth — includes Gmail send + Calendar scopes ──
   router.get('/google', (req, res, next) => {
     if (req.query.returnTo) req.session.returnTo = req.query.returnTo;
     passport.authenticate('google', {
-      scope: ['profile', 'email', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.readonly'],
+      scope: ['profile', 'email', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/calendar.events'],
       accessType: 'offline',
       prompt: 'consent'
     })(req, res, next);

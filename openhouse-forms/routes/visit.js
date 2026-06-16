@@ -2,6 +2,7 @@ const express=require('express'),router=express.Router();
 const logger=require('../utils/logger');
 const{visibilityFilter}=require('../utils/visibility');
 const{notifyVisitCompleted,notifyVisitReassigned,notifyVisitCancelled,notifyVisitScheduled}=require('../utils/whatsapp');
+const{syncVisitCalendar}=require('../utils/calendar');
 module.exports=function(pool){
   router.get('/prefill/:uid',async(req,res)=>{
     try{const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
@@ -35,6 +36,8 @@ module.exports=function(pool){
       pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows})=>{
         if(rows[0])notifyVisitCompleted(rows[0],{email:req.user?.email,name:req.user?.name}).catch(e=>console.error('WA visit notify error:',e));
       }).catch(e=>console.error('WA visit fetch error:',e));
+      // Mark the calendar event done
+      syncVisitCalendar(pool,{uid:d.uid,action:'done',actorUserId:req.user?.id}).catch(e=>console.error('Cal done sync error:',e));
     }catch(e){console.error('Visit:',e);res.status(500).json({error:e.message})}
   });
   // Mark UID as dead
@@ -48,6 +51,8 @@ module.exports=function(pool){
       // Notify assigned_by that visit is cancelled
       const cancelledBy=req.user?.name||req.user?.email||'Unknown';
       notifyVisitCancelled(rows[0],cancelledBy,{email:req.user?.email,name:req.user?.name}).catch(e=>console.error('WA cancel notify error:',e));
+      // Remove the calendar event
+      syncVisitCalendar(pool,{uid:req.params.uid,action:'delete',actorUserId:req.user?.id}).catch(e=>console.error('Cal cancel sync error:',e));
     }catch(e){console.error('Dead:',e);res.status(500).json({error:e.message})}
   });
   // Re-assign field_exec
@@ -62,6 +67,8 @@ module.exports=function(pool){
       logger.logScheduleChange(req.params.uid,'visit_reassigned',{old_exec:rows[0].field_exec,new_exec:field_exec},req.user?.email,req.user?.name).catch(()=>{});
       // Notify new assignee
       notifyVisitReassigned(rows[0],field_exec,{email:req.user?.email,name:req.user?.name}).catch(e=>console.error('WA reassign notify error:',e));
+      // Update calendar event attendees
+      syncVisitCalendar(pool,{uid:req.params.uid,action:'update',actorUserId:req.user?.id}).catch(e=>console.error('Cal reassign sync error:',e));
     }catch(e){console.error('Reassign:',e);res.status(500).json({error:e.message})}
   });
   // Reschedule visit date/time
@@ -78,6 +85,8 @@ module.exports=function(pool){
       await pool.query('UPDATE properties SET schedule_date=$1,schedule_time=$2,updated_at=NOW() WHERE uid=$3',[schedule_date,schedule_time,req.params.uid]);
       res.json({success:true,uid:req.params.uid,schedule_date,schedule_time});
       logger.logScheduleChange(req.params.uid,'visit_rescheduled',{old_date:rows[0].schedule_date,new_date:schedule_date,old_time:rows[0].schedule_time,new_time:schedule_time},req.user?.email,req.user?.name).catch(()=>{});
+      // Update calendar event time
+      syncVisitCalendar(pool,{uid:req.params.uid,action:'update',actorUserId:req.user?.id}).catch(e=>console.error('Cal reschedule sync error:',e));
     }catch(e){console.error('Reschedule:',e);res.status(500).json({error:e.message})}
   });
   // Combined update: reassign + reschedule in one call
@@ -109,6 +118,8 @@ module.exports=function(pool){
       if(field_exec)logger.logScheduleChange(req.params.uid,'visit_reassigned',{old_exec:old.field_exec,new_exec:field_exec},req.user?.email,req.user?.name).catch(()=>{});
       if(schedule_date||schedule_time)logger.logScheduleChange(req.params.uid,'visit_rescheduled',{old_date:old.schedule_date,new_date:schedule_date||old.schedule_date,old_time:old.schedule_time,new_time:schedule_time||old.schedule_time},req.user?.email,req.user?.name).catch(()=>{});
       if(field_exec)notifyVisitReassigned(rows[0],field_exec,{email:req.user?.email,name:req.user?.name}).catch(e=>console.error('WA reassign notify error:',e));
+      // Update calendar event (time and/or attendees)
+      syncVisitCalendar(pool,{uid:req.params.uid,action:'update',actorUserId:req.user?.id}).catch(e=>console.error('Cal update sync error:',e));
     }catch(e){console.error('Update:',e);res.status(500).json({error:e.message})}
   });
   // Resend WhatsApp scheduled notification

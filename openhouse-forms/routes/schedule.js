@@ -1,6 +1,7 @@
 const express=require('express'),router=express.Router();
 const logger=require('../utils/logger');
 const{notifyVisitScheduled}=require('../utils/whatsapp');
+const{syncVisitCalendar}=require('../utils/calendar');
 
 const CITY_MAP={'Gurgaon':'G','Noida':'N','Ghaziabad':'GH'};
 const SRC_MAP={'CP':'C','Direct':'D'};
@@ -98,6 +99,8 @@ module.exports=function(pool){
       logger.logFormSubmit(uid,'schedule_submitted',1,req.user?.email,req.user?.name).catch(()=>{});
       // Fire-and-forget WhatsApp notification to assigned_to
       notifyVisitScheduled({uid,...d,owner_broker_name:ownerName},{email:req.user?.email,name:req.user?.name}).catch(e=>console.error('WA schedule notify error:',e));
+      // Fire-and-forget Google Calendar event for assigned_by + assigned_to
+      syncVisitCalendar(pool,{uid,action:'create',actorUserId:req.user?.id}).catch(e=>console.error('Cal schedule sync error:',e));
     }catch(e){console.error('Schedule:',e);res.status(500).json({error:e.message})}
   });
 

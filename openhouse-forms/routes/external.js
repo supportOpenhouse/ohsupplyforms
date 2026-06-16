@@ -2,6 +2,7 @@
 const express = require('express'), router = express.Router();
 const logger = require('../utils/logger');
 const { notifyVisitScheduled, notifyVisitCancelled } = require('../utils/whatsapp');
+const { syncVisitCalendar } = require('../utils/calendar');
 
 const CITY_MAP = { 'Gurgaon': 'G', 'Noida': 'N', 'Ghaziabad': 'GH' };
 const SRC_MAP = { 'CP': 'C', 'Direct': 'D', 'CP Listing': 'C' };
@@ -179,6 +180,10 @@ module.exports = function (pool) {
         { email: actorEmail, name: actorName }
       ).catch(e => console.error('External WA notify error:', e));
 
+      // 15. Fire-and-forget Google Calendar event — no session here, so the orchestrator
+      //     falls back to assigned_by / field_exec as the event creator.
+      syncVisitCalendar(pool, { uid, action: 'create' }).catch(e => console.error('External cal sync error:', e));
+
     } catch (e) {
       console.error('External /schedule error:', e);
       res.status(500).json({ error: e.message });
@@ -224,6 +229,8 @@ module.exports = function (pool) {
         logger.log(prop.uid, 'visit_cancel_reason', 'note', actorEmail, actorName, { reason, source_app: 'Direct Inventory' }).catch(() => {});
       }
       notifyVisitCancelled(prop, actorName, { email: actorEmail, name: actorName }).catch(e => console.error('External WA cancel notify error:', e));
+      // Remove the calendar event (uses the stored creator's token)
+      syncVisitCalendar(pool, { uid: prop.uid, action: 'delete' }).catch(e => console.error('External cal cancel sync error:', e));
     } catch (e) {
       console.error('External /cancel error:', e);
       res.status(500).json({ error: e.message });
