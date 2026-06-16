@@ -167,6 +167,22 @@ app.get('/api/my-properties', isAuthenticated, async(req,res)=>{
     res.json(rows)}catch(e){console.error('MyProps error:',e.message);res.status(500).json({error:e.message})}
 });
 
+// Diagnostic: test whether the logged-in user's Google token can write to Calendar.
+// Visit /api/calendar/diag in the browser while logged in — returns the real Google error.
+app.get('/api/calendar/diag', isAuthenticated, async(req,res)=>{
+  try{
+    const{rows}=await pool.query('SELECT google_access_token,google_refresh_token FROM users WHERE id=$1',[req.user.id]);
+    const u=rows[0]||{};
+    const info={email:req.user.email,hasAccessToken:!!u.google_access_token,hasRefreshToken:!!u.google_refresh_token,appUrlSet:!!process.env.APP_URL};
+    if(!u.google_access_token&&!u.google_refresh_token)return res.json({ok:false,...info,error:'No Google token stored for this user — log out and log in again.'});
+    const{diagnoseCalendar}=require('./utils/calendar');
+    const id=await diagnoseCalendar({accessToken:u.google_access_token,refreshToken:u.google_refresh_token});
+    res.json({ok:true,...info,testEventId:id,message:'Calendar insert+delete succeeded — calendar works for this user.'});
+  }catch(e){
+    res.json({ok:false,error:e.message,code:e.code||null,details:(e.errors||e.response?.data?.error||null)});
+  }
+});
+
 const sendForm = (f) => [isAuthenticated, hasFormAccess, (_, r) => r.sendFile(path.join(__dirname, 'public', f))];
 app.get('/schedule', ...sendForm('schedule.html'));
 app.get('/visit', ...sendForm('visit.html'));

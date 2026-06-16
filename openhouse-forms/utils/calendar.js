@@ -104,6 +104,25 @@ async function deleteVisitEvent({ accessToken, refreshToken, eventId }) {
   await cal.events.delete({ calendarId: 'primary', eventId, sendUpdates: 'all' });
 }
 
+// Diagnostic: insert + delete a throwaway event so the caller can surface the real
+// Google error (scope missing / Calendar API disabled / token expired). Throws on failure.
+async function diagnoseCalendar({ accessToken, refreshToken }) {
+  const cal = calClient(accessToken, refreshToken);
+  const start = new Date(Date.now() + 3600000);
+  const end = new Date(Date.now() + 7200000);
+  const res = await cal.events.insert({
+    calendarId: 'primary',
+    requestBody: {
+      summary: 'Openhouse calendar test — safe to delete',
+      start: { dateTime: start.toISOString() },
+      end: { dateTime: end.toISOString() },
+    },
+  });
+  const id = res.data.id;
+  try { await cal.events.delete({ calendarId: 'primary', eventId: id }); } catch (_) { /* leave it; insert worked */ }
+  return id;
+}
+
 // ── Orchestrator: load the property + emails + the right Google token, then sync. ──
 // action: 'create' | 'update' | 'done' | 'delete'. actorUserId is the logged-in user
 // (used as the event creator on 'create'; updates/deletes reuse the stored creator).
@@ -168,4 +187,4 @@ async function syncVisitCalendar(pool, { uid, action, actorUserId }) {
   }
 }
 
-module.exports = { syncVisitCalendar, createVisitEvent, updateVisitEvent, deleteVisitEvent };
+module.exports = { syncVisitCalendar, createVisitEvent, updateVisitEvent, deleteVisitEvent, diagnoseCalendar };
