@@ -415,7 +415,6 @@ async function sendCPBillEmail({ accessToken, refreshToken, fromEmail, senderNam
 
   const p = property;
   const addr = [p.tower_no, p.unit_no, p.society_name, p.locality, p.city].filter(Boolean).join(', ');
-  const amaStatus = p.cp_ama_signed_url ? 'Signed (attached below)' : 'Not signed yet';
 
   const isFirm = p.cp_firm && p.cp_firm !== 'INDIVIDUAL';
   const isGstYes = isFirm && p.gst_applicable === 'Yes';
@@ -427,7 +426,6 @@ async function sendCPBillEmail({ accessToken, refreshToken, fromEmail, senderNam
   if(!isGstYes && p.cp_pan_card_url) photoLinks.push(`<li><a href="${p.cp_pan_card_url}" target="_blank">PAN Card</a></li>`);
   if(p.cp_cancelled_cheque_url) photoLinks.push(`<li><a href="${p.cp_cancelled_cheque_url}" target="_blank">Cancelled Cheque</a></li>`);
   if(isGstYes && p.cp_gst_invoice_url) photoLinks.push(`<li><a href="${p.cp_gst_invoice_url}" target="_blank">GST Invoice</a></li>`);
-  if(p.cp_ama_signed_url) photoLinks.push(`<li><a href="${p.cp_ama_signed_url}" target="_blank">AMA Signed (PDF)</a></li>`);
 
   const subject = `${p.uid} - CP Bill Request | ${p.tower_no||''} ${p.unit_no||''} - ${p.society_name||'Property'} | ${p.cp_name||'CP'}`.replace(/\s+/g, ' ').trim();
   const bodyHtml = `<html><body style="font-family:Arial,sans-serif;font-size:14px;color:#333;line-height:1.8">
@@ -443,7 +441,6 @@ async function sendCPBillEmail({ accessToken, refreshToken, fromEmail, senderNam
   <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Property Address:</td><td>${addr}</td></tr>
   <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">OH Acquired Model:</td><td>${p.oh_acquired_model||'—'}</td></tr>
   <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Agreed Brokerage:</td><td>${p.agreed_brokerage||'—'}%</td></tr>
-  <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">AMA Status:</td><td>${amaStatus}</td></tr>
   <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Deal Value:</td><td>${p.deal_value||'—'}</td></tr>
   <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Total Brokerage:</td><td>${p.total_brokerage_amount?'₹'+Number(p.total_brokerage_amount).toLocaleString('en-IN'):'—'}</td></tr>
   <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">To be Released Now:</td><td>${p.to_be_released_now?'₹'+Number(p.to_be_released_now).toLocaleString('en-IN'):'—'}</td></tr>

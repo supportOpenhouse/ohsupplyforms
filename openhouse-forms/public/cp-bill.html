@@ -149,10 +149,6 @@
           <div class="pu-icon">📄</div><div class="pu-label">Certificate of Incorporation (COI) <span class="req">*</span></div>
           <input type="file" id="fi_cp_coi" accept="image/*,.pdf" onchange="uploadDoc(this,'cp_coi')">
         </div>
-        <div class="pu-item" id="pu_ama" onclick="pickFile('cp_ama_signed')" style="grid-column:span 2">
-          <div class="pu-icon">📄</div><div class="pu-label">AMA Signed (PDF) <span class="req">*</span></div>
-          <input type="file" id="fi_cp_ama_signed" accept=".pdf,application/pdf" onchange="uploadDoc(this,'cp_ama_signed')">
-        </div>
       </div>
     </div>
 
@@ -175,9 +171,9 @@
 <script src="/js/shared.js"></script>
 <script>
 let currentUid=null,loadedData=null,isAdmin=false,isManager=false;
-const docUrls={cp_aadhaar_front:'',cp_aadhaar_back:'',cp_pan_card:'',cp_cancelled_cheque:'',cp_gst_invoice:'',cp_coi:'',cp_ama_signed:''};
-const DOC_MAP={cp_aadhaar_front:'cp_aadhaar_front_url',cp_aadhaar_back:'cp_aadhaar_back_url',cp_pan_card:'cp_pan_card_url',cp_cancelled_cheque:'cp_cancelled_cheque_url',cp_gst_invoice:'cp_gst_invoice_url',cp_coi:'cp_coi_url',cp_ama_signed:'cp_ama_signed_url'};
-const ITEM_MAP={cp_aadhaar_front:'pu_aadhaarFront',cp_aadhaar_back:'pu_aadhaarBack',cp_pan_card:'pu_pan',cp_cancelled_cheque:'pu_cheque',cp_gst_invoice:'pu_gstInvoice',cp_coi:'pu_coi',cp_ama_signed:'pu_ama'};
+const docUrls={cp_aadhaar_front:'',cp_aadhaar_back:'',cp_pan_card:'',cp_cancelled_cheque:'',cp_gst_invoice:'',cp_coi:''};
+const DOC_MAP={cp_aadhaar_front:'cp_aadhaar_front_url',cp_aadhaar_back:'cp_aadhaar_back_url',cp_pan_card:'cp_pan_card_url',cp_cancelled_cheque:'cp_cancelled_cheque_url',cp_gst_invoice:'cp_gst_invoice_url',cp_coi:'cp_coi_url'};
+const ITEM_MAP={cp_aadhaar_front:'pu_aadhaarFront',cp_aadhaar_back:'pu_aadhaarBack',cp_pan_card:'pu_pan',cp_cancelled_cheque:'pu_cheque',cp_gst_invoice:'pu_gstInvoice',cp_coi:'pu_coi'};
 let cloudCfg=null;
 fetch(`${API}/api/config/cloudinary`).then(r=>r.json()).then(c=>cloudCfg=c).catch(()=>{});
 
@@ -444,7 +440,7 @@ async function uploadDoc(input,key){
     const r=await fetch(`https://api.cloudinary.com/v1_1/${cloudCfg.cloudName}/auto/upload`,{method:'POST',body:fd});
     const d=await r.json();if(!d.secure_url)throw new Error('Upload failed');
     docUrls[key]=d.secure_url;item.classList.add('uploaded');item.classList.remove('missing');
-    const labelMap={cp_aadhaar_front:'Aadhaar Front ✓',cp_aadhaar_back:'Aadhaar Back ✓',cp_pan_card:'PAN Card ✓',cp_cancelled_cheque:'Cheque ✓',cp_ama_signed:'AMA Signed ✓'};
+    const labelMap={cp_aadhaar_front:'Aadhaar Front ✓',cp_aadhaar_back:'Aadhaar Back ✓',cp_pan_card:'PAN Card ✓',cp_cancelled_cheque:'Cheque ✓'};
     item.querySelector('.pu-label').innerHTML=(labelMap[key]||'Uploaded ✓')+' <span class="req">*</span>';
     let link=item.querySelector('.pu-link');if(!link){link=document.createElement('a');link.className='pu-link';link.target='_blank';link.textContent='View';link.onclick=e=>e.stopPropagation();item.appendChild(link)}
     link.href=d.secure_url;toast('Uploaded','ok');
@@ -498,11 +494,11 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
     const isGstYes=isFirm&&gstVal==='Yes';
     let DOC_LABELS;
     if(isGstYes){
-      DOC_LABELS={cp_cancelled_cheque:'Cancelled Cheque',cp_gst_invoice:'GST Invoice',cp_ama_signed:'AMA Signed'};
+      DOC_LABELS={cp_cancelled_cheque:'Cancelled Cheque',cp_gst_invoice:'GST Invoice'};
     }else if(isFirm){
-      DOC_LABELS={cp_coi:'Certificate of Incorporation',cp_pan_card:'PAN Card',cp_cancelled_cheque:'Cancelled Cheque',cp_ama_signed:'AMA Signed'};
+      DOC_LABELS={cp_coi:'Certificate of Incorporation',cp_pan_card:'PAN Card',cp_cancelled_cheque:'Cancelled Cheque'};
     }else{
-      DOC_LABELS={cp_aadhaar_front:'Aadhaar Front',cp_aadhaar_back:'Aadhaar Back',cp_pan_card:'PAN Card',cp_cancelled_cheque:'Cancelled Cheque',cp_ama_signed:'AMA Signed'};
+      DOC_LABELS={cp_aadhaar_front:'Aadhaar Front',cp_aadhaar_back:'Aadhaar Back',cp_pan_card:'PAN Card',cp_cancelled_cheque:'Cancelled Cheque'};
     }
     const missingDocs=[];
     Object.values(ITEM_MAP).forEach(id=>document.getElementById(id).classList.remove('missing'));
@@ -523,7 +519,6 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
 document.getElementById('emailBtn').addEventListener('click',()=>{
   if(!currentUid){toast('Select a UID','warn');return}
   const addr=[loadedData?.tower_no,loadedData?.unit_no,loadedData?.society_name,loadedData?.locality,loadedData?.city].filter(Boolean).join(', ');
-  const amaStatus=docUrls.cp_ama_signed?'Signed (attached below)':'Not signed yet';
   const previewCpType=document.getElementById('f_cpType').value;
   const previewIsFirm=previewCpType==='HAS_FIRM';
   const previewGst=document.querySelector('input[name="gst_applicable"]:checked')?.value;
@@ -537,7 +532,6 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
   if(!previewGstYes&&docUrls.cp_pan_card)photoLines.push(`• <a href="${docUrls.cp_pan_card}" target="_blank">PAN Card</a>`);
   if(docUrls.cp_cancelled_cheque)photoLines.push(`• <a href="${docUrls.cp_cancelled_cheque}" target="_blank">Cancelled Cheque</a>`);
   if(previewGstYes&&docUrls.cp_gst_invoice)photoLines.push(`• <a href="${docUrls.cp_gst_invoice}" target="_blank">GST Invoice</a>`);
-  if(docUrls.cp_ama_signed)photoLines.push(`• <a href="${docUrls.cp_ama_signed}" target="_blank">AMA Signed (PDF)</a>`);
   const _city=(loadedData?.city||'').toLowerCase();
   const _cityCc=_city.includes('gurgaon')||_city.includes('gurugram')?'shashank.kumar@openhouse.in':_city.includes('ghaziabad')||_city.includes('gzb')?'animesh.singh@openhouse.in':_city.includes('noida')?'abhishek.rathore@openhouse.in':null;
   const _cpCcArr=['supply@openhouse.in',_cityCc].filter(Boolean);
@@ -561,7 +555,6 @@ ${previewIsFirm?`<tr><td style="padding:1px 10px 1px 0;font-weight:600">GST Appl
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Property Address:</td><td>${addr}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">OH Acquired Model:</td><td>${document.getElementById('f_model').value||'—'}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Agreed Brokerage:</td><td>${document.getElementById('f_brokeragePct').value||'—'}%</td></tr>
-<tr><td style="padding:1px 10px 1px 0;font-weight:600">AMA Status:</td><td>${amaStatus}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Deal Value:</td><td>${document.getElementById('f_dealValue').value||'—'}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Total Brokerage:</td><td>₹${document.getElementById('f_totalBrokerage').value||'—'}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">To be Released Now:</td><td>₹${document.getElementById('f_release').value||'—'}</td></tr>
