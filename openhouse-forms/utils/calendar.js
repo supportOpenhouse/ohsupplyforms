@@ -42,9 +42,19 @@ function buildEvent(p) {
   return { summary, location, description };
 }
 
+// Normalize schedule_date to 'YYYY-MM-DD'. pg returns a DATE column as a JS Date object,
+// so prefer the to_char string (sched_date_str) and fall back to safe formatting.
+function scheduleDateStr(p) {
+  if (p.sched_date_str) return p.sched_date_str;
+  const v = p.schedule_date;
+  if (!v) return '';
+  if (v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`;
+  return String(v).split('T')[0];
+}
+
 // Returns Calendar start/end blocks from schedule_date (+ optional schedule_time, 60-min slot).
 function eventTimes(p) {
-  const date = (p.schedule_date == null ? '' : String(p.schedule_date)).split('T')[0];
+  const date = scheduleDateStr(p);
   if (!date) return null;
   if (p.schedule_time) {
     const t = p.schedule_time.length === 5 ? p.schedule_time : p.schedule_time.slice(0, 5);
@@ -145,7 +155,7 @@ function hasToken(u) { return u && (u.google_access_token || u.google_refresh_to
 
 async function syncVisitCalendar(pool, { uid, action, actorUserId }) {
   try {
-    const { rows } = await pool.query('SELECT * FROM properties WHERE uid=$1', [uid]);
+    const { rows } = await pool.query("SELECT *, to_char(schedule_date,'YYYY-MM-DD') AS sched_date_str FROM properties WHERE uid=$1", [uid]);
     if (!rows.length) return;
     const p = rows[0];
     const assignedByEmail = await emailForName(pool, p.assigned_by);
@@ -189,7 +199,8 @@ async function syncVisitCalendar(pool, { uid, action, actorUserId }) {
       await updateVisitEvent({ ...creds, eventId: p.gcal_event_id, property: p, assignedByEmail, assignedToEmail, summaryPrefix: action === 'done' ? '✅ DONE — ' : '' });
     }
   } catch (e) {
-    console.error(`Calendar sync error [${action}] ${uid}:`, e.message);
+    const detail = e.errors || e.response?.data?.error || e.response?.data || '';
+    console.error(`Calendar sync error [${action}] ${uid}:`, e.message, detail ? JSON.stringify(detail) : '');
   }
 }
 
