@@ -114,6 +114,9 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
 .badge.refund-badge{background:#fef3c7;color:#b45309;font-size:9px;padding:1px 6px;border-radius:10px;margin-left:4px}
 .export-btn{font-size:11px;padding:4px 12px;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;color:var(--tx2);font-weight:500}
 .export-btn:hover{border-color:var(--ac);color:var(--ac)}
+.result-actions{display:flex;align-items:center;gap:8px}
+.export-btn.cal-btn{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.export-btn.cal-btn:hover{filter:brightness(1.08);color:#fff}
 .kbd{font-size:9px;color:var(--tx3);background:var(--bg);border:1px solid var(--bd);border-radius:3px;padding:1px 4px;font-family:var(--mono)}
 </style>
 </head>
@@ -171,8 +174,10 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
     </div>
     <div class="result-bar" id="resultBar">
       <div>Showing <span class="count" id="rowCount">—</span> of <span id="totalCount">—</span> properties</div>
-      <button class="export-btn" onclick="openVisitCalendar()" title="Month view of scheduled visits">📅 Visit Calendar</button>
-      <button class="export-btn" onclick="exportCSV()" title="Export filtered data to CSV">⬇ Export CSV</button>
+      <div class="result-actions">
+        <button class="export-btn cal-btn" onclick="openVisitCalendar()" title="Month view of scheduled visits">📅 Visit Calendar</button>
+        <button class="export-btn" onclick="exportCSV()" title="Export filtered data to CSV">⬇ Export CSV</button>
+      </div>
     </div>
     <div>
       <table class="tbl"><thead><tr>

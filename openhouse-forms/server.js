@@ -138,6 +138,12 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
     sets.push(`updated_at=NOW()`);
     vals.push(req.params.uid);
     await pool.query(`UPDATE properties SET ${sets.join(',')} WHERE uid=$${i}`,vals);
+    // Keep visit_date_history.cancelled_on in sync when a visit is cancelled / un-cancelled here
+    if(changes.is_dead){
+      const{setCancelled,clearCancelled}=require('./utils/visit-history');
+      const nh=changes.is_dead.new?setCancelled(oldProp.visit_date_history,oldProp.schedule_date):clearCancelled(oldProp.visit_date_history);
+      await pool.query('UPDATE properties SET visit_date_history=$1 WHERE uid=$2',[JSON.stringify(nh),req.params.uid]);
+    }
     const{rows:updated}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
     res.json({success:true,property:updated[0]});
     // Log changes

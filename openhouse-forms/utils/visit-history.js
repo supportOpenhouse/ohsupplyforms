@@ -29,4 +29,11 @@ function setCancelled(history, scheduleDate) {
   return h;
 }
 
-module.exports = { dateStr, initHistory, addReschedule, setCancelled };
+// Remove cancelled_on when a visit is un-cancelled (re-activated).
+function clearCancelled(history) {
+  const h = history && typeof history === 'object' ? { ...history } : {};
+  delete h.cancelled_on;
+  return h;
+}
+
+module.exports = { dateStr, initHistory, addReschedule, setCancelled, clearCancelled };
