@@ -171,10 +171,14 @@ app.get('/api/my-properties', isAuthenticated, async(req,res)=>{
 // Visit /api/calendar/diag in the browser while logged in — returns the real Google error.
 app.get('/api/calendar/diag', isAuthenticated, async(req,res)=>{
   try{
-    const{rows}=await pool.query('SELECT google_access_token,google_refresh_token FROM users WHERE id=$1',[req.user.id]);
+    // Admins/super can test another user's token via ?email=; everyone else tests their own.
+    let targetEmail=req.user.email;
+    if(req.query.email&&(req.user.is_super||req.user.is_admin))targetEmail=String(req.query.email).toLowerCase();
+    const{rows}=await pool.query('SELECT email,google_access_token,google_refresh_token FROM users WHERE LOWER(email)=LOWER($1)',[targetEmail]);
     const u=rows[0]||{};
-    const info={email:req.user.email,hasAccessToken:!!u.google_access_token,hasRefreshToken:!!u.google_refresh_token,appUrlSet:!!process.env.APP_URL};
-    if(!u.google_access_token&&!u.google_refresh_token)return res.json({ok:false,...info,error:'No Google token stored for this user — log out and log in again.'});
+    const info={testedUser:targetEmail,found:!!rows.length,hasAccessToken:!!u.google_access_token,hasRefreshToken:!!u.google_refresh_token,appUrlSet:!!process.env.APP_URL};
+    if(!rows.length)return res.json({ok:false,...info,error:'No such active user.'});
+    if(!u.google_access_token&&!u.google_refresh_token)return res.json({ok:false,...info,error:'No Google token stored for this user — they must log out and log in again.'});
     const{diagnoseCalendar}=require('./utils/calendar');
     const id=await diagnoseCalendar({accessToken:u.google_access_token,refreshToken:u.google_refresh_token});
     res.json({ok:true,...info,testEventId:id,message:'Calendar insert+delete succeeded — calendar works for this user.'});

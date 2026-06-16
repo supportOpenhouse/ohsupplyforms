@@ -158,9 +158,15 @@ async function syncVisitCalendar(pool, { uid, action, actorUserId }) {
       let creator = actorUserId ? await getTokens(pool, actorUserId) : null;
       if (!hasToken(creator)) creator = await tokensForName(pool, p.assigned_by);
       if (!hasToken(creator)) creator = await tokensForName(pool, p.field_exec);
-      if (!hasToken(creator)) return; // nobody involved has granted calendar access yet
+      if (!hasToken(creator)) {
+        console.log(`Cal: SKIP create ${uid} — no Google token for scheduler/assigned_by(${p.assigned_by})/field_exec(${p.field_exec}). They must log in with calendar access.`);
+        return;
+      }
       const eventId = await createVisitEvent({ accessToken: creator.google_access_token, refreshToken: creator.google_refresh_token, property: p, assignedByEmail, assignedToEmail });
-      if (eventId) await pool.query('UPDATE properties SET gcal_event_id=$1,gcal_creator_id=$2 WHERE uid=$3', [eventId, creator.id, uid]);
+      if (eventId) {
+        await pool.query('UPDATE properties SET gcal_event_id=$1,gcal_creator_id=$2 WHERE uid=$3', [eventId, creator.id, uid]);
+        console.log(`Cal: created event ${eventId} for ${uid} on ${creator.email}'s calendar (attendees: ${assignedByEmail||'-'}, ${assignedToEmail||'-'})`);
+      }
       return;
     }
 
