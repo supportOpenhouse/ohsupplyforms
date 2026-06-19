@@ -3,6 +3,12 @@ const { google } = require('googleapis');
 const puppeteer = require('puppeteer');
 const logger = require('./logger');
 
+// Force uncompressed responses on ALL googleapis calls (Gmail + Calendar share this
+// singleton). gaxios/node-fetch has a gzip-decompression bug (ERR_STREAM_PREMATURE_CLOSE
+// → "Invalid response body … Premature close") that was breaking every Gmail send;
+// requesting identity encoding avoids the broken Gunzip path entirely.
+google.options({ headers: { 'Accept-Encoding': 'identity' } });
+
 let _pool = null;
 function init(pool) { _pool = pool; }
 
