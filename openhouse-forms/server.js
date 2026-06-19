@@ -123,7 +123,8 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
       'listing_asking_price',
       'society_age_years','total_units','maintenance_charges','society_move_in_charges','electricity_charges',
       'water_supply','dg_charges','alpha_beta','beta_pct','loan_status','seller_location','club_facility',
-      'circle_rate','parking_number','is_dead','is_token_refunded']);
+      'circle_rate','parking_number','is_dead','is_token_refunded',
+      'token_request_email_sent','token_deal_email_sent','pending_request_email_sent','cp_bill_email_sent','final_email_sent']);
     const sets=[];const vals=[];let i=1;
     const changes={};
     for(const[k,v]of Object.entries(d)){
