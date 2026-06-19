@@ -15,6 +15,14 @@ function isTransient(e) {
   return /premature close|socket hang up|network|ECONNRESET|ETIMEDOUT/i.test(e?.message || '');
 }
 
+// "Sent but the response read failed" — the message reached Gmail and was delivered;
+// resending it would duplicate. These must NEVER be retried for a non-idempotent send.
+function isDeliveredDespiteError(e) {
+  const code = e?.code || e?.cause?.code;
+  if (code === 'ERR_STREAM_PREMATURE_CLOSE' || code === 'EPIPE') return true;
+  return /premature close/i.test(e?.message || '');
+}
+
 function isThreadNotFoundError(e) {
   const msg = e?.message || '';
   const code = e?.code || e?.response?.status;
@@ -57,6 +65,25 @@ async function sendWithThreadFallback(gmail, requestBody, fromEmail, { retries =
     try {
       return await sendOnce(gmail, requestBody, fromEmail);
     } catch (e) {
+      // Response-phase failure (premature close): the POST completed and Gmail already
+      // delivered the message — only reading the response died. We must NOT resend
+      // (that's what produced the triple emails — the rfc822msgid index lags, so the
+      // dedup search misses the just-sent message and the loop resends). Treat as sent;
+      // best-effort recover the id, but never resend on this class of error.
+      if (isDeliveredDespiteError(e)) {
+        if (msgId) {
+          try {
+            const found = await gmail.users.messages.list({ userId: 'me', q: `rfc822msgid:${msgId}` });
+            if (found?.data?.messages?.length) {
+              console.log(`Send delivered (id recovered): ${msgId} for ${fromEmail} after ${e.code || e.message}`);
+              return { data: found.data.messages[0] };
+            }
+          } catch (_) { /* index lag — still delivered, just no id to attach */ }
+        }
+        console.log(`Send delivered despite ${e.code || e.message} for ${fromEmail} — not resending`);
+        return { data: { id: null } };
+      }
+      // Genuine pre-send transient (DNS/connect failure — message NOT sent): bounded retry.
       if (!isTransient(e) || attempt >= retries) throw e;
       await sleep(baseDelay * (attempt + 1)); // also gives Gmail time to index before we check
       // Did a prior attempt actually land? If so, don't resend a duplicate.
@@ -74,7 +101,7 @@ async function sendWithThreadFallback(gmail, requestBody, fromEmail, { retries =
   }
 }
 
-module.exports = { sendWithThreadFallback, isTransient, isThreadNotFoundError, extractMessageId };
+module.exports = { sendWithThreadFallback, isTransient, isDeliveredDespiteError, isThreadNotFoundError, extractMessageId };
 
 // ponytail: self-check for transient-retry + dedup. Run: node utils/gmail-send.js
 if (require.main === module) {
@@ -94,6 +121,17 @@ if (require.main === module) {
     const r1 = await sendWithThreadFallback(delivered, { raw }, 'a@openhouse.in', opts);
     assert.strictEqual(r1.data.id, 'EXISTING');
     assert.strictEqual(sends, 1, 'must NOT resend when message already delivered');
+
+    // Premature close AND the index lags (search returns empty) → STILL must not resend.
+    // This is the real-world case that produced triple emails.
+    let sendsLag = 0;
+    const lagging = { users: { messages: {
+      send: async () => { sendsLag++; const e = new Error('Invalid response body … Premature close'); e.code = 'ERR_STREAM_PREMATURE_CLOSE'; throw e; },
+      list: async () => ({ data: { messages: [] } }),
+    } } };
+    const rLag = await sendWithThreadFallback(lagging, { raw }, 'a@openhouse.in', opts);
+    assert.strictEqual(sendsLag, 1, 'must NOT resend on premature-close even when the index lags');
+    assert.strictEqual(rLag.data.id, null, 'returns delivered-without-id when index lags');
 
     // Transient once, not delivered yet → resend once, succeed.
     let n = 0;
