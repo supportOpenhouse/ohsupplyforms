@@ -2,6 +2,7 @@
 const { google } = require('googleapis');
 const puppeteer = require('puppeteer');
 const logger = require('./logger');
+const { sendWithThreadFallback } = require('./gmail-send');
 
 // Force uncompressed responses on ALL googleapis calls (Gmail + Calendar share this
 // singleton). gaxios/node-fetch has a gzip-decompression bug (ERR_STREAM_PREMATURE_CLOSE
@@ -93,29 +94,8 @@ function appendCityCc(ccStr, city) {
   return existing.join(', ');
 }
 
-// For every sender we tolerate a cross-mailbox threadId mismatch by retrying
-// without Gmail's mailbox-scoped threadId. Their own threads (threadId belongs
-// to their mailbox) still send normally and appear threaded in their Sent
-// folder; only sends that Gmail rejects with a thread-not-found error fall
-// back to header-only threading (In-Reply-To/References).
-function isThreadNotFoundError(e) {
-  const msg = e?.message || '';
-  const code = e?.code || e?.response?.status;
-  if (code === 404) return true;
-  return /thread/i.test(msg) && /(not found|invalid|does not exist)/i.test(msg);
-}
-async function sendWithThreadFallback(gmail, requestBody, fromEmail) {
-  try {
-    return await gmail.users.messages.send({ userId: 'me', requestBody });
-  } catch (e) {
-    if (requestBody.threadId && isThreadNotFoundError(e)) {
-      console.log(`Thread ${requestBody.threadId} not in ${fromEmail}'s mailbox — retrying without threadId`);
-      const { threadId, ...rest } = requestBody;
-      return await gmail.users.messages.send({ userId: 'me', requestBody: rest });
-    }
-    throw e;
-  }
-}
+// sendWithThreadFallback (cross-mailbox threadId fallback + transient-network
+// retry with Message-ID dedup) lives in ./gmail-send and is required at the top.
 
 // Test UIDs — override recipients per email type
 // To add test UIDs: add entries below. To disable: remove the UID key.
