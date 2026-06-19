@@ -31,16 +31,21 @@ function extractMessageId(rawB64) {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// Per-request transport options: request uncompressed responses (avoids the node-fetch
+// gzip "Premature close" bug) and disable gaxios auto-retry so it can't silently resend
+// this non-idempotent POST — duplicate-send protection lives in the dedup loop below.
+const SEND_OPTS = { headers: { 'Accept-Encoding': 'identity' }, retry: false, retryConfig: { retry: 0, noResponseRetries: 0 } };
+
 // Single send, with the existing cross-mailbox threadId fallback. A threadId that
 // belongs to another mailbox makes Gmail reject the send; retry header-only.
 async function sendOnce(gmail, requestBody, fromEmail) {
   try {
-    return await gmail.users.messages.send({ userId: 'me', requestBody });
+    return await gmail.users.messages.send({ userId: 'me', requestBody }, SEND_OPTS);
   } catch (e) {
     if (requestBody.threadId && isThreadNotFoundError(e)) {
       console.log(`Thread ${requestBody.threadId} not in ${fromEmail}'s mailbox — retrying without threadId`);
       const { threadId, ...rest } = requestBody;
-      return await gmail.users.messages.send({ userId: 'me', requestBody: rest });
+      return await gmail.users.messages.send({ userId: 'me', requestBody: rest }, SEND_OPTS);
     }
     throw e;
   }

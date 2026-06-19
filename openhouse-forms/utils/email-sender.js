@@ -4,11 +4,15 @@ const puppeteer = require('puppeteer');
 const logger = require('./logger');
 const { sendWithThreadFallback } = require('./gmail-send');
 
-// Force uncompressed responses on ALL googleapis calls (Gmail + Calendar share this
-// singleton). gaxios/node-fetch has a gzip-decompression bug (ERR_STREAM_PREMATURE_CLOSE
-// → "Invalid response body … Premature close") that was breaking every Gmail send;
-// requesting identity encoding avoids the broken Gunzip path entirely.
-// google.options({ headers: { 'Accept-Encoding': 'identity' } });
+// Two transport-level fixes applied to ALL googleapis calls (Gmail + Calendar share
+// this singleton):
+//   1. Accept-Encoding: identity — gaxios/node-fetch has a gzip-decompression bug
+//      (ERR_STREAM_PREMATURE_CLOSE → "Invalid response body … Premature close") that
+//      broke every Gmail send. Requesting uncompressed responses avoids the Gunzip path.
+//   2. retry off (noResponseRetries: 0) — gaxios was auto-RESENDING the non-idempotent
+//      send POST on the premature-close "no response", causing duplicate emails. The
+//      dedup-aware retry in ./gmail-send is the only retry path now.
+google.options({ headers: { 'Accept-Encoding': 'identity' }, retry: false, retryConfig: { retry: 0, noResponseRetries: 0 } });
 
 let _pool = null;
 function init(pool) { _pool = pool; }
