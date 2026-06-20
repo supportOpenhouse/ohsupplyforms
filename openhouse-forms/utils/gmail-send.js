@@ -1,9 +1,24 @@
-// Gmail messages.send is a non-idempotent POST, and gaxios does NOT auto-retry
-// POST (it's absent from httpMethodsToRetry). So a transient network blip like
-// ERR_STREAM_PREMATURE_CLOSE bubbles straight up and the send is reported failed.
-// These blips usually surface while reading the *response* — meaning Gmail has
-// already accepted the message — so we retry, but dedupe on the MIME's Message-ID
-// (rfc822msgid: search) to avoid sending a duplicate. Requires gmail.readonly.
+// Gmail messages.send is a non-idempotent POST. A transient blip like
+// ERR_STREAM_PREMATURE_CLOSE can surface either while UPLOADING the request (message
+// NOT sent) or while READING the response (message already delivered) — the error looks
+// identical either way. So after a blip we neither blindly resend (→ duplicates) nor
+// blindly assume-delivered (→ silent drops). We look the message up by its MIME
+// Message-ID (rfc822msgid: search) and resend only when it's genuinely not in the
+// mailbox; if it ultimately didn't send, we THROW so the caller reports a real failure.
+// Requires gmail.readonly.
+const https = require('https');
+
+// Force a FRESH socket per request. Node 19+ defaults keepAlive=true, and reused
+// keep-alive sockets to Gmail get closed mid-request → ERR_STREAM_PREMATURE_CLOSE.
+// A new socket per request is the actual fix for the premature-close storm.
+const noKeepAlive = new https.Agent({ keepAlive: false });
+
+// Per-request transport options (these propagate; global google.options headers do not):
+//  - agent           → fresh socket, no stale keep-alive close
+//  - Accept-Encoding  → identity, dodges the node-fetch gzip "Premature close" bug
+//  - retry:false      → stop gaxios silently auto-resending this non-idempotent POST
+const SEND_OPTS = { agent: noKeepAlive, headers: { 'Accept-Encoding': 'identity' }, retry: false, retryConfig: { retry: 0, noResponseRetries: 0 } };
+const READ_OPTS = { agent: noKeepAlive, headers: { 'Accept-Encoding': 'identity' } };
 
 const TRANSIENT = new Set(['ERR_STREAM_PREMATURE_CLOSE', 'ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', 'EPIPE', 'ENOTFOUND']);
 
@@ -13,14 +28,6 @@ function isTransient(e) {
   const status = e?.response?.status;
   if (status === 429 || (status >= 500 && status < 600)) return true;
   return /premature close|socket hang up|network|ECONNRESET|ETIMEDOUT/i.test(e?.message || '');
-}
-
-// "Sent but the response read failed" — the message reached Gmail and was delivered;
-// resending it would duplicate. These must NEVER be retried for a non-idempotent send.
-function isDeliveredDespiteError(e) {
-  const code = e?.code || e?.cause?.code;
-  if (code === 'ERR_STREAM_PREMATURE_CLOSE' || code === 'EPIPE') return true;
-  return /premature close/i.test(e?.message || '');
 }
 
 function isThreadNotFoundError(e) {
@@ -39,10 +46,14 @@ function extractMessageId(rawB64) {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Per-request transport options: request uncompressed responses (avoids the node-fetch
-// gzip "Premature close" bug) and disable gaxios auto-retry so it can't silently resend
-// this non-idempotent POST — duplicate-send protection lives in the dedup loop below.
-const SEND_OPTS = { headers: { 'Accept-Encoding': 'identity' }, retry: false, retryConfig: { retry: 0, noResponseRetries: 0 } };
+// Is a message with this MIME Message-ID already in the mailbox? (Best-effort.)
+async function findSent(gmail, msgId) {
+  if (!msgId) return null;
+  try {
+    const r = await gmail.users.messages.list({ userId: 'me', q: `rfc822msgid:${msgId}` }, READ_OPTS);
+    return r?.data?.messages?.length ? r.data.messages[0] : null;
+  } catch (_) { return null; }
+}
 
 // Single send, with the existing cross-mailbox threadId fallback. A threadId that
 // belongs to another mailbox makes Gmail reject the send; retry header-only.
@@ -59,51 +70,35 @@ async function sendOnce(gmail, requestBody, fromEmail) {
   }
 }
 
-async function sendWithThreadFallback(gmail, requestBody, fromEmail, { retries = 2, baseDelay = 1000 } = {}) {
+async function sendWithThreadFallback(gmail, requestBody, fromEmail, { retries = 2, baseDelay = 2000 } = {}) {
   const msgId = extractMessageId(requestBody.raw);
   for (let attempt = 0; ; attempt++) {
     try {
       return await sendOnce(gmail, requestBody, fromEmail);
     } catch (e) {
-      // Response-phase failure (premature close): the POST completed and Gmail already
-      // delivered the message — only reading the response died. We must NOT resend
-      // (that's what produced the triple emails — the rfc822msgid index lags, so the
-      // dedup search misses the just-sent message and the loop resends). Treat as sent;
-      // best-effort recover the id, but never resend on this class of error.
-      if (isDeliveredDespiteError(e)) {
-        if (msgId) {
-          try {
-            const found = await gmail.users.messages.list({ userId: 'me', q: `rfc822msgid:${msgId}` });
-            if (found?.data?.messages?.length) {
-              console.log(`Send delivered (id recovered): ${msgId} for ${fromEmail} after ${e.code || e.message}`);
-              return { data: found.data.messages[0] };
-            }
-          } catch (_) { /* index lag — still delivered, just no id to attach */ }
-        }
-        console.log(`Send delivered despite ${e.code || e.message} for ${fromEmail} — not resending`);
-        return { data: { id: null } };
+      if (!isTransient(e)) throw e; // genuine fatal (auth/format) — surface immediately
+      // Ambiguous blip: wait for Gmail to index a possibly-delivered copy, then check
+      // before deciding to resend. This avoids both duplicates and silent drops.
+      await sleep(baseDelay * (attempt + 1));
+      const landed = await findSent(gmail, msgId);
+      if (landed) {
+        console.log(`Confirmed delivered (no resend): ${msgId} for ${fromEmail} after ${e.code || e.message}`);
+        return { data: landed };
       }
-      // Genuine pre-send transient (DNS/connect failure — message NOT sent): bounded retry.
-      if (!isTransient(e) || attempt >= retries) throw e;
-      await sleep(baseDelay * (attempt + 1)); // also gives Gmail time to index before we check
-      // Did a prior attempt actually land? If so, don't resend a duplicate.
-      if (msgId) {
-        try {
-          const found = await gmail.users.messages.list({ userId: 'me', q: `rfc822msgid:${msgId}` });
-          if (found?.data?.messages?.length) {
-            console.log(`Send recovered: ${msgId} already in ${fromEmail}'s mailbox after ${e.code || e.message}`);
-            return { data: found.data.messages[0] };
-          }
-        } catch (_) { /* search failed — fall through and resend */ }
+      if (attempt >= retries) {
+        // Not in the mailbox after every retry — it truly didn't send. Report failure
+        // (the caller turns this into an error response — never a fake "sent").
+        console.error(`Send FAILED for ${fromEmail} after ${attempt + 1} attempts (${e.code || e.message}); not found in mailbox`);
+        throw e;
       }
-      console.log(`Retrying send for ${fromEmail} after ${e.code || e.message} (attempt ${attempt + 1}/${retries})`);
+      console.log(`Not delivered yet — resending for ${fromEmail} after ${e.code || e.message} (attempt ${attempt + 1}/${retries})`);
     }
   }
 }
 
-module.exports = { sendWithThreadFallback, isTransient, isDeliveredDespiteError, isThreadNotFoundError, extractMessageId };
+module.exports = { sendWithThreadFallback, findSent, READ_OPTS, SEND_OPTS, isTransient, isThreadNotFoundError, extractMessageId };
 
-// ponytail: self-check for transient-retry + dedup. Run: node utils/gmail-send.js
+// Self-check: never-drop / never-duplicate retry semantics. Run: node utils/gmail-send.js
 if (require.main === module) {
   const assert = require('assert');
   (async () => {
@@ -112,7 +107,7 @@ if (require.main === module) {
 
     assert.strictEqual(extractMessageId(raw), 'abc.def@openhouse.in', 'extracts Message-ID');
 
-    // Premature close but Gmail already has it → recover via lookup, do NOT resend.
+    // Premature close but the message IS in the mailbox → no resend, return it.
     let sends = 0;
     const delivered = { users: { messages: {
       send: async () => { sends++; const e = new Error('Premature close'); e.code = 'ERR_STREAM_PREMATURE_CLOSE'; throw e; },
@@ -122,16 +117,14 @@ if (require.main === module) {
     assert.strictEqual(r1.data.id, 'EXISTING');
     assert.strictEqual(sends, 1, 'must NOT resend when message already delivered');
 
-    // Premature close AND the index lags (search returns empty) → STILL must not resend.
-    // This is the real-world case that produced triple emails.
-    let sendsLag = 0;
-    const lagging = { users: { messages: {
-      send: async () => { sendsLag++; const e = new Error('Invalid response body … Premature close'); e.code = 'ERR_STREAM_PREMATURE_CLOSE'; throw e; },
+    // Premature close AND never in mailbox (truly not sent) → resend, then FAIL loudly.
+    let sendsFail = 0;
+    const neverLands = { users: { messages: {
+      send: async () => { sendsFail++; const e = new Error('Premature close'); e.code = 'ERR_STREAM_PREMATURE_CLOSE'; throw e; },
       list: async () => ({ data: { messages: [] } }),
     } } };
-    const rLag = await sendWithThreadFallback(lagging, { raw }, 'a@openhouse.in', opts);
-    assert.strictEqual(sendsLag, 1, 'must NOT resend on premature-close even when the index lags');
-    assert.strictEqual(rLag.data.id, null, 'returns delivered-without-id when index lags');
+    await assert.rejects(() => sendWithThreadFallback(neverLands, { raw }, 'a@openhouse.in', opts), 'must throw, never fake success');
+    assert.strictEqual(sendsFail, 3, 'tries 1 + 2 retries when never delivered');
 
     // Transient once, not delivered yet → resend once, succeed.
     let n = 0;

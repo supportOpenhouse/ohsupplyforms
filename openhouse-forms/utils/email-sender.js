@@ -2,7 +2,7 @@
 const { google } = require('googleapis');
 const puppeteer = require('puppeteer');
 const logger = require('./logger');
-const { sendWithThreadFallback } = require('./gmail-send');
+const { sendWithThreadFallback, READ_OPTS } = require('./gmail-send');
 
 // Two transport-level fixes applied to ALL googleapis calls (Gmail + Calendar share
 // this singleton):
@@ -385,10 +385,17 @@ function buildSimpleMimeEmail({ from, to, cc, subject, bodyHtml, references }) {
   return { raw, msgId };
 }
 
-// Fetch ACTUAL Message-ID from Gmail after sending (requires gmail.readonly)
+// Fetch ACTUAL Message-ID from Gmail after sending (requires gmail.readonly).
+// Best-effort only — caller falls back to our own Message-ID if this returns null.
+// Pass Accept-Encoding: identity to dodge the node-fetch gzip "Premature close" bug,
+// and skip entirely when there's no id (e.g. send recovered without one).
 async function getMessageId(gmail, messageId) {
+  if (!messageId) return null;
   try {
-    const msg = await gmail.users.messages.get({ userId: 'me', id: messageId, format: 'metadata', metadataHeaders: ['Message-Id'] });
+    const msg = await gmail.users.messages.get(
+      { userId: 'me', id: messageId, format: 'metadata', metadataHeaders: ['Message-Id'] },
+      READ_OPTS
+    );
     const hdr = msg.data.payload.headers.find(h => h.name.toLowerCase() === 'message-id');
     return hdr ? hdr.value : null;
   } catch(e) { console.error('getMessageId error:', e.message); return null; }
