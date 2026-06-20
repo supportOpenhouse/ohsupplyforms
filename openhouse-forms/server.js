@@ -1,4 +1,17 @@
 require('dotenv').config();
+
+// ── Fix ERR_STREAM_PREMATURE_CLOSE on Google API calls ────────────────────────────
+// Node 19+ defaults the global HTTP(S) agent to keepAlive:true. Reused keep-alive
+// sockets to Google (oauth2.googleapis.com token refresh AND gmail.googleapis.com) get
+// closed mid-request by Google's LB → "Invalid response body … Premature close". This
+// runs BEFORE any module makes a request, forcing a fresh socket per request app-wide
+// (covers google-auth's internal token-refresh transport, which per-request options
+// can't reach). Slightly less connection reuse; far more reliable.
+const http = require('http');
+const https = require('https');
+http.globalAgent = new http.Agent({ keepAlive: false });
+https.globalAgent = new https.Agent({ keepAlive: false });
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
