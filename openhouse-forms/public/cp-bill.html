@@ -404,7 +404,7 @@ async function loadUID(uid){
     }
     document.getElementById('cpBillForm').style.display='block';
     document.getElementById('emailBtn').style.display=d.cp_bill_submitted_at?'block':'none';
-    if(d.cp_bill_email_sent===true){const eb=document.getElementById('emailBtn');eb.disabled=true;eb.innerHTML='✓ Email Sent Already';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)'}
+    if(d.cp_bill_email_sent===true){const eb=document.getElementById('emailBtn');eb.innerHTML='✓ Email Sent Already';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)';eb.dataset.sent='1'}
     st.className='pf-st show ok';st.textContent=`Loaded: ${uid}${d.cp_bill_submitted_at?' (Submitted)':''}`;
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('cpBillForm').style.display='none'}
 }
@@ -574,12 +574,14 @@ function closeEmailModal(){document.getElementById('emailModal').classList.remov
 document.getElementById('emailModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEmailModal()});
 
 async function confirmSendEmail(){
-  const btn=document.getElementById('confirmSendBtn');btn.disabled=true;btn.textContent='Sending...';
+  const btn=document.getElementById('confirmSendBtn');
+  const force=document.getElementById('emailBtn').dataset.sent==='1';if(force&&!await confirmResend())return;
+  btn.disabled=true;btn.textContent='Sending...';
   try{
-    const r=await fetch(`${API}/api/cp-bill/send-email/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'}});
+    const r=await fetch(`${API}/api/cp-bill/send-email/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({force})});
     const d=await r.json();if(!r.ok)throw new Error(d.error);
     toast('Email sent successfully!','ok',5000);closeEmailModal();
-    const eb=document.getElementById('emailBtn');eb.disabled=true;eb.innerHTML='✓ Email Sent Already';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)';
+    const eb=document.getElementById('emailBtn');eb.innerHTML='✓ Email Sent Already';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)';eb.dataset.sent='1';
   }catch(e){toast(e.message||'Failed','err');
     if(e.message&&e.message.includes('log out'))toast('Please logout and login again','warn',8000);
   }finally{btn.disabled=false;btn.textContent='✉ Confirm & Send'}

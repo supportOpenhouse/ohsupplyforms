@@ -53,7 +53,7 @@ module.exports=function(pool){
       const{rows:pRows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
       if(!pRows.length)return res.status(404).json({error:'Property not found'});
       if(!pRows[0].pending_request_submitted_at)return res.status(400).json({error:'Form must be submitted first'});
-      if(pRows[0].pending_request_email_sent===true)return res.status(409).json({error:'Email Sent Already',alreadySent:true});
+      if(pRows[0].pending_request_email_sent===true&&!(req.body&&req.body.force))return res.status(409).json({error:'Email Sent Already',alreadySent:true});
       const result=await sendPendingAmountEmail({
         accessToken:user.google_access_token,refreshToken:user.google_refresh_token,
         fromEmail:user.email,senderName:user.name||user.email,property:pRows[0],

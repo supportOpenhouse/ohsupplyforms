@@ -65,7 +65,7 @@ module.exports=function(pool){
       if(!pRows.length)return res.status(404).json({error:'Property not found'});
       const p=pRows[0];
       if(!p.final_submitted_at)return res.status(400).json({error:'Form must be submitted first'});
-      if(p.final_email_sent===true)return res.status(409).json({error:'Email Sent Already',alreadySent:true});
+      if(p.final_email_sent===true&&!(req.body&&req.body.force))return res.status(409).json({error:'Email Sent Already',alreadySent:true});
       if(!p.owner_email)return res.status(400).json({error:'Owner email not found. Set it in Deal Terms form.'});
       const senderName=user.name||user.email.split('@')[0];
       const result=await sendKeyHandoverEmail({

@@ -102,7 +102,7 @@ module.exports=function(pool){
       if(!pRows.length)return res.status(404).json({error:'Property not found'});
       const p=pRows[0];
       if(!p.token_submitted_at)return res.status(400).json({error:'Token request must be submitted first'});
-      if(p.token_request_email_sent===true)return res.status(409).json({error:'Email Sent Already',alreadySent:true});
+      if(p.token_request_email_sent===true&&!(req.body&&req.body.force))return res.status(409).json({error:'Email Sent Already',alreadySent:true});
       const baseUrl=process.env.APP_URL||'';
       const pdfHtml=generateReceiptHTML(p,'deal',baseUrl);
       const result=await sendTokenRequestEmail({

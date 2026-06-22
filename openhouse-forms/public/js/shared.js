@@ -240,6 +240,27 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 
+// ══════ RESEND WARNING CONFIRM ══════
+function confirmResend(msg='Email has Already been sent'){
+  return new Promise(resolve=>{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px';
+    ov.innerHTML=`<div style="background:var(--sf,#fff);border-radius:12px;max-width:340px;width:100%;padding:22px;box-shadow:0 12px 40px rgba(0,0,0,.25);text-align:center">
+      <div style="font-size:34px;line-height:1">⚠️</div>
+      <div style="font-weight:700;font-size:16px;margin:10px 0 4px;color:var(--tx,#111)">${msg}</div>
+      <div style="font-size:13px;color:var(--tx3,#666);margin-bottom:18px">Do you want to send it again?</div>
+      <div style="display:flex;gap:10px">
+        <button type="button" class="cr-cancel" style="flex:1;padding:10px;border:1px solid var(--bd,#ddd);border-radius:8px;background:var(--sf,#fff);color:var(--tx,#111);font-size:14px;cursor:pointer">Cancel</button>
+        <button type="button" class="cr-ok" style="flex:1;padding:10px;border:none;border-radius:8px;background:#d9534f;color:#fff;font-size:14px;cursor:pointer">Continue Anyway</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    const done=v=>{ov.remove();resolve(v)};
+    ov.querySelector('.cr-cancel').addEventListener('click',()=>done(false));
+    ov.querySelector('.cr-ok').addEventListener('click',()=>done(true));
+    ov.addEventListener('click',e=>{if(e.target===ov)done(false)});
+  });
+}
+
 // ══════ IFSC → BANK NAME LOOKUP ══════
 const IFSC_BANK_MAP={SBIN:'State Bank of India',PUNB:'Punjab National Bank',ICIC:'ICICI Bank',UTIB:'Axis Bank',KKBK:'Kotak Mahindra',HDFC:'HDFC Bank',YESB:'Yes Bank',CITI:'Citi Bank',BARB:'Bank of Baroda',CNRB:'Canara Bank',UBIN:'Union Bank',IOBA:'Indian Overseas Bank',BKID:'Bank of India'};
 function bankFromIFSC(ifsc){if(!ifsc||ifsc.length<4)return '';const prefix=ifsc.substring(0,4).toUpperCase();return IFSC_BANK_MAP[prefix]||''}
