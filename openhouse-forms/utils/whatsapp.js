@@ -206,6 +206,10 @@ function notifyVisitCancelled(property, cancelledBy, actor) {
   });
 }
 
+// Devishaa Patni — receives the same AMA WhatsApps as Akash Teotia (added by number so
+// it works whether or not she's set up as a user). Added 24 Jun 2026.
+const DEVISHAA = { name: 'Devishaa Patni', phone: '9217997423' };
+
 async function notifyAMASubmitted(property, submitterName, actor) {
   const p = property;
   let dateStr = '-';
@@ -219,8 +223,13 @@ async function notifyAMASubmitted(property, submitterName, actor) {
   const recipients = [...new Set(['Saurabh', 'Akash Teotia', 'Priyanshi Bajpai', ...topMgrs])];
   if(bdManager && bdManager!=='-') recipients.push(bdManager);
   if(submitterName && submitterName!=='-') recipients.push(submitterName);
-  console.log(`WA: ama_notification | UID: ${p.uid} | To: ${recipients.join(', ')}`);
+  console.log(`WA: ama_notification | UID: ${p.uid} | To: ${recipients.join(', ')}, ${DEVISHAA.name}`);
   const results = await broadcastTemplate('ama_notification', bodyValues, recipients);
+  // Devishaa Patni — guaranteed by number (alongside Akash Teotia), dedup-guarded
+  if(!results.some(r=>r.phone===DEVISHAA.phone)){
+    const ok = await sendInterakt(DEVISHAA.phone, 'ama_notification', bodyValues);
+    results.push({name:DEVISHAA.name, phone:DEVISHAA.phone, ok});
+  }
   logger.logWhatsApp(p.uid,'ama_notification',results,actor?.email,actor?.name).catch(()=>{});
   return results;
 }
@@ -266,6 +275,7 @@ async function notifyAMASigned(property, submitterName, actor) {
   const sentPhones = new Set(results.filter(r=>r.ok).map(r=>r.phone));
   const allRecipients = [...results];
   if(!sentPhones.has('9289996736')){sentPhones.add('9289996736');const ok=await sendInterakt('9289996736', 'ama_signed', bodyValues);allRecipients.push({name:'Amisha',phone:'9289996736',ok})}
+  if(!sentPhones.has(DEVISHAA.phone)){sentPhones.add(DEVISHAA.phone);const ok=await sendInterakt(DEVISHAA.phone, 'ama_signed', bodyValues);allRecipients.push({name:DEVISHAA.name,phone:DEVISHAA.phone,ok})}
   for(const ph of [p.contact_no, p.co_owner_number, p.cp_phone].filter(Boolean)){
     const clean = ph.replace(/\D/g,'').slice(-10);
     if(clean.length===10 && !sentPhones.has(clean)){
