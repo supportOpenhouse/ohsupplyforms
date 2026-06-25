@@ -42,7 +42,7 @@ module.exports=function(pool){
   });
   router.get('/uids',async(req,res)=>{
     try{const vis=visibilityFilter(req.user);const{rows}=await pool.query(`SELECT uid,city,society_name,unit_no,tower_no,owner_broker_name,token_submitted_at,token_is_draft,token_deal_submitted_at
-      FROM properties WHERE (token_submitted_at IS NOT NULL OR token_is_draft=TRUE) AND is_dead IS NOT TRUE AND is_token_refunded IS NOT TRUE${vis.clause} ORDER BY updated_at DESC`,vis.params);res.json(rows)}catch(e){res.status(500).json({error:e.message})}
+      FROM properties WHERE (token_submitted_at IS NOT NULL OR token_is_draft=TRUE) AND is_dead IS NOT TRUE AND is_token_refunded IS NOT TRUE AND replicated IS NOT TRUE${vis.clause} ORDER BY updated_at DESC`,vis.params);res.json(rows)}catch(e){res.status(500).json({error:e.message})}
   });
   router.post('/submit',async(req,res)=>{
     try{

@@ -20,7 +20,7 @@
 .tbl .col-owner{width:110px}.tbl .col-phone{width:90px}.tbl .col-name{width:100px}.tbl .col-dt{width:85px}
 .tbl th{position:sticky;top:0;background:var(--bg);z-index:2;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);border-bottom:2px solid var(--bd);cursor:pointer;user-select:none}
 .tbl td{padding:6px 10px;border-bottom:1px solid var(--bd);vertical-align:middle}
-.tbl tr:hover:not(.row-dead):not(.row-refunded){background:rgba(0,0,0,.02)}
+.tbl tr:hover:not(.row-dead):not(.row-refunded):not(.row-replicated){background:rgba(0,0,0,.02)}
 .tbl th[data-s]:hover{color:var(--ac)}
 .tbl th.sorted-asc::after{content:' ▲';font-size:8px;color:var(--ac)}
 .tbl th.sorted-desc::after{content:' ▼';font-size:8px;color:var(--ac)}
@@ -111,6 +111,8 @@ tr.row-dead{background:#fef2f2!important}
 tr.row-dead td{color:var(--red)!important;opacity:.7}
 tr.row-refunded{background:#fefbeb!important}
 tr.row-refunded td{color:#b45309!important;opacity:.7}
+tr.row-replicated{background:#fef2f2!important}
+tr.row-replicated td{color:#dc2626!important;opacity:.7}
 .badge.dead-badge{background:#fdecea;color:#b33a2e;font-size:9px;padding:1px 6px;border-radius:10px;margin-left:4px}
 .badge.refund-badge{background:#fef3c7;color:#b45309;font-size:9px;padding:1px 6px;border-radius:10px;margin-left:4px}
 .export-btn{font-size:11px;padding:4px 12px;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;color:var(--tx2);font-weight:500}
@@ -375,7 +377,7 @@ function render(){let d=[...allData];const q=document.getElementById('fQ').value
   const unitCol=p=>[p.tower_no,p.unit_no].filter(Boolean).join('-');
   const clickName=(name,field)=>name?`<a href="#" class="link person-link" data-name="${name}" data-field="${field||''}">${name}</a>`:'—';
   tb.innerHTML=d.map((p,idx)=>{
-    const dead=p.is_dead;const refunded=p.is_token_refunded;const stage=p._stage;
+    const dead=p.is_dead;const refunded=p.is_token_refunded;const replicated=p.replicated;const stage=p._stage;
     let acts=[];
     if(!dead&&!refunded){
       if(!p.visit_submitted_at)acts.push(`<a href="/visit?uid=${p.uid}" class="link">Visit</a>`);
@@ -392,7 +394,7 @@ function render(){let d=[...allData];const q=document.getElementById('fQ').value
     const lastDt=p.last_activity?fmtDt(p.last_activity):'—';
     const deadBadge=dead?'<span class="badge dead-badge">Cancelled</span>':'';
     const refundBadge=refunded&&!dead?'<span class="badge refund-badge">Cancelled PT</span>':'';
-    const rowCls=dead?'row-dead':refunded?'row-refunded':'';
+    const rowCls=replicated?'row-replicated':dead?'row-dead':refunded?'row-refunded':'';
     const noActs=dead||refunded;
     const uidCell=IS_ADMIN?`<a href="#" class="link uid-link" data-uid="${p.uid}">${p.uid}</a>`:p.uid;
     const leadSuffix=p.lead_id?` <span style="color:var(--tx3);font-weight:400">(${p.lead_id})</span>`:'';
@@ -558,6 +560,8 @@ function efLock(name,checked){return`<div class="prev-item"><div class="pi-label
 
 function buildModal(p){
   currentModalUid=p.uid;
+  const rb=document.getElementById('replicateBtn');
+  if(rb){rb.disabled=!!p.replicated;rb.title=p.replicated?'Already replicated':'';rb.style.opacity=p.replicated?'.5':'';rb.style.cursor=p.replicated?'not-allowed':'';}
   const mb=document.getElementById('modalBody');
   document.getElementById('saveStatus').textContent='';
   const steps=[{name:'Schedule',done:!!p.schedule_submitted_at,ts:p.schedule_submitted_at},{name:'Visit',done:!!p.visit_submitted_at,ts:p.visit_submitted_at},{name:'Token Req',done:!!p.token_submitted_at,draft:p.token_is_draft,ts:p.token_submitted_at},{name:'Deal Terms',done:!!p.token_deal_submitted_at,ts:p.token_deal_submitted_at},{name:'AMA Req',done:!!p.ama_submitted_at,ts:p.ama_submitted_at},{name:'AMA Signed',done:!!p.pending_request_submitted_at,ts:p.pending_request_submitted_at},{name:'Listing',done:!!p.listing_submitted_at,ts:p.listing_submitted_at},{name:'CP Bill',done:!!p.cp_bill_submitted_at,ts:p.cp_bill_submitted_at},{name:'Key Handover',done:!!p.final_submitted_at,ts:p.final_submitted_at}];

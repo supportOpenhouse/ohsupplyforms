@@ -92,7 +92,7 @@ module.exports = function (pool) {
       const { rows: busy } = await pool.query(
         `SELECT schedule_time, uid, society_name, unit_no, tower_no FROM properties
          WHERE field_exec = $1 AND schedule_date = $2
-         AND is_dead IS NOT TRUE AND is_token_refunded IS NOT TRUE`,
+         AND is_dead IS NOT TRUE AND is_token_refunded IS NOT TRUE AND replicated IS NOT TRUE`,
         [d.field_exec, d.schedule_date]
       );
       const windows = busy.map(r => {
