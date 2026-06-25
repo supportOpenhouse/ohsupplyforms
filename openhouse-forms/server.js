@@ -105,14 +105,8 @@ app.get('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
     if(!rows.length)return res.status(404).json({error:'Not found'});res.json(rows[0])}catch(e){console.error('Property detail error:',e.message);res.status(500).json({error:e.message})}
 });
 
-// Admin: Update any property fields
-app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
-  try{
-    const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
-    if(!rows.length)return res.status(404).json({error:'UID not found'});
-    const oldProp=rows[0];
-    const d=req.body;delete d.uid;delete d.created_at;delete d.updated_at;
-    const allowed=new Set(['city','locality','society_name','unit_no','tower_no','floor','area_sqft','configuration',
+// Fields an admin may edit (and that get copied on replicate). Module-scoped so both handlers share it.
+const ADMIN_EDITABLE=new Set(['city','locality','society_name','unit_no','tower_no','floor','area_sqft','configuration',
       'demand_price','source','owner_broker_name','first_name','last_name','contact_no','assigned_by','field_exec',
       'schedule_date','schedule_time','co_owner','co_owner_number','lead_id',
       'extra_area','bathrooms','balconies','gas_pipeline','parking','furnishing','furnishing_details',
@@ -138,6 +132,15 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
       'water_supply','dg_charges','alpha_beta','beta_pct','loan_status','seller_location','club_facility',
       'circle_rate','parking_number','is_dead','is_token_refunded',
       'token_request_email_sent','token_deal_email_sent','pending_request_email_sent','cp_bill_email_sent','final_email_sent']);
+
+// Admin: Update any property fields
+app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
+  try{
+    const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
+    if(!rows.length)return res.status(404).json({error:'UID not found'});
+    const oldProp=rows[0];
+    const d=req.body;delete d.uid;delete d.created_at;delete d.updated_at;
+    const allowed=ADMIN_EDITABLE;
     const sets=[];const vals=[];let i=1;
     const changes={};
     for(const[k,v]of Object.entries(d)){
@@ -172,6 +175,38 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
       logger.logAdminEdit(req.params.uid,changes,req.user?.email,req.user?.name).catch(()=>{});
     }
   }catch(e){console.error('Admin update error:',e.message);res.status(500).json({error:e.message})}
+});
+
+// Admin: Replicate a property into a new OH ID. Copies every ADMIN_EDITABLE field
+// except source & lead_id (which come from the request). New UID keeps the source
+// property's city code and uses the chosen source's code: OH{city}{C|D}{next}.
+app.post('/api/admin/property/:uid/replicate', isAuthenticated, isAdmin, async(req,res)=>{
+  try{
+    const SRC_MAP={CP:'C',Direct:'D'};
+    const source=req.body&&req.body.source;
+    if(!SRC_MAP[source])return res.status(400).json({error:'source must be CP or Direct'});
+    const lead_id=req.body&&req.body.lead_id!=null?String(req.body.lead_id).trim()||null:null;
+    const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
+    if(!rows.length)return res.status(404).json({error:'UID not found'});
+    const src=rows[0];
+    // Reuse the source UID's city code (everything between OH and the trailing source char + digits).
+    const m=String(src.uid||'').match(/^OH([A-Z]+)([A-Z])(\d+)$/);
+    if(!m)return res.status(400).json({error:'Cannot parse OH ID prefix from '+src.uid});
+    const prefix=`OH${m[1]}${SRC_MAP[source]}`;
+    const{rows:mx}=await pool.query(`SELECT MAX(CAST(REPLACE(uid,$1,'') AS INTEGER)) AS max_num FROM properties WHERE uid LIKE $2`,[prefix,prefix+'%']);
+    const newUid=prefix+String((mx[0].max_num||1000)+1);
+    const cols=['uid','source','lead_id'];const vals=[newUid,source,lead_id];
+    for(const k of ADMIN_EDITABLE){
+      if(k==='source'||k==='lead_id')continue;
+      let v=src[k];
+      // JSONB columns come back as JS objects/arrays — stringify so pg stores valid JSON, not an array literal.
+      if(v!==null&&typeof v==='object'&&!(v instanceof Date))v=JSON.stringify(v);
+      cols.push(k);vals.push(v);
+    }
+    await pool.query(`INSERT INTO properties(${cols.join(',')}) VALUES(${cols.map((_,idx)=>'$'+(idx+1)).join(',')})`,vals);
+    res.json({success:true,uid:newUid});
+    require('./utils/logger').log(newUid,'replicate','admin',req.user?.email,req.user?.name,{source_uid:src.uid,source,lead_id}).catch(()=>{});
+  }catch(e){console.error('Replicate error:',e.message);res.status(500).json({error:e.message})}
 });
 
 // ── My Properties — user sees only their linked properties ──

@@ -189,12 +189,36 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
 </div>
 <div class="modal-overlay" id="uidModal">
   <div class="modal-box">
-    <div class="modal-hdr"><h3 id="modalTitle">Property Details</h3><button class="btn btn-out btn-sm" onclick="closeModal()">✕</button></div>
+    <div class="modal-hdr"><div style="display:flex;align-items:center;gap:10px"><h3 id="modalTitle">Property Details</h3><button class="btn btn-out btn-sm" id="replicateBtn" onclick="openReplicate()">⧉ Replicate Property</button></div><button class="btn btn-out btn-sm" onclick="closeModal()">✕</button></div>
     <div class="modal-body" id="modalBody"></div>
     <div class="modal-footer">
       <span class="save-status" id="saveStatus"></span>
       <button class="btn btn-out btn-sm" onclick="closeModal()">Cancel</button>
       <button class="btn btn-dark btn-sm" id="saveBtn" onclick="saveModal()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+<!-- Replicate Property popup -->
+<div class="modal-overlay" id="replModal" style="z-index:1001">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-hdr"><h3>⧉ Replicate Property</h3><button class="btn btn-out btn-sm" onclick="closeReplicate()">✕</button></div>
+    <div class="modal-body">
+      <div class="prev-item full" style="margin-bottom:16px">
+        <div class="pi-label">Choose Source <span style="color:var(--red)">*</span></div>
+        <div style="display:flex;gap:20px;margin-top:8px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="radio" name="replSource" value="CP" style="width:auto;margin:0"> CP</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600"><input type="radio" name="replSource" value="Direct" style="width:auto;margin:0"> Direct</label>
+        </div>
+      </div>
+      <div class="prev-item full">
+        <div class="pi-label">Lead ID <span style="color:var(--tx3);font-weight:400">(optional)</span></div>
+        <input type="text" id="replLeadId" placeholder="Leave empty if none">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span class="save-status" id="replStatus"></span>
+      <button class="btn btn-out btn-sm" onclick="closeReplicate()">Cancel</button>
+      <button class="btn btn-dark btn-sm" id="replGoBtn" onclick="doReplicate()">⧉ Replicate</button>
     </div>
   </div>
 </div>
@@ -654,6 +678,28 @@ async function saveModal(){
     loadData();
   }catch(e){status.textContent='✗ '+e.message;status.style.color='var(--red)'}
   finally{btn.disabled=false;btn.textContent='💾 Save Changes'}
+}
+
+function openReplicate(){
+  if(!currentModalUid)return;
+  document.querySelectorAll('input[name="replSource"]').forEach(r=>r.checked=false);
+  document.getElementById('replLeadId').value='';
+  document.getElementById('replStatus').textContent='';
+  document.getElementById('replModal').classList.add('open');
+}
+function closeReplicate(){document.getElementById('replModal').classList.remove('open')}
+async function doReplicate(){
+  const sel=document.querySelector('input[name="replSource"]:checked');
+  const status=document.getElementById('replStatus');
+  if(!sel){status.textContent='Please choose a source';status.style.color='var(--red)';return}
+  const btn=document.getElementById('replGoBtn');btn.disabled=true;btn.textContent='Replicating...';status.textContent='';
+  try{
+    const body={source:sel.value,lead_id:document.getElementById('replLeadId').value.trim()};
+    const r=await fetch(`${API}/api/admin/property/${currentModalUid}/replicate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();if(!r.ok)throw new Error(d.error);
+    closeReplicate();closeModal();loadData();openModal(d.uid);
+  }catch(e){status.textContent='✗ '+e.message;status.style.color='var(--red)'}
+  finally{btn.disabled=false;btn.textContent='⧉ Replicate'}
 }
 
 document.querySelectorAll('.tbl th[data-s]').forEach(th=>{th.addEventListener('click',()=>{const c=th.dataset.s;if(sortCol===c)sortDir=sortDir==='asc'?'desc':'asc';else{sortCol=c;sortDir='asc'}render()})});
