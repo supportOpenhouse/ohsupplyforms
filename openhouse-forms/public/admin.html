@@ -38,6 +38,7 @@
 .stage-pill.s-can{background:#fdecea;color:#b33a2e}
 .stage-pill.s-ref{background:#fef3c7;color:#b45309}
 .stage-pill.s-asgn{background:#fce7f3;color:#831843}
+.stage-pill.s-rep{background:#fee2e2;color:#dc2626}
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
 .modal-overlay.open{display:flex}
@@ -140,6 +141,7 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
     <div class="stat" data-filter="final" id="stFin"><div class="stat-val" id="sFin">—</div><div class="stat-lbl">Key Handover</div></div>
     <div class="stat" data-filter="refunded" id="stRef"><div class="stat-val" id="sRef" style="color:#b45309">—</div><div class="stat-lbl">Cancelled PT</div></div>
     <div class="stat" data-filter="dead" id="stCan"><div class="stat-val" id="sCan" style="color:var(--red)">—</div><div class="stat-lbl">Cancelled</div></div>
+    <div class="stat" data-filter="replicated" id="stOth"><div class="stat-val" id="sOth" style="color:#dc2626">—</div><div class="stat-lbl">OTHERS</div></div>
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <div style="padding:8px 10px;border-bottom:1px solid var(--bd)">
@@ -156,6 +158,7 @@ tr.row-refunded td{color:#b45309!important;opacity:.7}
           <option value="cpbill">CP Bill</option>
           <option value="final">Key Handover</option>
           <option value="refunded">Cancelled Post Token</option><option value="dead">Cancelled</option>
+          <option value="replicated">Others</option>
         </select>
         <button class="btn btn-out btn-sm" onclick="loadData()" title="Refresh data">↻</button>
       </div>
@@ -300,7 +303,7 @@ function fmtDtFull(d){if(!d)return'—';const dt=new Date(d);return dt.toLocaleD
 function latestTs(p){const ts=[p.schedule_submitted_at,p.visit_submitted_at,p.token_submitted_at,p.token_deal_submitted_at,p.ama_submitted_at,p.final_submitted_at,p.cp_bill_submitted_at,p.listing_submitted_at].filter(Boolean);if(!ts.length)return null;return ts.reduce((a,b)=>new Date(a)>new Date(b)?a:b)}
 
 function getStage(p){
-  if(p.replicated)return{label:'Got Replicated',cls:'s-can',key:'replicated'};
+  if(p.replicated)return{label:'Got Replicated',cls:'s-rep',key:'replicated'};
   if(p.is_dead)return{label:'Cancelled',cls:'s-can',key:'dead'};
   if(p.is_token_refunded)return{label:'Cancelled Post Token',cls:'s-ref',key:'refunded'};
   if(p.final_submitted_at)return{label:'Key Handover',cls:'s-fin',key:'final'};
@@ -335,6 +338,7 @@ async function loadData(){try{const r=await fetch(`${API}/api/properties`);allDa
   document.getElementById('sLst').textContent=allData.filter(p=>p._stage.key==='listed').length;
   document.getElementById('sRef').textContent=allData.filter(p=>p._stage.key==='refunded').length;
   document.getElementById('sCan').textContent=allData.filter(p=>p._stage.key==='dead').length;
+  document.getElementById('sOth').textContent=allData.filter(p=>p._stage.key==='replicated').length;
   document.getElementById('sAll').textContent=allData.length;
   render()}catch(e){console.error(e)}}
 
@@ -356,6 +360,7 @@ function render(){let d=[...allData];const q=document.getElementById('fQ').value
   else if(st==='listed')d=d.filter(p=>p._stage.key==='listed');
   else if(st==='refunded')d=d.filter(p=>p._stage.key==='refunded');
   else if(st==='dead')d=d.filter(p=>p._stage.key==='dead');
+  else if(st==='replicated')d=d.filter(p=>p._stage.key==='replicated');
   if(dateFilterStart||dateFilterEnd){d=d.filter(p=>{if(!p.last_activity)return false;const t=new Date(p.last_activity).getTime();if(dateFilterStart&&t<dateFilterStart.getTime())return false;if(dateFilterEnd&&t>dateFilterEnd.getTime())return false;return true})}
   if(sortCol)d.sort((a,b)=>{let va=(a[sortCol]||'').toString().toLowerCase(),vb=(b[sortCol]||'').toString().toLowerCase();
     if(sortCol==='last_activity'){va=new Date(a[sortCol]||0).getTime();vb=new Date(b[sortCol]||0).getTime();return sortDir==='asc'?va-vb:vb-va}
