@@ -300,6 +300,7 @@ function fmtDtFull(d){if(!d)return'—';const dt=new Date(d);return dt.toLocaleD
 function latestTs(p){const ts=[p.schedule_submitted_at,p.visit_submitted_at,p.token_submitted_at,p.token_deal_submitted_at,p.ama_submitted_at,p.final_submitted_at,p.cp_bill_submitted_at,p.listing_submitted_at].filter(Boolean);if(!ts.length)return null;return ts.reduce((a,b)=>new Date(a)>new Date(b)?a:b)}
 
 function getStage(p){
+  if(p.replicated)return{label:'Got Replicated',cls:'s-can',key:'replicated'};
   if(p.is_dead)return{label:'Cancelled',cls:'s-can',key:'dead'};
   if(p.is_token_refunded)return{label:'Cancelled Post Token',cls:'s-ref',key:'refunded'};
   if(p.final_submitted_at)return{label:'Key Handover',cls:'s-fin',key:'final'};

@@ -95,7 +95,7 @@ app.use('/api/external', require('./routes/external')(pool));
 
 app.get('/api/properties', isAuthenticated, hasAdminPanelAccess, async(req,res)=>{
   try{const vis=visibilityFilter(req.user);const{rows}=await pool.query(`SELECT uid,lead_id,city,locality,society_name,unit_no,tower_no,configuration,owner_broker_name,first_name,last_name,contact_no,
-    assigned_by,field_exec,token_requested_by,is_dead,is_token_refunded,schedule_date,schedule_time,
+    assigned_by,field_exec,token_requested_by,is_dead,is_token_refunded,replicated,replicated_from,schedule_date,schedule_time,
     schedule_submitted_at,visit_submitted_at,token_submitted_at,token_is_draft,token_deal_submitted_at,ama_submitted_at,pending_request_submitted_at,final_submitted_at,cp_bill_submitted_at,listing_submitted_at,created_at
     FROM properties WHERE TRUE${vis.clause} ORDER BY created_at DESC`,vis.params);res.json(rows)}catch(e){console.error('Properties list error:',e.message);res.status(500).json({error:e.message})}
 });
@@ -177,40 +177,39 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
   }catch(e){console.error('Admin update error:',e.message);res.status(500).json({error:e.message})}
 });
 
-// Admin: Replicate a property into a new OH ID. Copies every ADMIN_EDITABLE field
-// except source & lead_id (which come from the request). New UID keeps the source
-// property's city code and uses the chosen source's code: OH{city}{C|D}{next}.
+// Admin: Replicate a property into a new OH ID. Clones the FULL source row server-side —
+// every column (incl. JSONB and columns owned by the other dashboards, with full timestamp
+// precision) — except identity/control fields and shared external-resource handles
+// (calendar/email ids, which must not be shared between two rows). New UID keeps the source's
+// city code and uses the chosen source's code: OH{city}{C|D}{next}. Records replicated_from on
+// the copy and flags the source row replicated=TRUE (shows "Got Replicated" in admin).
 app.post('/api/admin/property/:uid/replicate', isAuthenticated, isAdmin, async(req,res)=>{
   try{
     const SRC_MAP={CP:'C',Direct:'D'};
     const source=req.body&&req.body.source;
     if(!SRC_MAP[source])return res.status(400).json({error:'source must be CP or Direct'});
     const lead_id=req.body&&req.body.lead_id!=null?String(req.body.lead_id).trim()||null:null;
-    const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
+    const srcUid=req.params.uid;
+    const{rows}=await pool.query('SELECT uid FROM properties WHERE uid=$1',[srcUid]);
     if(!rows.length)return res.status(404).json({error:'UID not found'});
-    const src=rows[0];
     // Reuse the source UID's city code (everything between OH and the trailing source char + digits).
-    const m=String(src.uid||'').match(/^OH([A-Z]+)([A-Z])(\d+)$/);
-    if(!m)return res.status(400).json({error:'Cannot parse OH ID prefix from '+src.uid});
+    const m=String(srcUid).match(/^OH([A-Z]+)([A-Z])(\d+)$/);
+    if(!m)return res.status(400).json({error:'Cannot parse OH ID prefix from '+srcUid});
     const prefix=`OH${m[1]}${SRC_MAP[source]}`;
     const{rows:mx}=await pool.query(`SELECT MAX(CAST(REPLACE(uid,$1,'') AS INTEGER)) AS max_num FROM properties WHERE uid LIKE $2`,[prefix,prefix+'%']);
     const newUid=prefix+String((mx[0].max_num||1000)+1);
-    // Stage is derived from these timestamps (getStage in admin.html) — copy them so the
-    // replica lands at the source's stage instead of '—'. token_is_draft drives the Draft stage.
-    const STAGE_FIELDS=['schedule_submitted_at','visit_submitted_at','token_submitted_at','token_is_draft',
-      'token_deal_submitted_at','ama_submitted_at','pending_request_submitted_at','listing_submitted_at',
-      'cp_bill_submitted_at','final_submitted_at'];
-    const cols=['uid','source','lead_id'];const vals=[newUid,source,lead_id];
-    for(const k of [...ADMIN_EDITABLE,...STAGE_FIELDS]){
-      if(k==='source'||k==='lead_id')continue;
-      let v=src[k];
-      // JSONB columns come back as JS objects/arrays — stringify so pg stores valid JSON, not an array literal.
-      if(v!==null&&typeof v==='object'&&!(v instanceof Date))v=JSON.stringify(v);
-      cols.push(k);vals.push(v);
-    }
-    await pool.query(`INSERT INTO properties(${cols.join(',')}) VALUES(${cols.map((_,idx)=>'$'+(idx+1)).join(',')})`,vals);
+    // Columns that get fresh values; everything else is copied verbatim from the source row.
+    const OVERRIDE=new Set(['uid','source','lead_id','created_at','updated_at','replicated','replicated_from',
+      'gcal_event_id','gcal_creator_id','email_thread_id','email_message_id']);
+    // Exclude generated/identity columns (e.g. a generated "stage" column) — they reject explicit inserts.
+    const{rows:colRows}=await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='properties' AND is_generated='NEVER' AND is_identity='NO'`);
+    const copyCols=colRows.map(r=>r.column_name).filter(c=>!OVERRIDE.has(c));
+    const insertCols=[...copyCols,'uid','source','lead_id','replicated','replicated_from'].map(c=>`"${c}"`).join(',');
+    const selectExprs=[...copyCols.map(c=>`"${c}"`),'$1','$2','$3','FALSE','$4'].join(',');
+    await pool.query(`INSERT INTO properties(${insertCols}) SELECT ${selectExprs} FROM properties WHERE uid=$4`,[newUid,source,lead_id,srcUid]);
+    await pool.query('UPDATE properties SET replicated=TRUE,updated_at=NOW() WHERE uid=$1',[srcUid]);
     res.json({success:true,uid:newUid});
-    require('./utils/logger').log(newUid,'replicate','admin',req.user?.email,req.user?.name,{source_uid:src.uid,source,lead_id}).catch(()=>{});
+    require('./utils/logger').log(newUid,'replicate','admin',req.user?.email,req.user?.name,{source_uid:srcUid,source,lead_id}).catch(()=>{});
   }catch(e){console.error('Replicate error:',e.message);res.status(500).json({error:e.message})}
 });
 
