@@ -195,8 +195,13 @@ app.post('/api/admin/property/:uid/replicate', isAuthenticated, isAdmin, async(r
     const prefix=`OH${m[1]}${SRC_MAP[source]}`;
     const{rows:mx}=await pool.query(`SELECT MAX(CAST(REPLACE(uid,$1,'') AS INTEGER)) AS max_num FROM properties WHERE uid LIKE $2`,[prefix,prefix+'%']);
     const newUid=prefix+String((mx[0].max_num||1000)+1);
+    // Stage is derived from these timestamps (getStage in admin.html) — copy them so the
+    // replica lands at the source's stage instead of '—'. token_is_draft drives the Draft stage.
+    const STAGE_FIELDS=['schedule_submitted_at','visit_submitted_at','token_submitted_at','token_is_draft',
+      'token_deal_submitted_at','ama_submitted_at','pending_request_submitted_at','listing_submitted_at',
+      'cp_bill_submitted_at','final_submitted_at'];
     const cols=['uid','source','lead_id'];const vals=[newUid,source,lead_id];
-    for(const k of ADMIN_EDITABLE){
+    for(const k of [...ADMIN_EDITABLE,...STAGE_FIELDS]){
       if(k==='source'||k==='lead_id')continue;
       let v=src[k];
       // JSONB columns come back as JS objects/arrays — stringify so pg stores valid JSON, not an array literal.
