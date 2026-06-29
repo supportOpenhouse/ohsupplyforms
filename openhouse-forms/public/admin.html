@@ -581,7 +581,7 @@ function buildModal(p){
     ${efRO('UID',p.uid)}${ef('City','city',p.city)}${ef('Society','society_name',p.society_name)}
     ${ef('Locality','locality',p.locality)}${ef('Owner/Broker','owner_broker_name',p.owner_broker_name)}${ef('First Name','first_name',p.first_name)}
     ${ef('Last Name','last_name',p.last_name)}${ef('Contact','contact_no',p.contact_no)}${ef('Co-owner','co_owner',p.co_owner)}
-    ${ef('Unit No','unit_no',p.unit_no)}${ef('Tower No','tower_no',p.tower_no)}${ef('Floor','floor',p.floor,'number')}
+    ${ef('Unit No','unit_no',p.unit_no)}${ef('Tower No','tower_no',p.tower_no)}${ef('Floor','floor',p.floor)}
     ${ef('Area (sqft)','area_sqft',p.area_sqft,'number')}${efSel('Configuration','configuration',p.configuration,FORM_OPTS.configurations)}${ef('Ask Price (L)','demand_price',p.demand_price,'number')}
     ${efSel('Source','source',p.source,FORM_OPTS.sources)}${efSel('Assigned By','assigned_by',p.assigned_by,FORM_OPTS.assignedByList)}${efSel('Assigned To','field_exec',p.field_exec,FORM_OPTS.assignedToList)}
     ${ef('Schedule Date','schedule_date',p.schedule_date,'date')}${ef('Schedule Time','schedule_time',p.schedule_time)}${ef('Lead ID','lead_id',p.lead_id)}

@@ -158,7 +158,7 @@ module.exports = function (pool) {
          parseFloat(d.area_sqft) || null, parseFloat(d.demand_price) || null,
          d.city, d.society_name, d.locality,
          d.unit_no || null, d.tower_no || null,
-         parseInt(d.floor) || null, d.configuration,
+         d.floor || null, d.configuration,
          d.assigned_by, d.field_exec, JSON.stringify(initHistory(d.schedule_date))]
       );
 

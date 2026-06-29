@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS properties (
   schedule_date DATE, schedule_time TEXT, lead_id TEXT, field_exec TEXT,
   source TEXT, demand_price REAL, first_name TEXT, last_name TEXT, owner_broker_name TEXT, contact_no TEXT,
   city TEXT, locality TEXT, society_name TEXT, unit_no TEXT, tower_no TEXT,
-  floor INTEGER, configuration TEXT, area_sqft REAL,
+  floor TEXT, configuration TEXT, area_sqft REAL,
   assigned_by TEXT,
   schedule_submitted_at TIMESTAMPTZ,
 
@@ -224,6 +224,8 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='visit_date_history') THEN ALTER TABLE properties ADD COLUMN visit_date_history JSONB; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='replicated') THEN ALTER TABLE properties ADD COLUMN replicated BOOLEAN DEFAULT FALSE; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='replicated_from') THEN ALTER TABLE properties ADD COLUMN replicated_from TEXT; END IF;
+  -- floor holds text values ("Ground"/"Top") alongside numbers; convert legacy integer column.
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='floor' AND data_type='integer') THEN ALTER TABLE properties ALTER COLUMN floor TYPE TEXT USING floor::TEXT; END IF;
 END $$;
 -- One-time bootstrap: grant super-user to the original hardcoded emails if no super exists yet
 UPDATE users SET is_super=TRUE

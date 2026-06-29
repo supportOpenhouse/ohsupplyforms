@@ -95,7 +95,7 @@ module.exports=function(pool){
          d.first_name||null,d.last_name||null,ownerName||null,d.contact_no||null,
          parseFloat(d.area_sqft)||null,parseFloat(d.demand_price)||null,
          d.city||null,d.society_name||null,d.locality||null,d.unit_no||null,d.tower_no||null,
-         parseInt(d.floor)||null,d.configuration||null,d.assigned_by||null,d.field_exec||null,
+         d.floor||null,d.configuration||null,d.assigned_by||null,d.field_exec||null,
          JSON.stringify(initHistory(d.schedule_date||null))]);
       res.json({success:true,uid});
       logger.logFormSubmit(uid,'schedule_submitted',1,req.user?.email,req.user?.name).catch(()=>{});

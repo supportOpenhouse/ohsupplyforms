@@ -301,7 +301,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     const r=await fetch(`${API}/api/config`);opts=(await r.json()).options;
     fillRadios(document.getElementById('srcGroup'),'source',opts.sources,true);
     fillSelect(document.getElementById('selConfig'),opts.configurations,'Config');
-    fillNumSelect(document.getElementById('selFloor'),1,50,'Floor');
+    fillFloorSelect(document.getElementById('selFloor'),'Floor');
     fillSelect(document.getElementById('selAB'),opts.assignedByList,'Select...');
     fillSelect(document.getElementById('selAT'),opts.assignedToList,'Select...');
     await loadCities(document.getElementById('selCity'));

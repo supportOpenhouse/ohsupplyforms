@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     fillSelect(document.getElementById('selFurn'),opts.furnishingLevels,'Select');
     fillPills(document.getElementById('furnP'),'furnishing_details',opts.furnishingDetails.filter(x=>x!=='No Items'));
     fillNumSelect(document.getElementById('selLift'),1,10,'Select');fillNumSelect(document.getElementById('selTFloor'),1,50,'Select');fillNumSelect(document.getElementById('selFlat'),1,15,'Select');
-    fillNumSelect(document.getElementById('selFloor'),1,50,'Select');
+    fillFloorSelect(document.getElementById('selFloor'),'Select');
     fillSelect(document.getElementById('selExit'),opts.directions,'Select');
     exitC=initSingleUpload('exitCBtn','exitCPrev','exitCUrl');
     document.getElementById('selFurn').addEventListener('change',e=>{document.getElementById('furnWrap').style.display=e.target.value==='Unfurnished'?'none':'block'});

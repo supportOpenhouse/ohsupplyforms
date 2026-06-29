@@ -26,7 +26,7 @@ module.exports=function(pool){
         visit_submitted_at=NOW(),updated_at=NOW()
         WHERE uid=$31`,
         [d.source,parseFloat(d.demand_price)||null,d.owner_broker_name,d.first_name||null,d.last_name||null,d.contact_no,
-         d.city,d.locality,d.society_name,d.unit_no,d.tower_no||null,parseInt(d.floor)??null,d.configuration,parseFloat(d.area_sqft)||null,
+         d.city,d.locality,d.society_name,d.unit_no,d.tower_no||null,d.floor||null,d.configuration,parseFloat(d.area_sqft)||null,
          d.extra_area||'[]',parseInt(d.bathrooms)??null,parseInt(d.balconies)??null,
          d.gas_pipeline||null,d.parking,d.furnishing||null,d.furnishing_details||'[]',
          parseInt(d.total_lifts)??null,parseInt(d.total_floors_tower)??null,parseInt(d.total_flats_floor)??null,
