@@ -9,8 +9,8 @@ function toast(msg,type='ok',ms=3500){document.querySelectorAll('.toast').forEac
 // ══════ SELECTS / RADIOS / PILLS ══════
 function fillSelect(sel,items,ph='Select...'){sel.innerHTML=`<option value="">${ph}</option>`;items.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o)})}
 function fillNumSelect(sel,min,max,ph='Select'){sel.innerHTML=`<option value="">${ph}</option>`;for(let i=min;i<=max;i++){const o=document.createElement('option');o.value=i;o.textContent=i;sel.appendChild(o)}}
-// Floor select: Ground, 1..50, Top (floor is stored as text).
-function fillFloorSelect(sel,ph='Select'){fillNumSelect(sel,1,50,ph);sel.add(new Option('Ground','Ground'),sel.options[1]);sel.add(new Option('Top','Top'))}
+// Floor select: Top, Ground, 1..50 (floor is stored as text).
+function fillFloorSelect(sel,ph='Select'){fillNumSelect(sel,1,50,ph);sel.add(new Option('Ground','Ground'),sel.options[1]);sel.add(new Option('Top','Top'),sel.options[1])}
 function fillRadios(c,name,vals,req=false){c.innerHTML='';vals.forEach(v=>{c.innerHTML+=`<label><input type="radio" name="${name}" value="${v}" ${req?'required':''}><span>${v}</span></label>`})}
 function fillPills(c,name,vals,noneVal=null){
   c.innerHTML='';vals.forEach(v=>{c.innerHTML+=`<label><input type="checkbox" name="${name}" value="${v}"><span>${v}</span></label>`});
