@@ -240,6 +240,7 @@ async function sendTokenRequestEmail({ accessToken, refreshToken, fromEmail, pro
 <p>Dear Accounts Team,</p>
 <p>Kindly process the token payment of <strong>${tokenAmt}</strong> for <strong>${tower}${tower && unit ? ' -' : ''}${unit} ${society}</strong>. PFA the deal terms.</p>
 ${p.token_remarks ? `<p><strong>Internal Team Remarks:</strong> ${p.token_remarks}</p>` : ''}
+${p.token_remarks_printed && p.token_remarks_printed.trim() ? `<p style="font-style:italic;margin-top:16px"><strong>Remarks:</strong><br>${p.token_remarks_printed.trim().replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>` : ''}
 <p>Rahool Sureka, please approve the same.</p>
 ${p.cheque_image_url ? `<p style="margin-top:16px"><strong>Cancelled Cheque Link:</strong> <a href="${p.cheque_image_url}" target="_blank" style="color:#1a73e8;text-decoration:underline">Click here to view cheque</a></p>` : ''}
 ${p.owner_pan_url ? `<p><strong>PAN Card:</strong> <a href="${p.owner_pan_url}" target="_blank" style="color:#1a73e8;text-decoration:underline">Click here to view</a></p>` : ''}
@@ -311,7 +312,7 @@ async function sendDealTermsEmail({ accessToken, refreshToken, fromEmail, proper
 <p>Greetings from <strong>Openhouse</strong>!</p>
 <p>We are pleased to extend a formal offer for ${propRef}.</p>
 <p>As a token of our commitment, we have transferred ${tokenAmtFmt} via NEFT, bearing Reference No. ${neftRef}, as an advance token towards this transaction. Further to our discussion, we have <strong>ATTACHED THE AGREED DEAL TERMS</strong> for your reference. <strong>Please review the document carefully.</strong></p>
-<p>Kindly upload the required documents using the link - <a href="https://openhouse.in/login/" style="color:#1a73e8">Seller Dashboard</a></p>
+${p.token_remarks_printed && p.token_remarks_printed.trim() ? `<p style="font-style:italic;margin-top:16px"><strong>Remarks:</strong><br>${p.token_remarks_printed.trim().replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>\n` : ''}<p>Kindly upload the required documents using the link - <a href="https://openhouse.in/login/" style="color:#1a73e8">Seller Dashboard</a></p>
 <p>Login using your mobile number <strong>${p.contact_no||'[Owner Mobile No]'}</strong> &amp; OTP</p>
 <p>Next Steps:-<br>
 1. Document due diligence within 2 working days<br>
@@ -327,7 +328,7 @@ async function sendDealTermsEmail({ accessToken, refreshToken, fromEmail, proper
 6) Bank LOD (in case if active home loan)<br>
 7) Bank NOC (in case of home loan closure)<br>
 8) Aadhaar, PAN and Canceled Cheque of Co-applicant (if applicable)</p>
-${p.token_remarks_printed && p.token_remarks_printed.trim() ? `<p style="font-style:italic;margin-top:16px"><strong>Remarks:</strong><br>${p.token_remarks_printed.trim().replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>\n` : ''}<p>Warm regards<br>
+<p>Warm regards<br>
 ${signatoryName}<br>
 ${signatoryPhone ? signatoryPhone + '<br>' : ''}Website - <a href="https://www.openhouse.in" style="color:#1a73e8">www.openhouse.in</a></p>
 </body></html>`;

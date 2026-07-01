@@ -49,7 +49,6 @@
         <div class="fg"><label>3rd Owner Email</label><input type="email" name="third_owner_email" id="dThirdEmail" placeholder="Optional"></div>
         <div class="fg"><label>Broker Email</label><input type="email" name="broker_email" id="dBrokerEmail" placeholder="Optional"></div>
       </div>
-      <div class="fg"><label>Remarks (YE SELLER KO DIKHEGA) <span style="font-weight:400;color:var(--tx3)">(added to the email body)</span></label><textarea name="token_remarks_printed" id="dRemarks" rows="2" placeholder="Optional — shown in the email before the sign-off"></textarea></div>
     </div>
 
     <div class="btn-row">
@@ -124,7 +123,6 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     document.getElementById('dOwnerEmail').value=propData.owner_email||'';
     document.getElementById('dCoOwnerEmail').value=propData.co_owner_email||'';
     document.getElementById('dThirdEmail').value=propData.third_owner_email||'';
-    document.getElementById('dRemarks').value=propData.token_remarks_printed||'';
     document.getElementById('dBrokerEmail').value=propData.broker_email||'';
     document.getElementById('dealForm').style.display='block';
     document.getElementById('previewSection').classList.remove('show');
@@ -208,7 +206,7 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
   const tokenAmt=d.deal_token_amount!=null?d.deal_token_amount:null;
   const tokenFmt=tokenAmt?'INR '+Number(tokenAmt).toLocaleString('en-IN')+'/-':'INR [Token Amount]';
   const neftRef=d.deal_neft_reference||'[Transaction Reference No.]';
-  const remarks=(document.getElementById('dRemarks').value||'').trim();
+  const remarks=(d.token_remarks_printed||'').trim();
 
   // Recipient display
   const toList=[ownerEmail,document.getElementById('dCoOwnerEmail').value,document.getElementById('dThirdEmail').value].filter(Boolean);
@@ -227,7 +225,7 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
 <p>Greetings from <strong>Openhouse</strong>!</p>
 <p>We are pleased to extend a formal offer for ${propRef}.</p>
 <p>As a token of our commitment, we have transferred ${tokenFmt} via NEFT, bearing Reference No. ${neftRef}, as an advance token towards this transaction. Further to our discussion, we have <strong>ATTACHED THE AGREED DEAL TERMS</strong> for your reference. <strong>Please review the document carefully.</strong></p>
-<p>Kindly upload the required documents using the link - <a href="https://openhouse.in/login/" style="color:#1a73e8">Seller Dashboard</a></p>
+${remarks?`<p style="font-style:italic;margin-top:16px"><strong>Remarks:</strong><br>${remarks.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>`:''}<p>Kindly upload the required documents using the link - <a href="https://openhouse.in/login/" style="color:#1a73e8">Seller Dashboard</a></p>
 <p>Login using your mobile number <strong>${propData?.contact_no||'[Owner Mobile No]'}</strong> &amp; OTP</p>
 <p>Next Steps:-<br>
 1. Document due diligence within 2 working days<br>
@@ -243,7 +241,7 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
 6) Bank LOD (in case if active home loan)<br>
 7) Bank NOC (in case of home loan closure)<br>
 8) Aadhaar, PAN and Canceled Cheque of Co-applicant (if applicable)</p>
-${remarks?`<p style="font-style:italic;margin-top:16px"><strong>Remarks:</strong><br>${remarks.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>`:''}<p>Warm regards<br>
+<p>Warm regards<br>
 [Authorized Signatory Name]<br>
 [Contact Number]<br>
 Website - <a href="https://www.openhouse.in" style="color:#1a73e8">www.openhouse.in</a></p>

@@ -155,6 +155,7 @@
     <div class="card" style="padding-bottom:16px"><div class="card-t">Documents Available <span class="req">*</span></div>
       <div class="fg" style="margin-bottom:0"><div id="docsSelect"></div></div>
       <div class="fg" id="otherDocWrap" style="display:none;margin-top:8px"><label>Specify Other Documents</label><input type="text" name="other_documents_text" id="otherDocText"></div>
+      <div class="fg" style="margin-top:10px"><label>Remarks (YE SELLER KO DIKHEGA MAIL BODY MEIN)</label><textarea name="token_remarks_printed" rows="2"></textarea></div>
       <div class="fg" style="margin-top:6px"><label>REMARKS FOR INTERNAL TEAM (PRICE INSIGHTS + PROPERTY USP)</label><textarea name="token_remarks" rows="2"></textarea></div></div>
 
     <div class="card"><div class="card-t">Owner Documents Upload</div>
@@ -436,6 +437,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     document.getElementById('maintAlign').value=d.ama_maint_alignment||'';
     document.getElementById('elecAlign').value=d.ama_elec_alignment||'';
     sv('token_remarks',d.token_remarks);
+    sv('token_remarks_printed',d.token_remarks_printed);
     if(d.documents_available){try{docsMsel.setSelected(typeof d.documents_available==='string'?JSON.parse(d.documents_available):d.documents_available)}catch(e){}}
     // Prefill owner document uploads
     for(const[key,col]of Object.entries(OWNER_DOC_COL)){
