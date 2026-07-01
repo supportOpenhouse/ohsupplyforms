@@ -31,7 +31,7 @@ module.exports=function(pool){
         grace_period=$14,rent_payable_grace_period=$15,
         documents_available=$16,token_remarks=$17,token_is_draft=$18,
         has_loan=$41,
-        token_remarks_printed=$20,co_owner=$21,co_owner_number=$27,
+        token_remarks_printed=COALESCE($20,token_remarks_printed),co_owner=$21,co_owner_number=$27,
         owner_pan_url=$28,owner_aadhaar_front_url=$29,owner_aadhaar_back_url=$30,owner_property_doc_url=$31,
         total_deposit=$32,refundable_deposit=$33,
         ama_pg_non_forfeitable=$34,ama_beta_max_pct=$35,ama_beta_min_pct=$36,

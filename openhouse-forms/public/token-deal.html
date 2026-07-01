@@ -38,7 +38,6 @@
         <div class="fg"><label>Transfer Date <span class="req">*</span></label><input type="date" name="deal_transfer_date" id="dDate" required><div class="err-msg">Required</div></div>
         <div class="fg"><label>NEFT Reference <span class="req">*</span></label><input type="text" name="deal_neft_reference" id="dRef" required style="text-transform:uppercase"><div class="err-msg">Required</div></div>
       </div>
-      <div class="fg"><label>Remarks <span style="font-weight:400;color:var(--tx3)">(added to the email body)</span></label><textarea name="deal_remarks" id="dRemarks" rows="2" placeholder="Optional — shown in the email before the sign-off"></textarea></div>
     </div>
 
     <div class="card" style="border-left:3px solid var(--ac)"><div class="card-t">Email Recipients</div>
@@ -50,6 +49,7 @@
         <div class="fg"><label>3rd Owner Email</label><input type="email" name="third_owner_email" id="dThirdEmail" placeholder="Optional"></div>
         <div class="fg"><label>Broker Email</label><input type="email" name="broker_email" id="dBrokerEmail" placeholder="Optional"></div>
       </div>
+      <div class="fg"><label>Remarks (YE SELLER KO DIKHEGA) <span style="font-weight:400;color:var(--tx3)">(added to the email body)</span></label><textarea name="token_remarks_printed" id="dRemarks" rows="2" placeholder="Optional — shown in the email before the sign-off"></textarea></div>
     </div>
 
     <div class="btn-row">
@@ -124,7 +124,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     document.getElementById('dOwnerEmail').value=propData.owner_email||'';
     document.getElementById('dCoOwnerEmail').value=propData.co_owner_email||'';
     document.getElementById('dThirdEmail').value=propData.third_owner_email||'';
-    document.getElementById('dRemarks').value=propData.deal_remarks||'';
+    document.getElementById('dRemarks').value=propData.token_remarks_printed||'';
     document.getElementById('dBrokerEmail').value=propData.broker_email||'';
     document.getElementById('dealForm').style.display='block';
     document.getElementById('previewSection').classList.remove('show');
@@ -243,7 +243,7 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
 6) Bank LOD (in case if active home loan)<br>
 7) Bank NOC (in case of home loan closure)<br>
 8) Aadhaar, PAN and Canceled Cheque of Co-applicant (if applicable)</p>
-${remarks?`<p><strong>Remarks:</strong> ${remarks.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>`:''}<p>Warm regards<br>
+${remarks?`<p style="font-style:italic;margin-top:16px"><strong>Remarks:</strong><br>${remarks.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>`:''}<p>Warm regards<br>
 [Authorized Signatory Name]<br>
 [Contact Number]<br>
 Website - <a href="https://www.openhouse.in" style="color:#1a73e8">www.openhouse.in</a></p>

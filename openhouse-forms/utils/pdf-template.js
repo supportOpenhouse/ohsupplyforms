@@ -193,8 +193,6 @@ function generateReceiptHTML(p, mode='deal', baseUrl=''){
     <div class="token-info"><div class="t-title">Token Paid — ${esc(neftBank||'Bank')}</div><div class="t-ref">NEFT Ref: ${esc(neftRef)}</div></div>
     <div class="token-date"><div class="td-label">Transfer Date</div><div class="td-val">${fmtDate(neftDate)}</div></div>
   </div>`:''}
-  ${p.token_remarks_printed?`<div class="section-label">Remarks</div>
-  <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:10px;color:#374151;line-height:1.4;white-space:pre-wrap;max-height:80px;overflow:hidden">${esc(p.token_remarks_printed)}</div>`:''}
   </div><div class="footer">
     <div><div class="footer-brand">Avano Technologies Private Limited</div>
       <div class="footer-cin">CIN: U68200HR2024PTC123116 | VentureX, Unit No. 202 &amp; 202A, Silverton Tower, Sector 50, Golf Course Extension Road, Gurugram 122018</div></div>

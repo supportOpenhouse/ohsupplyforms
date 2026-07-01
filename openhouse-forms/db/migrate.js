@@ -224,7 +224,6 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='visit_date_history') THEN ALTER TABLE properties ADD COLUMN visit_date_history JSONB; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='replicated') THEN ALTER TABLE properties ADD COLUMN replicated BOOLEAN DEFAULT FALSE; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='replicated_from') THEN ALTER TABLE properties ADD COLUMN replicated_from TEXT; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='deal_remarks') THEN ALTER TABLE properties ADD COLUMN deal_remarks TEXT; END IF;
   -- floor holds text values ("Ground"/"Top") alongside numbers; convert legacy integer column.
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='floor' AND data_type='integer') THEN ALTER TABLE properties ALTER COLUMN floor TYPE TEXT USING floor::TEXT; END IF;
 END $$;
