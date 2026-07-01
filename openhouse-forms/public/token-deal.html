@@ -38,6 +38,7 @@
         <div class="fg"><label>Transfer Date <span class="req">*</span></label><input type="date" name="deal_transfer_date" id="dDate" required><div class="err-msg">Required</div></div>
         <div class="fg"><label>NEFT Reference <span class="req">*</span></label><input type="text" name="deal_neft_reference" id="dRef" required style="text-transform:uppercase"><div class="err-msg">Required</div></div>
       </div>
+      <div class="fg"><label>Remarks <span style="font-weight:400;color:var(--tx3)">(added to the email body)</span></label><textarea name="deal_remarks" id="dRemarks" rows="2" placeholder="Optional — shown in the email before the sign-off"></textarea></div>
     </div>
 
     <div class="card" style="border-left:3px solid var(--ac)"><div class="card-t">Email Recipients</div>
@@ -123,6 +124,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     document.getElementById('dOwnerEmail').value=propData.owner_email||'';
     document.getElementById('dCoOwnerEmail').value=propData.co_owner_email||'';
     document.getElementById('dThirdEmail').value=propData.third_owner_email||'';
+    document.getElementById('dRemarks').value=propData.deal_remarks||'';
     document.getElementById('dBrokerEmail').value=propData.broker_email||'';
     document.getElementById('dealForm').style.display='block';
     document.getElementById('previewSection').classList.remove('show');
@@ -206,6 +208,7 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
   const tokenAmt=d.deal_token_amount!=null?d.deal_token_amount:null;
   const tokenFmt=tokenAmt?'INR '+Number(tokenAmt).toLocaleString('en-IN')+'/-':'INR [Token Amount]';
   const neftRef=d.deal_neft_reference||'[Transaction Reference No.]';
+  const remarks=(document.getElementById('dRemarks').value||'').trim();
 
   // Recipient display
   const toList=[ownerEmail,document.getElementById('dCoOwnerEmail').value,document.getElementById('dThirdEmail').value].filter(Boolean);
@@ -240,7 +243,7 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
 6) Bank LOD (in case if active home loan)<br>
 7) Bank NOC (in case of home loan closure)<br>
 8) Aadhaar, PAN and Canceled Cheque of Co-applicant (if applicable)</p>
-<p>Warm regards<br>
+${remarks?`<p><strong>Remarks:</strong> ${remarks.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>`:''}<p>Warm regards<br>
 [Authorized Signatory Name]<br>
 [Contact Number]<br>
 Website - <a href="https://www.openhouse.in" style="color:#1a73e8">www.openhouse.in</a></p>

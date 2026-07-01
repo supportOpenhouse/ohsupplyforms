@@ -327,7 +327,7 @@ async function sendDealTermsEmail({ accessToken, refreshToken, fromEmail, proper
 6) Bank LOD (in case if active home loan)<br>
 7) Bank NOC (in case of home loan closure)<br>
 8) Aadhaar, PAN and Canceled Cheque of Co-applicant (if applicable)</p>
-<p>Warm regards<br>
+${p.deal_remarks && p.deal_remarks.trim() ? `<p><strong>Remarks:</strong> ${p.deal_remarks.trim().replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>\n` : ''}<p>Warm regards<br>
 ${signatoryName}<br>
 ${signatoryPhone ? signatoryPhone + '<br>' : ''}Website - <a href="https://www.openhouse.in" style="color:#1a73e8">www.openhouse.in</a></p>
 </body></html>`;

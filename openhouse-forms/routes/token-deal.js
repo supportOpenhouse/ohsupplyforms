@@ -51,11 +51,11 @@ module.exports=function(pool){
       if(d.deal_token_amount==null||d.deal_token_amount==='')return res.status(400).json({error:'Token amount required'});
       await pool.query(`UPDATE properties SET deal_token_amount=$1,
         deal_bank_name=$2,deal_bank_account_number=$3,deal_ifsc_code=$4,deal_transfer_date=$5,deal_neft_reference=$6,
-        owner_email=$8,co_owner_email=$9,third_owner_email=$10,broker_email=$11,
+        owner_email=$8,co_owner_email=$9,third_owner_email=$10,broker_email=$11,deal_remarks=$12,
         token_is_draft=FALSE,token_deal_submitted_at=NOW(),updated_at=NOW() WHERE uid=$7`,
         [d.deal_token_amount!=null&&d.deal_token_amount!==''?parseFloat(d.deal_token_amount):null,
          d.deal_bank_name||null,d.deal_bank_account_number||null,d.deal_ifsc_code||null,d.deal_transfer_date||null,(d.deal_neft_reference||'').toUpperCase()||null,
-         d.uid,d.owner_email||null,d.co_owner_email||null,d.third_owner_email||null,d.broker_email||null]);
+         d.uid,d.owner_email||null,d.co_owner_email||null,d.third_owner_email||null,d.broker_email||null,(d.deal_remarks||'').trim()||null]);
       res.json({success:true,uid:d.uid});
       logger.logFormSubmit(d.uid,'deal_terms_submitted',4,req.user?.email,req.user?.name).catch(()=>{});
     }catch(e){console.error('TokenDeal:',e);res.status(500).json({error:e.message})}
