@@ -613,6 +613,7 @@ function showEmailPreview(){
 <p>Dear Accounts Team,</p>
 <p>Kindly process the token payment of <strong>${tokenAmt}</strong> for <strong>${propRef}</strong>. PFA the deal terms.</p>
 ${p.token_remarks ? `<p><strong>Internal Team Remarks:</strong> ${p.token_remarks}</p>` : ''}
+${p.token_remarks_printed && p.token_remarks_printed.trim() ? `<p style="font-style:italic;margin-top:16px"><strong>Remarks:</strong><br>${p.token_remarks_printed.trim().replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>` : ''}
 <p>Rahool Sureka, please approve the same.</p>
 ${docLinks.length?docLinks.map(l=>`<p>${l}</p>`).join(''):''}
 <p style="margin-top:10px;font-size:11px;color:var(--tx3)">📎 Token Request PDF will be attached</p>
