@@ -83,7 +83,7 @@ module.exports = function (pool) {
         });
       }
 
-      // 7. Slot conflict check — same as Form 1 (60-min window per visit)
+      // 7. Slot conflict check — same as Form 1 (30-min window per visit)
       const [sh, sm] = String(d.schedule_time).split(':').map(Number);
       if (isNaN(sh) || isNaN(sm)) {
         return res.status(400).json({ error: 'schedule_time must be in HH:MM format' });
@@ -98,9 +98,9 @@ module.exports = function (pool) {
       const windows = busy.map(r => {
         const [h, m] = r.schedule_time.split(':').map(Number);
         const s = h * 60 + m;
-        return { start: s, end: s + 60, time: r.schedule_time, uid: r.uid, society: r.society_name, unit: r.unit_no, tower: r.tower_no };
+        return { start: s, end: s + 30, time: r.schedule_time, uid: r.uid, society: r.society_name, unit: r.unit_no, tower: r.tower_no };
       });
-      const newEnd = selMin + 60;
+      const newEnd = selMin + 30;
       const hit = windows.find(w => selMin < w.end && newEnd > w.start);
       if (hit) {
         const fmt = m => {
@@ -108,9 +108,9 @@ module.exports = function (pool) {
           return `${h > 12 ? h - 12 : h === 0 ? 12 : h}:${String(mm).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
         };
         const sorted = [...windows].sort((a, b) => a.start - b.start);
-        // A 60-min slot starting at t is free if it sits in business hours (8 AM–8 PM)
+        // A 30-min slot starting at t is free if it sits in business hours (8 AM–8 PM)
         // and overlaps none of the booked windows. Collect up to 3 on each side.
-        const free = t => t >= 8 * 60 && t <= 20 * 60 && !sorted.some(w => t < w.end && t + 60 > w.start);
+        const free = t => t >= 8 * 60 && t <= 20 * 60 && !sorted.some(w => t < w.end && t + 30 > w.start);
         const before = [];
         for (let t = selMin - 30; t >= 8 * 60 && before.length < 3; t -= 30) if (free(t)) before.push(t);
         const after = [];
