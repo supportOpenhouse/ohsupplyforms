@@ -108,23 +108,15 @@ module.exports = function (pool) {
           return `${h > 12 ? h - 12 : h === 0 ? 12 : h}:${String(mm).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
         };
         const sorted = [...windows].sort((a, b) => a.start - b.start);
-        let after = hit.end;
-        let safe = false;
-        while (!safe && after <= 20 * 60) {
-          safe = true;
-          for (const w of sorted) {
-            if (after < w.end && (after + 60) > w.start) { after = w.end; safe = false; break; }
-          }
-        }
-        let before = null;
-        for (let t = selMin - 30; t >= 8 * 60; t -= 30) {
-          const tEnd = t + 60;
-          const blocked = sorted.some(w => t < w.end && tEnd > w.start);
-          if (!blocked) { before = t; break; }
-        }
-        const suggestions = [];
-        if (before !== null) suggestions.push(fmt(before));
-        if (after <= 20 * 60) suggestions.push(fmt(after));
+        // A 60-min slot starting at t is free if it sits in business hours (8 AM–8 PM)
+        // and overlaps none of the booked windows. Collect up to 3 on each side.
+        const free = t => t >= 8 * 60 && t <= 20 * 60 && !sorted.some(w => t < w.end && t + 60 > w.start);
+        const before = [];
+        for (let t = selMin - 30; t >= 8 * 60 && before.length < 3; t -= 30) if (free(t)) before.push(t);
+        const after = [];
+        for (let t = selMin + 30; t <= 20 * 60 && after.length < 3; t += 30) if (free(t)) after.push(t);
+        // chronological: earliest before-slots first, then the after-slots
+        const suggestions = [...before.reverse(), ...after].map(fmt);
         return res.status(409).json({
           error: 'Slot conflict',
           message: `${d.field_exec} is already booked at ${hit.time} (${hit.society} ${hit.tower || ''}${hit.unit ? '-' + hit.unit : ''}). Conflicting UID: ${hit.uid}`,
