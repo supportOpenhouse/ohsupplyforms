@@ -153,10 +153,13 @@
     </div>
 
     <div class="card"><div class="card-t">Deal Information</div>
-      <div class="fg"><label>Deal Value (₹)</label><input type="text" id="tr_dealValue" class="pre" readonly>
-        <div style="font-size:9px;color:var(--tx3);margin-top:2px">= Guaranteed Sale Price × 1,00,000</div></div>
+      <div class="r3">
+        <div class="fg"><label>Deal Type</label><input type="text" id="tr_dealType" value="Acquisition/Supply" class="pre" readonly></div>
+        <div class="fg"><label>Deal Value (₹)</label><input type="text" id="tr_dealValue" class="pre" readonly></div>
+        <div class="fg"><label>OH Acquired Model</label><input type="text" id="tr_model" class="pre" readonly></div>
+      </div>
       <div class="r2">
-        <div class="fg"><label>Agreed Brokerage (%)</label><select id="tr_agreedPct" name="agreed_brokerage"><option value="">Select</option><option>0</option><option>0.5</option><option>1</option><option>1.5</option><option>2</option><option>2.5</option><option>3</option></select></div>
+        <div class="fg"><label>Agreed Brokerage (%) <span style="font-size:9px;color:var(--tx3)">= AMA + Registry</span></label><input type="text" id="tr_agreedPct" name="agreed_brokerage" class="pre" readonly></div>
         <div class="fg"><label>Agreed Brokerage (₹)</label><input type="text" id="tr_agreedAmt" name="total_brokerage_amount" class="pre" readonly></div>
       </div>
       <div class="r2">
@@ -167,6 +170,12 @@
         <div class="fg"><label>Brokerage - Registry (%)</label><select id="tr_regPct" name="brokerage_registry"><option value="">Select</option><option>0</option><option>0.5</option><option>1</option><option>1.5</option><option>2</option><option>2.5</option><option>3</option></select></div>
         <div class="fg"><label>Brokerage - Registry (₹)</label><input type="text" id="tr_regAmt" name="brokerage_registry_amount" class="pre" readonly></div>
       </div>
+      <div class="r3">
+        <div class="fg"><label>To be Released Now (₹)</label><input type="text" inputmode="numeric" name="to_be_released_now" id="tr_release" oninput="this.value=this.value.replace(/\D/g,'');trCalcTotal()"></div>
+        <div class="fg"><label>Incentive for Visit (₹)</label><input type="text" inputmode="numeric" name="incentive_visit" id="tr_incVisit" oninput="this.value=this.value.replace(/\D/g,'');trCalcTotal()"></div>
+        <div class="fg"><label>Incentive for Owner Meeting (₹)</label><input type="text" inputmode="numeric" name="incentive_owner_meeting" id="tr_incMeeting" oninput="this.value=this.value.replace(/\D/g,'');trCalcTotal()"></div>
+      </div>
+      <div class="fg"><label>Total Amount (₹)</label><input type="text" id="tr_totalAmount" name="total_cp_amount" class="pre" readonly></div>
     </div>
 
     <div class="card" style="padding-bottom:16px"><div class="card-t">Documents Available <span class="req">*</span></div>
@@ -374,7 +383,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
     pgAmt.addEventListener('input',()=>amtToPct(pgAmt,pgPct));
     rdAmt.addEventListener('input',()=>amtToPct(rdAmt,rdPct));
     gspEl.addEventListener('input',trCalcBrokerage);
-    ['tr_agreedPct','tr_amaPct','tr_regPct'].forEach(id=>document.getElementById(id).addEventListener('change',trCalcBrokerage));
+    pgPct.addEventListener('input',trCalcBrokerage);pgAmt.addEventListener('input',trCalcBrokerage);
+    ['tr_amaPct','tr_regPct'].forEach(id=>document.getElementById(id).addEventListener('change',trCalcBrokerage));
     document.getElementById('rip').addEventListener('input',function(){if(this.value==='0'){document.getElementById('rip_na').checked=true;toggleNA('rip','No rent');this.required=false}});
     document.getElementById('rgp').addEventListener('input',function(){if(this.value==='0'){document.getElementById('rgp_na').checked=true;toggleNA('rgp','No rent');this.required=false}});
     setInterval(()=>{const has=[...document.querySelectorAll('#docsSelect input:checked')].some(c=>c.value.includes('Other'));
@@ -441,11 +451,14 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     if(d.performance_guarantee!=null){document.getElementById('pgAmt').value=d.performance_guarantee;if(gspT>0)document.getElementById('pgPct').value=Math.round(d.performance_guarantee/gspT*100*1000)/1000}
     if(d.total_deposit!=null){document.getElementById('totalDeposit').value=d.total_deposit;if(gspT>0)document.getElementById('tdPct').value=Math.round(d.total_deposit/gspT*100*1000)/1000}
     if(d.refundable_deposit!=null){document.getElementById('refundableDeposit').value=d.refundable_deposit;if(gspT>0)document.getElementById('rdPct').value=Math.round(d.refundable_deposit/gspT*100*1000)/1000}
-    // Deal Information brokerage prefill
-    document.getElementById('tr_agreedPct').value=d.agreed_brokerage||'';
+    // Deal Information prefill — AMA + Registry drive Agreed; payout fields + total
     document.getElementById('tr_amaPct').value=d.brokerage_ama_signed||'';
     document.getElementById('tr_regPct').value=d.brokerage_registry||'';
     trCalcBrokerage();
+    document.getElementById('tr_release').value=d.to_be_released_now||'';
+    document.getElementById('tr_incVisit').value=d.incentive_visit||'';
+    document.getElementById('tr_incMeeting').value=d.incentive_owner_meeting||'';
+    trCalcTotal();
     sv('initial_period',d.initial_period);sv('grace_period',d.grace_period);
     if(d.rent_payable_initial_period&&String(d.rent_payable_initial_period).toUpperCase()==='N/A'){document.getElementById('rip_na').checked=true;toggleNA('rip','No rent');document.getElementById('rip').required=false}else sv('rent_payable_initial_period',d.rent_payable_initial_period);
     if(d.rent_payable_grace_period&&String(d.rent_payable_grace_period).toUpperCase()==='N/A'){document.getElementById('rgp_na').checked=true;toggleNA('rgp','No rent');document.getElementById('rgp').required=false}else sv('rent_payable_grace_period',d.rent_payable_grace_period);
@@ -481,9 +494,26 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
 function trCalcBrokerage(){
   const gsp=parseFloat(String(document.getElementById('gsp').value).replace(/,/g,''))||0;const dv=gsp*100000;
   document.getElementById('tr_dealValue').value=dv?Math.round(dv):'';
-  const set=(pctId,amtId)=>{const sel=document.getElementById(pctId).value;const p=parseFloat(sel)||0;
-    document.getElementById(amtId).value=(dv>0&&p>0)?Math.round(dv*p/100):(sel!==''?'0':'')};
-  set('tr_agreedPct','tr_agreedAmt');set('tr_amaPct','tr_amaAmt');set('tr_regPct','tr_regAmt');
+  // OH Acquired Model = PG% (PG amount) — same formula as CP Bill
+  const pg=parseFloat(String(document.getElementById('pgAmt').value).replace(/,/g,''))||0;
+  if(pg>0&&dv>0){const pct=Math.round(pg/dv*100*1000)/1000;
+    const amtL=pg>=10000000?parseFloat((pg/10000000).toFixed(4))+'Cr':parseFloat((pg/100000).toFixed(4))+'L';
+    document.getElementById('tr_model').value=`${pct}% (${amtL} amount)`;}
+  else document.getElementById('tr_model').value='';
+  const amtFor=sel=>{const p=parseFloat(sel)||0;return (dv>0&&p>0)?Math.round(dv*p/100):(sel!==''?0:null)};
+  const amaSel=document.getElementById('tr_amaPct').value,regSel=document.getElementById('tr_regPct').value;
+  const amaAmt=amtFor(amaSel),regAmt=amtFor(regSel);
+  document.getElementById('tr_amaAmt').value=amaAmt!==null?amaAmt:'';
+  document.getElementById('tr_regAmt').value=regAmt!==null?regAmt:'';
+  const any=amaSel!==''||regSel!=='';
+  document.getElementById('tr_agreedPct').value=any?((parseFloat(amaSel)||0)+(parseFloat(regSel)||0)):'';
+  document.getElementById('tr_agreedAmt').value=any?((amaAmt||0)+(regAmt||0)):'';
+}
+function trCalcTotal(){
+  const rel=parseFloat(document.getElementById('tr_release').value)||0;
+  const iv=parseFloat(document.getElementById('tr_incVisit').value)||0;
+  const im=parseFloat(document.getElementById('tr_incMeeting').value)||0;
+  document.getElementById('tr_totalAmount').value=String(rel+iv+im);
 }
 function collectBody(){const fd=new FormData(document.getElementById('tokenForm'));const body=Object.fromEntries(fd.entries());
   body.has_loan=getRadio('has_loan')||null;

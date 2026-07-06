@@ -102,8 +102,8 @@
         <div class="fg"><label>OH Acquired Model</label><input type="text" name="oh_acquired_model" id="f_model" class="pre" readonly></div>
       </div>
       <div class="r2">
-        <div class="fg"><label>Agreed Brokerage (%) <span class="req">*</span></label>
-          <select id="f_brokeragePct" required><option value="">Select</option><option>0</option><option>0.5</option><option>1</option><option>1.5</option><option>2</option><option>2.5</option><option>3</option></select><div class="err-msg">Required</div></div>
+        <div class="fg"><label>Agreed Brokerage (%) <span class="req">*</span> <span style="font-size:9px;color:var(--tx3)">= AMA + Registry</span></label>
+          <input type="text" id="f_brokeragePct" class="pre" readonly required><div class="err-msg">Required</div></div>
         <div class="fg"><label>Agreed Brokerage (₹) <span class="req">*</span></label>
           <input type="text" name="total_brokerage_amount" id="f_totalBrokerage" class="pre" readonly required><div class="err-msg">Required</div></div>
       </div>
@@ -295,17 +295,20 @@ async function importCp(id){
   }catch(e){toast('Failed to load CP','err')}
 }
 
-// Brokerage: each % dropdown drives its ₹ amount = dealValue × %/100 (readonly)
+// Brokerage: AMA + Registry % dropdowns each drive their ₹ amount; Agreed = AMA + Registry (auto)
 function getDV(){return parseFloat(String(document.getElementById('f_dealValue').value).replace(/,/g,''))||0}
 function calcBrokerage(){
   const dv=getDV();
-  const set=(pctId,amtId)=>{const sel=document.getElementById(pctId).value;const p=parseFloat(sel)||0;
-    document.getElementById(amtId).value=(dv>0&&p>0)?Math.round(dv*p/100):(sel!==''?'0':'')};
-  set('f_brokeragePct','f_totalBrokerage');
-  set('f_brokAmaPct','f_brokAmaAmt');
-  set('f_brokRegPct','f_brokRegAmt');
+  const amtFor=sel=>{const p=parseFloat(sel)||0;return (dv>0&&p>0)?Math.round(dv*p/100):(sel!==''?0:null)};
+  const amaSel=document.getElementById('f_brokAmaPct').value,regSel=document.getElementById('f_brokRegPct').value;
+  const amaAmt=amtFor(amaSel),regAmt=amtFor(regSel);
+  document.getElementById('f_brokAmaAmt').value=amaAmt!==null?amaAmt:'';
+  document.getElementById('f_brokRegAmt').value=regAmt!==null?regAmt:'';
+  const any=amaSel!==''||regSel!=='';
+  document.getElementById('f_brokeragePct').value=any?((parseFloat(amaSel)||0)+(parseFloat(regSel)||0)):'';
+  document.getElementById('f_totalBrokerage').value=any?((amaAmt||0)+(regAmt||0)):'';
 }
-['f_brokeragePct','f_brokAmaPct','f_brokRegPct'].forEach(id=>document.getElementById(id).addEventListener('change',calcBrokerage));
+['f_brokAmaPct','f_brokRegPct'].forEach(id=>document.getElementById(id).addEventListener('change',calcBrokerage));
 
 // Auto-sum total
 document.getElementById('f_release').addEventListener('input',calcTotal);
@@ -388,8 +391,7 @@ async function loadUID(uid){
     // Deal value from GSP
     const gsp=d.guaranteed_sale_price;
     document.getElementById('f_dealValue').value=gsp?Math.round(gsp*100000):'';
-    // Brokerage — set the three % dropdowns, then compute amounts from deal value
-    document.getElementById('f_brokeragePct').value=d.agreed_brokerage||'';
+    // Brokerage — set AMA + Registry dropdowns; Agreed (= AMA + Registry) computes from them
     document.getElementById('f_brokAmaPct').value=d.brokerage_ama_signed||'';
     document.getElementById('f_brokRegPct').value=d.brokerage_registry||'';
     calcBrokerage();
