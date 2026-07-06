@@ -89,7 +89,9 @@
 </div>
 <script src="/js/shared.js"></script>
 <script>
-let S,opts,exitC,parkImg;const pages=['p1','p2','p3','p4'];
+let S,opts,exitC,parkImg,balUploads={};const pages=['p1','p2','p3','p4'];
+// JSONB columns come back from node-pg already parsed (array), but older/text rows may be strings — handle both.
+const asArr=v=>{try{return Array.isArray(v)?v:(v?JSON.parse(v):[])}catch(e){return[]}};
 // Parking Photo is mandatory unless "No Parking" is selected — hide+skip it in that case.
 function toggleParkImg(){document.getElementById('parkImgWrap').style.display=document.getElementById('selPark').value==='No Parking'?'none':'block'}
 function goStep(n){if(n<S.current){S.show(n);return}for(let i=S.current;i<n;i++){if(!validateStep(i)){return}}S.show(n)}
@@ -173,20 +175,22 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     const sv=(n,v)=>{const el=document.querySelector(`[name="${n}"]`);if(el&&v!=null)el.value=v};
     const sr=(n,v)=>{if(!v)return;const rb=document.querySelector(`input[name="${n}"][value="${v}"]`);if(rb)rb.checked=true};
     sv('bathrooms',d.bathrooms);sv('balconies',d.balconies);
-    if(d.extra_area){try{JSON.parse(d.extra_area).forEach(v=>{const cb=document.querySelector(`input[name="extra_area"][value="${v}"]`);if(cb){cb.checked=true;cb.closest('label').style.cssText='background:var(--ac);color:#fff;border-color:var(--ac)'}})}catch(e){}}
+    asArr(d.extra_area).forEach(v=>{const cb=document.querySelector(`input[name="extra_area"][value="${v}"]`);if(cb){cb.checked=true;cb.closest('label').style.cssText='background:var(--ac);color:#fff;border-color:var(--ac)'}});
     sr('gas_pipeline',d.gas_pipeline);sv('parking',d.parking);sv('furnishing',d.furnishing);
     if(d.parking_image)parkImg.setUrl(d.parking_image);toggleParkImg();
     if(d.furnishing==='Unfurnished')document.getElementById('furnWrap').style.display='none';
-    if(d.furnishing_details){try{JSON.parse(d.furnishing_details).forEach(v=>{const cb=document.querySelector(`input[name="furnishing_details"][value="${v}"]`);if(cb){cb.checked=true;cb.closest('label').style.cssText='background:var(--ac);color:#fff;border-color:var(--ac)'}})}catch(e){}}
+    asArr(d.furnishing_details).forEach(v=>{const cb=document.querySelector(`input[name="furnishing_details"][value="${v}"]`);if(cb){cb.checked=true;cb.closest('label').style.cssText='background:var(--ac);color:#fff;border-color:var(--ac)'}});
     sv('total_lifts',d.total_lifts);sv('total_floors_tower',d.total_floors_tower);sv('total_flats_floor',d.total_flats_floor);
     sv('exit_facing',d.exit_facing);if(d.exit_compass_image)exitC.setUrl(d.exit_compass_image);sv('video_link',d.video_link);
     if(d.visit_remarks)document.getElementById('visitRemarks').value=d.visit_remarks;
     if(d.balconies){document.getElementById('selBal').value=d.balconies;buildBalconyCards()}
-    if(d.balcony_details){try{const bd=typeof d.balcony_details==='string'?JSON.parse(d.balcony_details):d.balcony_details;
+    {const bd=asArr(d.balcony_details);
       setTimeout(()=>bd.forEach(b=>{const i=b.index;const at=document.querySelector(`.ba[data-i="${i}"]`);if(at)at.value=b.attached_to||'';
         const bf=document.querySelector(`.bf[data-i="${i}"]`);if(bf)bf.value=b.facing||'';
+        if(b.compass_image&&balUploads[i])balUploads[i].c.setUrl(b.compass_image);
+        if(b.view_image&&balUploads[i])balUploads[i].v.setUrl(b.view_image);
         const bv=document.querySelector(`.bv[data-i="${i}"]`);if(bv){bv.value=b.view||'';
-          if(b.view==='N/A'){const photoFg=document.getElementById(`bv${i}Btn`)?.closest('.fg');if(photoFg)photoFg.style.display='none'}}}),100)}catch(e){}}
+          if(b.view==='N/A'){const photoFg=document.getElementById(`bv${i}Btn`)?.closest('.fg');if(photoFg)photoFg.style.display='none'}}}),100)}
     // Show dead button only before audit started (no visit_submitted_at)
     document.getElementById('deadBtn').style.display='inline-flex';
     document.getElementById('form').style.display='block';
@@ -201,7 +205,8 @@ function buildBalconyCards(){const n=parseInt(document.getElementById('selBal').
       <div class="fg"><label>Compass Photo <span class="req">*</span></label><div class="img-single"><button type="button" class="img-single-btn" id="bc${i}Btn">Upload</button><div class="img-single-preview" id="bc${i}Prev"><img></div><input type="hidden" id="bc${i}Url"></div></div></div>
     <div class="r2"><div class="fg"><label>View <span class="req">*</span></label><select class="bv" data-i="${i}" required>${['<option value="">Select...</option>',...views.map(v=>`<option>${v}</option>`)].join('')}</select><div class="err-msg">Required</div></div>
       <div class="fg"><label>View Photo <span class="req">*</span></label><div class="img-single"><button type="button" class="img-single-btn" id="bv${i}Btn">Upload</button><div class="img-single-preview" id="bv${i}Prev"><img></div><input type="hidden" id="bv${i}Url"></div></div></div></div>`}
-  for(let i=1;i<=n;i++){initSingleUpload(`bc${i}Btn`,`bc${i}Prev`,`bc${i}Url`);initSingleUpload(`bv${i}Btn`,`bv${i}Prev`,`bv${i}Url`);
+  balUploads={};
+  for(let i=1;i<=n;i++){balUploads[i]={c:initSingleUpload(`bc${i}Btn`,`bc${i}Prev`,`bc${i}Url`),v:initSingleUpload(`bv${i}Btn`,`bv${i}Prev`,`bv${i}Url`)};
     document.querySelector(`.bv[data-i="${i}"]`).addEventListener('change',function(){
       const photoFg=document.getElementById(`bv${i}Btn`).closest('.fg');
       if(this.value==='N/A'){photoFg.style.display='none'}else{photoFg.style.display=''}
