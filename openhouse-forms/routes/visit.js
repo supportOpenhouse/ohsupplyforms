@@ -22,16 +22,16 @@ module.exports=function(pool){
         gas_pipeline=$18,parking=$19,furnishing=$20,furnishing_details=$21,
         total_lifts=$22,total_floors_tower=$23,total_flats_floor=$24,
         exit_facing=$25,exit_compass_image=$26,video_link=$27,
-        balcony_details=$28,additional_images=$29,visit_remarks=$30,
+        balcony_details=$28,additional_images=$29,visit_remarks=$30,parking_image=$31,
         visit_submitted_at=NOW(),updated_at=NOW()
-        WHERE uid=$31`,
+        WHERE uid=$32`,
         [d.source,parseFloat(d.demand_price)||null,d.owner_broker_name,d.first_name||null,d.last_name||null,d.contact_no,
          d.city,d.locality,d.society_name,d.unit_no,d.tower_no||null,d.floor||null,d.configuration,parseFloat(d.area_sqft)||null,
          d.extra_area||'[]',parseInt(d.bathrooms)??null,parseInt(d.balconies)??null,
          d.gas_pipeline||null,d.parking,d.furnishing||null,d.furnishing_details||'[]',
          parseInt(d.total_lifts)??null,parseInt(d.total_floors_tower)??null,parseInt(d.total_flats_floor)??null,
          d.exit_facing||null,d.exit_compass_image||null,d.video_link||null,
-         d.balcony_details||'[]',d.additional_images||'[]',d.visit_remarks||null,d.uid]);
+         d.balcony_details||'[]',d.additional_images||'[]',d.visit_remarks||null,d.parking_image||null,d.uid]);
       res.json({success:true,uid:d.uid});
       logger.logFormSubmit(d.uid,'visit_submitted',2,req.user?.email,req.user?.name).catch(()=>{});
       pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows})=>{

@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS properties (
   -- Form 2: Visit (Audit)
   extra_area JSONB DEFAULT '[]', bathrooms INTEGER, balconies INTEGER,
   gas_pipeline TEXT, possession_status TEXT, tentative_handover_date DATE,
-  club_facility TEXT, parking TEXT, sunlight INTEGER,
+  club_facility TEXT, parking TEXT, parking_image TEXT, sunlight INTEGER,
   furnishing TEXT, furnishing_details JSONB DEFAULT '[]',
   total_lifts INTEGER, total_floors_tower INTEGER, total_flats_floor INTEGER,
   exit_facing TEXT, exit_compass_image TEXT,
@@ -224,6 +224,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='visit_date_history') THEN ALTER TABLE properties ADD COLUMN visit_date_history JSONB; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='replicated') THEN ALTER TABLE properties ADD COLUMN replicated BOOLEAN DEFAULT FALSE; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='replicated_from') THEN ALTER TABLE properties ADD COLUMN replicated_from TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='parking_image') THEN ALTER TABLE properties ADD COLUMN parking_image TEXT; END IF;
   -- floor holds text values ("Ground"/"Top") alongside numbers; convert legacy integer column.
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='floor' AND data_type='integer') THEN ALTER TABLE properties ALTER COLUMN floor TYPE TEXT USING floor::TEXT; END IF;
 END $$;
