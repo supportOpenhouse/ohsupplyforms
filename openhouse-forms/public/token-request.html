@@ -152,6 +152,23 @@
       </div>
     </div>
 
+    <div class="card"><div class="card-t">Deal Information</div>
+      <div class="fg"><label>Deal Value (₹)</label><input type="text" id="tr_dealValue" class="pre" readonly>
+        <div style="font-size:9px;color:var(--tx3);margin-top:2px">= Guaranteed Sale Price × 1,00,000</div></div>
+      <div class="r2">
+        <div class="fg"><label>Agreed Brokerage (%)</label><select id="tr_agreedPct" name="agreed_brokerage"><option value="">Select</option><option>0</option><option>0.5</option><option>1</option><option>1.5</option><option>2</option><option>2.5</option><option>3</option></select></div>
+        <div class="fg"><label>Agreed Brokerage (₹)</label><input type="text" id="tr_agreedAmt" name="total_brokerage_amount" class="pre" readonly></div>
+      </div>
+      <div class="r2">
+        <div class="fg"><label>Brokerage - AMA signed (%)</label><select id="tr_amaPct" name="brokerage_ama_signed"><option value="">Select</option><option>0</option><option>0.5</option><option>1</option><option>1.5</option><option>2</option><option>2.5</option><option>3</option></select></div>
+        <div class="fg"><label>Brokerage - AMA signed (₹)</label><input type="text" id="tr_amaAmt" name="brokerage_ama_signed_amount" class="pre" readonly></div>
+      </div>
+      <div class="r2">
+        <div class="fg"><label>Brokerage - Registry (%)</label><select id="tr_regPct" name="brokerage_registry"><option value="">Select</option><option>0</option><option>0.5</option><option>1</option><option>1.5</option><option>2</option><option>2.5</option><option>3</option></select></div>
+        <div class="fg"><label>Brokerage - Registry (₹)</label><input type="text" id="tr_regAmt" name="brokerage_registry_amount" class="pre" readonly></div>
+      </div>
+    </div>
+
     <div class="card" style="padding-bottom:16px"><div class="card-t">Documents Available <span class="req">*</span></div>
       <div class="fg" style="margin-bottom:0"><div id="docsSelect"></div></div>
       <div class="fg" id="otherDocWrap" style="display:none;margin-top:8px"><label>Specify Other Documents</label><input type="text" name="other_documents_text" id="otherDocText"></div>
@@ -356,6 +373,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
     tdAmt.addEventListener('input',()=>amtToPct(tdAmt,tdPct));
     pgAmt.addEventListener('input',()=>amtToPct(pgAmt,pgPct));
     rdAmt.addEventListener('input',()=>amtToPct(rdAmt,rdPct));
+    gspEl.addEventListener('input',trCalcBrokerage);
+    ['tr_agreedPct','tr_amaPct','tr_regPct'].forEach(id=>document.getElementById(id).addEventListener('change',trCalcBrokerage));
     document.getElementById('rip').addEventListener('input',function(){if(this.value==='0'){document.getElementById('rip_na').checked=true;toggleNA('rip','No rent');this.required=false}});
     document.getElementById('rgp').addEventListener('input',function(){if(this.value==='0'){document.getElementById('rgp_na').checked=true;toggleNA('rgp','No rent');this.required=false}});
     setInterval(()=>{const has=[...document.querySelectorAll('#docsSelect input:checked')].some(c=>c.value.includes('Other'));
@@ -422,6 +441,11 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     if(d.performance_guarantee!=null){document.getElementById('pgAmt').value=d.performance_guarantee;if(gspT>0)document.getElementById('pgPct').value=Math.round(d.performance_guarantee/gspT*100*1000)/1000}
     if(d.total_deposit!=null){document.getElementById('totalDeposit').value=d.total_deposit;if(gspT>0)document.getElementById('tdPct').value=Math.round(d.total_deposit/gspT*100*1000)/1000}
     if(d.refundable_deposit!=null){document.getElementById('refundableDeposit').value=d.refundable_deposit;if(gspT>0)document.getElementById('rdPct').value=Math.round(d.refundable_deposit/gspT*100*1000)/1000}
+    // Deal Information brokerage prefill
+    document.getElementById('tr_agreedPct').value=d.agreed_brokerage||'';
+    document.getElementById('tr_amaPct').value=d.brokerage_ama_signed||'';
+    document.getElementById('tr_regPct').value=d.brokerage_registry||'';
+    trCalcBrokerage();
     sv('initial_period',d.initial_period);sv('grace_period',d.grace_period);
     if(d.rent_payable_initial_period&&String(d.rent_payable_initial_period).toUpperCase()==='N/A'){document.getElementById('rip_na').checked=true;toggleNA('rip','No rent');document.getElementById('rip').required=false}else sv('rent_payable_initial_period',d.rent_payable_initial_period);
     if(d.rent_payable_grace_period&&String(d.rent_payable_grace_period).toUpperCase()==='N/A'){document.getElementById('rgp_na').checked=true;toggleNA('rgp','No rent');document.getElementById('rgp').required=false}else sv('rent_payable_grace_period',d.rent_payable_grace_period);
@@ -453,6 +477,14 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     if(d.token_request_email_sent===true){const eb=document.getElementById('emailBtn');eb.innerHTML='🔄 Resend Email';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)';eb.dataset.sent='1'}
     st.className='pf-st show ok';st.textContent=`Loaded: ${uid}${d.token_is_draft?' (Draft)':''}`;
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('tokenForm').style.display='none'}}
+// Deal Information: Deal Value = GSP × 1,00,000; each % dropdown drives its ₹ amount (readonly)
+function trCalcBrokerage(){
+  const gsp=parseFloat(String(document.getElementById('gsp').value).replace(/,/g,''))||0;const dv=gsp*100000;
+  document.getElementById('tr_dealValue').value=dv?Math.round(dv):'';
+  const set=(pctId,amtId)=>{const sel=document.getElementById(pctId).value;const p=parseFloat(sel)||0;
+    document.getElementById(amtId).value=(dv>0&&p>0)?Math.round(dv*p/100):(sel!==''?'0':'')};
+  set('tr_agreedPct','tr_agreedAmt');set('tr_amaPct','tr_amaAmt');set('tr_regPct','tr_regAmt');
+}
 function collectBody(){const fd=new FormData(document.getElementById('tokenForm'));const body=Object.fromEntries(fd.entries());
   body.has_loan=getRadio('has_loan')||null;
   if(isZeroToken()){body.cheque_image_url=null;body.cheque_account_number=null;body.cheque_bank_name=null;body.cheque_ifsc=null}

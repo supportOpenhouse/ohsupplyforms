@@ -37,6 +37,8 @@ module.exports=function(pool){
         ama_pg_non_forfeitable=$34,ama_beta_max_pct=$35,ama_beta_min_pct=$36,
         ama_maint_alignment=$37,ama_elec_alignment=$38,ama_special_terms=$39,
         ama_payment_structure=$40,
+        agreed_brokerage=$42,total_brokerage_amount=$43,
+        brokerage_ama_signed=$44,brokerage_ama_signed_amount=$45,brokerage_registry=$46,brokerage_registry_amount=$47,
         token_submitted_at=CASE WHEN $18=FALSE THEN NOW() ELSE token_submitted_at END,updated_at=NOW()
         WHERE uid=$19`,
         [d.token_requested_by||null,d.deal_token_amount!=null&&d.deal_token_amount!==''?parseFloat(d.deal_token_amount):null,
@@ -54,7 +56,9 @@ module.exports=function(pool){
          d.ama_pg_non_forfeitable||null,d.ama_beta_max_pct!=null&&d.ama_beta_max_pct!==''?parseFloat(d.ama_beta_max_pct):null,d.ama_beta_min_pct!=null&&d.ama_beta_min_pct!==''?parseFloat(d.ama_beta_min_pct):null,
          d.ama_maint_alignment||null,d.ama_elec_alignment||null,d.ama_special_terms||null,
          d.ama_payment_structure||null,
-         d.has_loan||null]);
+         d.has_loan||null,
+         d.agreed_brokerage||null,d.total_brokerage_amount||null,
+         d.brokerage_ama_signed||null,d.brokerage_ama_signed_amount||null,d.brokerage_registry||null,d.brokerage_registry_amount||null]);
       res.json({success:true,uid:d.uid,draft:isDraft});
       logger.logFormSubmit(d.uid,'token_request_submitted',3,req.user?.email,req.user?.name,isDraft).catch(()=>{});
     }catch(e){console.error('TokenReq:',e);res.status(500).json({error:e.message})}

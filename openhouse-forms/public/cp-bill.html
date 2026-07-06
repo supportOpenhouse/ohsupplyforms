@@ -103,11 +103,21 @@
       </div>
       <div class="r2">
         <div class="fg"><label>Agreed Brokerage (%) <span class="req">*</span></label>
-          <div class="calc-hint" id="brkHint" style="min-height:14px"></div>
-          <input type="text" id="f_brokeragePct" inputmode="decimal" required oninput="if(parseFloat(this.value)>100)this.value=100"><div class="err-msg">Required</div></div>
-        <div class="fg"><label>Total Brokerage (₹) <span class="req">*</span></label>
-          <div style="min-height:14px"></div>
-          <input type="text" name="total_brokerage_amount" id="f_totalBrokerage" required><div class="err-msg">Required</div></div>
+          <select id="f_brokeragePct" required><option value="">Select</option><option>0</option><option>0.5</option><option>1</option><option>1.5</option><option>2</option><option>2.5</option><option>3</option></select><div class="err-msg">Required</div></div>
+        <div class="fg"><label>Agreed Brokerage (₹) <span class="req">*</span></label>
+          <input type="text" name="total_brokerage_amount" id="f_totalBrokerage" class="pre" readonly required><div class="err-msg">Required</div></div>
+      </div>
+      <div class="r2">
+        <div class="fg"><label>Brokerage - AMA signed (%)</label>
+          <select id="f_brokAmaPct" name="brokerage_ama_signed"><option value="">Select</option><option>0</option><option>0.5</option><option>1</option><option>1.5</option><option>2</option><option>2.5</option><option>3</option></select></div>
+        <div class="fg"><label>Brokerage - AMA signed (₹)</label>
+          <input type="text" id="f_brokAmaAmt" class="pre" readonly></div>
+      </div>
+      <div class="r2">
+        <div class="fg"><label>Brokerage - Registry (%)</label>
+          <select id="f_brokRegPct" name="brokerage_registry"><option value="">Select</option><option>0</option><option>0.5</option><option>1</option><option>1.5</option><option>2</option><option>2.5</option><option>3</option></select></div>
+        <div class="fg"><label>Brokerage - Registry (₹)</label>
+          <input type="text" id="f_brokRegAmt" class="pre" readonly></div>
       </div>
       <div class="r3">
         <div class="fg"><label>To be Released Now (₹) <span class="req">*</span></label><input type="text" inputmode="numeric" name="to_be_released_now" id="f_release" oninput="this.value=this.value.replace(/\D/g,'')" required><div class="err-msg">Required</div></div>
@@ -285,23 +295,17 @@ async function importCp(id){
   }catch(e){toast('Failed to load CP','err')}
 }
 
-// Brokerage bidirectional calc
+// Brokerage: each % dropdown drives its ₹ amount = dealValue × %/100 (readonly)
 function getDV(){return parseFloat(String(document.getElementById('f_dealValue').value).replace(/,/g,''))||0}
-let bLock=false;
-document.getElementById('f_brokeragePct').addEventListener('input',function(){
-  if(bLock)return;bLock=true;
-  const dv=getDV();const p=parseFloat(this.value)||0;
-  if(dv>0&&p>0){const amt=Math.round(dv*p/100);document.getElementById('f_totalBrokerage').value=amt;document.getElementById('brkHint').textContent=`${p}% of ₹${dv.toLocaleString('en-IN')} = ₹${amt.toLocaleString('en-IN')}`}
-  else document.getElementById('brkHint').textContent='';
-  bLock=false;calcTotal();
-});
-document.getElementById('f_totalBrokerage').addEventListener('input',function(){
-  if(bLock)return;bLock=true;
-  const dv=getDV();const a=parseFloat(String(this.value).replace(/,/g,''))||0;
-  if(dv>0&&a>0){const pct=Math.round(a/dv*100*1000)/1000;document.getElementById('f_brokeragePct').value=pct;document.getElementById('brkHint').textContent=`₹${a.toLocaleString('en-IN')} = ${pct}% of ₹${dv.toLocaleString('en-IN')}`}
-  else document.getElementById('brkHint').textContent='';
-  bLock=false;calcTotal();
-});
+function calcBrokerage(){
+  const dv=getDV();
+  const set=(pctId,amtId)=>{const sel=document.getElementById(pctId).value;const p=parseFloat(sel)||0;
+    document.getElementById(amtId).value=(dv>0&&p>0)?Math.round(dv*p/100):(sel!==''?'0':'')};
+  set('f_brokeragePct','f_totalBrokerage');
+  set('f_brokAmaPct','f_brokAmaAmt');
+  set('f_brokRegPct','f_brokRegAmt');
+}
+['f_brokeragePct','f_brokAmaPct','f_brokRegPct'].forEach(id=>document.getElementById(id).addEventListener('change',calcBrokerage));
 
 // Auto-sum total
 document.getElementById('f_release').addEventListener('input',calcTotal);
@@ -384,12 +388,11 @@ async function loadUID(uid){
     // Deal value from GSP
     const gsp=d.guaranteed_sale_price;
     document.getElementById('f_dealValue').value=gsp?Math.round(gsp*100000):'';
-    // Brokerage
+    // Brokerage — set the three % dropdowns, then compute amounts from deal value
     document.getElementById('f_brokeragePct').value=d.agreed_brokerage||'';
-    document.getElementById('f_totalBrokerage').value=d.total_brokerage_amount||'';
-    document.getElementById('brkHint').textContent='';
-    const dv=parseFloat(document.getElementById('f_dealValue').value)||0;
-    if(dv>0&&d.total_brokerage_amount){const a=parseFloat(String(d.total_brokerage_amount).replace(/,/g,''))||0;if(a>0){const pct=Math.round(a/dv*100*1000)/1000;document.getElementById('f_brokeragePct').value=pct;document.getElementById('brkHint').textContent=`₹${a.toLocaleString('en-IN')} = ${pct}% of ₹${dv.toLocaleString('en-IN')}`}}
+    document.getElementById('f_brokAmaPct').value=d.brokerage_ama_signed||'';
+    document.getElementById('f_brokRegPct').value=d.brokerage_registry||'';
+    calcBrokerage();
     document.getElementById('f_release').value=d.to_be_released_now||'';
     document.getElementById('f_incentiveVisit').value=d.incentive_visit||'';
     document.getElementById('f_incentiveMeeting').value=d.incentive_owner_meeting||'';
@@ -467,6 +470,10 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   body.agreed_brokerage=document.getElementById('f_brokeragePct').value.trim();
   body.deal_value=document.getElementById('f_dealValue').value.trim();
   body.total_brokerage_amount=document.getElementById('f_totalBrokerage').value.trim();
+  body.brokerage_ama_signed=document.getElementById('f_brokAmaPct').value.trim();
+  body.brokerage_ama_signed_amount=document.getElementById('f_brokAmaAmt').value.trim();
+  body.brokerage_registry=document.getElementById('f_brokRegPct').value.trim();
+  body.brokerage_registry_amount=document.getElementById('f_brokRegAmt').value.trim();
   body.to_be_released_now=document.getElementById('f_release').value.trim();
   body.incentive_visit=document.getElementById('f_incentiveVisit').value.trim();
   body.incentive_owner_meeting=document.getElementById('f_incentiveMeeting').value.trim();
@@ -555,6 +562,8 @@ ${previewIsFirm?`<tr><td style="padding:1px 10px 1px 0;font-weight:600">GST Appl
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Property Address:</td><td>${addr}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">OH Acquired Model:</td><td>${document.getElementById('f_model').value||'—'}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Agreed Brokerage:</td><td>${document.getElementById('f_brokeragePct').value||'—'}%</td></tr>
+<tr><td style="padding:1px 10px 1px 0;font-weight:600">Brokerage (AMA signed):</td><td>${document.getElementById('f_brokAmaPct').value?document.getElementById('f_brokAmaPct').value+'%':'—'}${document.getElementById('f_brokAmaAmt').value?` (₹${document.getElementById('f_brokAmaAmt').value})`:''}</td></tr>
+<tr><td style="padding:1px 10px 1px 0;font-weight:600">Brokerage (Registry):</td><td>${document.getElementById('f_brokRegPct').value?document.getElementById('f_brokRegPct').value+'%':'—'}${document.getElementById('f_brokRegAmt').value?` (₹${document.getElementById('f_brokRegAmt').value})`:''}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Deal Value:</td><td>${document.getElementById('f_dealValue').value||'—'}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Total Brokerage:</td><td>₹${document.getElementById('f_totalBrokerage').value||'—'}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">To be Released Now:</td><td>₹${document.getElementById('f_release').value||'—'}</td></tr>

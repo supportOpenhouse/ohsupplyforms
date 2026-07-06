@@ -200,6 +200,14 @@ function buildMimeEmail({ from, to, cc, subject, bodyHtml, pdfBuffer, pdfFilenam
 }
 
 // Send email via Gmail API using user's OAuth tokens
+// Render one brokerage cell: "2% (₹12,34,000)" — pct and/or amount, "—" if neither.
+function brokerageCell(pct, amount) {
+  const p = (pct !== null && pct !== undefined && pct !== '') ? `${pct}%` : '';
+  const a = (amount !== null && amount !== undefined && amount !== '') ? Number(String(amount).replace(/,/g, '')) : null;
+  const aStr = (a !== null && !isNaN(a) && a > 0) ? ` (₹${a.toLocaleString('en-IN')})` : '';
+  return (p + aStr) || '—';
+}
+
 async function sendTokenRequestEmail({ accessToken, refreshToken, fromEmail, property, pdfHtml, threadId, references }) {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -240,6 +248,12 @@ async function sendTokenRequestEmail({ accessToken, refreshToken, fromEmail, pro
 <p>Dear Accounts Team,</p>
 <p>Kindly process the token payment of <strong>${tokenAmt}</strong> for <strong>${tower}${tower && unit ? ' -' : ''}${unit} ${society}</strong>. PFA the deal terms.</p>
 ${p.token_remarks ? `<p><strong>Internal Team Remarks:</strong> ${p.token_remarks}</p>` : ''}
+${(p.agreed_brokerage || p.brokerage_ama_signed || p.brokerage_registry) ? `<p style="margin-top:16px"><strong>Brokerage:</strong></p>
+<table style="font-size:13px;border-collapse:collapse;margin:2px 0 8px">
+<tr><td style="padding:1px 16px 1px 0">Agreed Brokerage:</td><td>${brokerageCell(p.agreed_brokerage, p.total_brokerage_amount)}</td></tr>
+<tr><td style="padding:1px 16px 1px 0">Brokerage (AMA signed):</td><td>${brokerageCell(p.brokerage_ama_signed, p.brokerage_ama_signed_amount)}</td></tr>
+<tr><td style="padding:1px 16px 1px 0">Brokerage (Registry):</td><td>${brokerageCell(p.brokerage_registry, p.brokerage_registry_amount)}</td></tr>
+</table>` : ''}
 ${p.token_remarks_printed && p.token_remarks_printed.trim() ? `<p style="font-style:italic;margin-top:16px"><strong>Remarks:</strong><br>${p.token_remarks_printed.trim().replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>` : ''}
 <p>Rahool Sureka, please approve the same.</p>
 ${p.cheque_image_url ? `<p style="margin-top:16px"><strong>Cancelled Cheque Link:</strong> <a href="${p.cheque_image_url}" target="_blank" style="color:#1a73e8;text-decoration:underline">Click here to view cheque</a></p>` : ''}
