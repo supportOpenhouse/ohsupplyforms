@@ -229,6 +229,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='brokerage_ama_signed_amount') THEN ALTER TABLE properties ADD COLUMN brokerage_ama_signed_amount TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='brokerage_registry') THEN ALTER TABLE properties ADD COLUMN brokerage_registry TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='brokerage_registry_amount') THEN ALTER TABLE properties ADD COLUMN brokerage_registry_amount TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='additional_brokerage') THEN ALTER TABLE properties ADD COLUMN additional_brokerage TEXT; END IF;
   -- floor holds text values ("Ground"/"Top") alongside numbers; convert legacy integer column.
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='floor' AND data_type='integer') THEN ALTER TABLE properties ALTER COLUMN floor TYPE TEXT USING floor::TEXT; END IF;
 END $$;

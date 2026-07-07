@@ -170,10 +170,13 @@
         <div class="fg"><label>Brokerage - Registry (%)</label><select id="tr_regPct" name="brokerage_registry"><option value="">Select</option><option>0</option><option>0.5</option><option>1</option><option>1.5</option><option>2</option><option>2.5</option><option>3</option></select></div>
         <div class="fg"><label>Brokerage - Registry (₹)</label><input type="text" id="tr_regAmt" name="brokerage_registry_amount" class="pre" readonly></div>
       </div>
-      <div class="r3">
+      <div class="r2">
         <div class="fg"><label>To be Released Now (₹)</label><input type="text" inputmode="numeric" name="to_be_released_now" id="tr_release" oninput="this.value=this.value.replace(/\D/g,'');trCalcTotal()"></div>
         <div class="fg"><label>Incentive for Visit (₹)</label><input type="text" inputmode="numeric" name="incentive_visit" id="tr_incVisit" oninput="this.value=this.value.replace(/\D/g,'');trCalcTotal()"></div>
+      </div>
+      <div class="r2">
         <div class="fg"><label>Incentive for Owner Meeting (₹)</label><input type="text" inputmode="numeric" name="incentive_owner_meeting" id="tr_incMeeting" oninput="this.value=this.value.replace(/\D/g,'');trCalcTotal()"></div>
+        <div class="fg"><label>Additional Brokerage (₹)</label><input type="text" inputmode="numeric" name="additional_brokerage" id="tr_addlBrokerage" oninput="this.value=this.value.replace(/\D/g,'');trCalcTotal()"></div>
       </div>
       <div class="fg"><label>Total Amount (₹)</label><input type="text" id="tr_totalAmount" name="total_cp_amount" class="pre" readonly></div>
     </div>
@@ -458,6 +461,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     document.getElementById('tr_release').value=d.to_be_released_now||'';
     document.getElementById('tr_incVisit').value=d.incentive_visit||'';
     document.getElementById('tr_incMeeting').value=d.incentive_owner_meeting||'';
+    document.getElementById('tr_addlBrokerage').value=d.additional_brokerage||'';
     trCalcTotal();
     sv('initial_period',d.initial_period);sv('grace_period',d.grace_period);
     if(d.rent_payable_initial_period&&String(d.rent_payable_initial_period).toUpperCase()==='N/A'){document.getElementById('rip_na').checked=true;toggleNA('rip','No rent');document.getElementById('rip').required=false}else sv('rent_payable_initial_period',d.rent_payable_initial_period);
@@ -513,7 +517,8 @@ function trCalcTotal(){
   const rel=parseFloat(document.getElementById('tr_release').value)||0;
   const iv=parseFloat(document.getElementById('tr_incVisit').value)||0;
   const im=parseFloat(document.getElementById('tr_incMeeting').value)||0;
-  document.getElementById('tr_totalAmount').value=String(rel+iv+im);
+  const ab=parseFloat(document.getElementById('tr_addlBrokerage').value)||0;
+  document.getElementById('tr_totalAmount').value=String(rel+iv+im+ab);
 }
 function collectBody(){const fd=new FormData(document.getElementById('tokenForm'));const body=Object.fromEntries(fd.entries());
   body.has_loan=getRadio('has_loan')||null;

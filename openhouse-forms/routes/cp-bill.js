@@ -98,6 +98,7 @@ module.exports=function(pool){
         cp_pan_card_url=$16,cp_cancelled_cheque_url=$17,
         gst_applicable=$20,cp_gst_invoice_url=$21,cp_coi_url=$22,cp_bill_remarks=$23,
         brokerage_ama_signed=$24,brokerage_ama_signed_amount=$25,brokerage_registry=$26,brokerage_registry_amount=$27,
+        additional_brokerage=$28,
         cp_bill_submitted_at=NOW(),updated_at=NOW()
         WHERE uid=$18`,
         [d.cp_name||null,d.cp_phone||null,d.cp_firm||null,d.cp_email||null,
@@ -107,7 +108,8 @@ module.exports=function(pool){
          d.cp_aadhaar_front_url||null,d.cp_aadhaar_back_url||null,
          d.cp_pan_card_url||null,d.cp_cancelled_cheque_url||null,
          d.uid,cpCode,d.gst_applicable||'No',d.cp_gst_invoice_url||null,d.cp_coi_url||null,d.cp_bill_remarks||null,
-         d.brokerage_ama_signed||null,d.brokerage_ama_signed_amount||null,d.brokerage_registry||null,d.brokerage_registry_amount||null]);
+         d.brokerage_ama_signed||null,d.brokerage_ama_signed_amount||null,d.brokerage_registry||null,d.brokerage_registry_amount||null,
+         d.additional_brokerage||null]);
       res.json({success:true,uid:d.uid,cp_code:cpCode});
       logger.logFormSubmit(d.uid,'cp_bill_submitted',8,req.user?.email,req.user?.name).catch(()=>{});
     }catch(e){console.error('CPBill:',e);res.status(500).json({error:e.message})}

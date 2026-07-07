@@ -119,10 +119,13 @@
         <div class="fg"><label>Brokerage - Registry (₹)</label>
           <input type="text" id="f_brokRegAmt" class="pre" readonly></div>
       </div>
-      <div class="r3">
+      <div class="r2">
         <div class="fg"><label>To be Released Now (₹) <span class="req">*</span></label><input type="text" inputmode="numeric" name="to_be_released_now" id="f_release" oninput="this.value=this.value.replace(/\D/g,'')" required><div class="err-msg">Required</div></div>
         <div class="fg"><label>Incentive for Visit (₹)</label><input type="text" inputmode="numeric" name="incentive_visit" id="f_incentiveVisit" oninput="this.value=this.value.replace(/\D/g,'')"></div>
+      </div>
+      <div class="r2">
         <div class="fg"><label>Incentive for Owner Meeting (₹)</label><input type="text" inputmode="numeric" name="incentive_owner_meeting" id="f_incentiveMeeting" oninput="this.value=this.value.replace(/\D/g,'')"></div>
+        <div class="fg"><label>Additional Brokerage (₹)</label><input type="text" inputmode="numeric" name="additional_brokerage" id="f_addlBrokerage" oninput="this.value=this.value.replace(/\D/g,'')"></div>
       </div>
       <div class="fg"><label>Total Amount (₹)</label><input type="text" id="f_totalAmount" class="pre" readonly></div>
     </div>
@@ -314,11 +317,13 @@ function calcBrokerage(){
 document.getElementById('f_release').addEventListener('input',calcTotal);
 document.getElementById('f_incentiveVisit').addEventListener('input',calcTotal);
 document.getElementById('f_incentiveMeeting').addEventListener('input',calcTotal);
+document.getElementById('f_addlBrokerage').addEventListener('input',calcTotal);
 function calcTotal(){
   const rel=parseFloat(document.getElementById('f_release').value)||0;
   const iv=parseFloat(document.getElementById('f_incentiveVisit').value)||0;
   const im=parseFloat(document.getElementById('f_incentiveMeeting').value)||0;
-  const total=rel+iv+im;
+  const ab=parseFloat(document.getElementById('f_addlBrokerage').value)||0;
+  const total=rel+iv+im+ab;
   document.getElementById('f_totalAmount').value=total?'₹ '+total.toLocaleString('en-IN'):'';
 }
 
@@ -398,6 +403,7 @@ async function loadUID(uid){
     document.getElementById('f_release').value=d.to_be_released_now||'';
     document.getElementById('f_incentiveVisit').value=d.incentive_visit||'';
     document.getElementById('f_incentiveMeeting').value=d.incentive_owner_meeting||'';
+    document.getElementById('f_addlBrokerage').value=d.additional_brokerage||'';
     document.getElementById('f_cpBillRemarks').value=d.cp_bill_remarks||'';
     calcTotal();
     // Doc URLs
@@ -479,11 +485,13 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   body.to_be_released_now=document.getElementById('f_release').value.trim();
   body.incentive_visit=document.getElementById('f_incentiveVisit').value.trim();
   body.incentive_owner_meeting=document.getElementById('f_incentiveMeeting').value.trim();
-  // Calc total = to_be_released + incentive_visit + incentive_owner_meeting
+  body.additional_brokerage=document.getElementById('f_addlBrokerage').value.trim();
+  // Calc total = to_be_released + incentive_visit + incentive_owner_meeting + additional_brokerage
   const rel=parseFloat(body.to_be_released_now)||0;
   const iv=parseFloat(body.incentive_visit)||0;
   const im=parseFloat(body.incentive_owner_meeting)||0;
-  body.total_cp_amount=String(rel+iv+im);
+  const ab=parseFloat(body.additional_brokerage)||0;
+  body.total_cp_amount=String(rel+iv+im+ab);
   body.cp_bill_remarks=document.getElementById('f_cpBillRemarks').value.trim()||null;
   for(const[key,col]of Object.entries(DOC_MAP)){body[col]=docUrls[key]||null}
 
@@ -571,6 +579,7 @@ ${previewIsFirm?`<tr><td style="padding:1px 10px 1px 0;font-weight:600">GST Appl
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">To be Released Now:</td><td>₹${document.getElementById('f_release').value||'—'}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Incentive for Visit:</td><td>₹${document.getElementById('f_incentiveVisit').value||'—'}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Incentive for Owner Meeting:</td><td>₹${document.getElementById('f_incentiveMeeting').value||'—'}</td></tr>
+<tr><td style="padding:1px 10px 1px 0;font-weight:600">Additional Brokerage:</td><td>₹${document.getElementById('f_addlBrokerage').value||'—'}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Total Amount:</td><td>${document.getElementById('f_totalAmount').value||'—'}</td></tr>
 ${document.getElementById('f_cpBillRemarks').value.trim()?`<tr><td style="padding:1px 10px 1px 0;font-weight:600;vertical-align:top">Remarks:</td><td>${document.getElementById('f_cpBillRemarks').value.trim()}</td></tr>`:''}
 </table>

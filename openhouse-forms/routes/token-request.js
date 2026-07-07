@@ -39,7 +39,7 @@ module.exports=function(pool){
         ama_payment_structure=$40,
         agreed_brokerage=$42,total_brokerage_amount=$43,
         brokerage_ama_signed=$44,brokerage_ama_signed_amount=$45,brokerage_registry=$46,brokerage_registry_amount=$47,
-        to_be_released_now=$48,incentive_visit=$49,incentive_owner_meeting=$50,total_cp_amount=$51,
+        to_be_released_now=$48,incentive_visit=$49,incentive_owner_meeting=$50,total_cp_amount=$51,additional_brokerage=$52,
         token_submitted_at=CASE WHEN $18=FALSE THEN NOW() ELSE token_submitted_at END,updated_at=NOW()
         WHERE uid=$19`,
         [d.token_requested_by||null,d.deal_token_amount!=null&&d.deal_token_amount!==''?parseFloat(d.deal_token_amount):null,
@@ -60,7 +60,7 @@ module.exports=function(pool){
          d.has_loan||null,
          d.agreed_brokerage||null,d.total_brokerage_amount||null,
          d.brokerage_ama_signed||null,d.brokerage_ama_signed_amount||null,d.brokerage_registry||null,d.brokerage_registry_amount||null,
-         d.to_be_released_now||null,d.incentive_visit||null,d.incentive_owner_meeting||null,d.total_cp_amount||null]);
+         d.to_be_released_now||null,d.incentive_visit||null,d.incentive_owner_meeting||null,d.total_cp_amount||null,d.additional_brokerage||null]);
       res.json({success:true,uid:d.uid,draft:isDraft});
       logger.logFormSubmit(d.uid,'token_request_submitted',3,req.user?.email,req.user?.name,isDraft).catch(()=>{});
     }catch(e){console.error('TokenReq:',e);res.status(500).json({error:e.message})}
