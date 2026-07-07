@@ -248,7 +248,7 @@ async function sendTokenRequestEmail({ accessToken, refreshToken, fromEmail, pro
 <p>Dear Accounts Team,</p>
 <p>Kindly process the token payment of <strong>${tokenAmt}</strong> for <strong>${tower}${tower && unit ? ' -' : ''}${unit} ${society}</strong>. PFA the deal terms.</p>
 ${p.token_remarks ? `<p><strong>Internal Team Remarks:</strong> ${p.token_remarks}</p>` : ''}
-${(p.agreed_brokerage || p.brokerage_ama_signed || p.brokerage_registry) ? `<p style="margin-top:16px"><strong>Brokerage:</strong></p>
+${(p.brokerage_ama_signed || p.brokerage_registry) ? `<p style="margin-top:16px"><strong>Brokerage:</strong></p>
 <table style="font-size:13px;border-collapse:collapse;margin:2px 0 8px">
 <tr><td style="padding:1px 16px 1px 0">Agreed Brokerage:</td><td>${brokerageCell(p.agreed_brokerage, p.total_brokerage_amount)}</td></tr>
 <tr><td style="padding:1px 16px 1px 0">Brokerage (AMA signed):</td><td>${brokerageCell(p.brokerage_ama_signed, p.brokerage_ama_signed_amount)}</td></tr>

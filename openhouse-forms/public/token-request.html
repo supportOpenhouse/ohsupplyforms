@@ -666,6 +666,15 @@ function showEmailPreview(){
   const _existCc=[...ccStr.split(','),'accounts@openhouse.in','rahool@openhouse.in'].map(x=>x.trim().toLowerCase());
   const _staffCc=[p.assigned_by_email,p.token_requested_by_email].filter(Boolean).filter(e=>!_existCc.includes(e.toLowerCase()));
   const ccStrFull=[ccStr,..._staffCc].filter(Boolean).join(', ');
+  // Brokerage block — mirrors the server email (email-sender.js), read from the form's computed fields
+  const gv=id=>document.getElementById(id).value;
+  const bcell=(pct,amt)=>{const pp=(pct!==''&&pct!=null)?pct+'%':'';const a=(amt!==''&&amt!=null)?Number(String(amt).replace(/,/g,'')):null;const aStr=(a!==null&&!isNaN(a)&&a>0)?` (₹${a.toLocaleString('en-IN')})`:'';return (pp+aStr)||'—'};
+  const brokRows=(gv('tr_amaPct')||gv('tr_regPct'))?`<p style="margin-top:16px"><strong>Brokerage:</strong></p>
+<table style="font-size:13px;border-collapse:collapse;margin:2px 0 8px">
+<tr><td style="padding:1px 16px 1px 0">Agreed Brokerage:</td><td>${bcell(gv('tr_agreedPct'),gv('tr_agreedAmt'))}</td></tr>
+<tr><td style="padding:1px 16px 1px 0">Brokerage (AMA signed):</td><td>${bcell(gv('tr_amaPct'),gv('tr_amaAmt'))}</td></tr>
+<tr><td style="padding:1px 16px 1px 0">Brokerage (Registry):</td><td>${bcell(gv('tr_regPct'),gv('tr_regAmt'))}</td></tr>
+</table>`:'';
   const html=`<div style="font-size:13px;line-height:1.8">
 <p><strong>To:</strong> accounts@openhouse.in, rahool@openhouse.in</p>
 <p><strong>CC:</strong> ${ccStrFull}</p>
@@ -675,6 +684,7 @@ function showEmailPreview(){
 <p>Dear Accounts Team,</p>
 <p>Kindly process the token payment of <strong>${tokenAmt}</strong> for <strong>${propRef}</strong>. PFA the deal terms.</p>
 ${p.token_remarks ? `<p><strong>Internal Team Remarks:</strong> ${p.token_remarks}</p>` : ''}
+${brokRows}
 ${p.token_remarks_printed && p.token_remarks_printed.trim() ? `<p style="font-style:italic;margin-top:16px"><strong>Remarks:</strong><br>${p.token_remarks_printed.trim().replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>` : ''}
 <p>Rahool Sureka, please approve the same.</p>
 ${docLinks.length?docLinks.map(l=>`<p>${l}</p>`).join(''):''}
