@@ -58,7 +58,6 @@
           <div class="fg"><label>Gas Pipeline</label><div class="radios" id="gasGrp"></div></div>
           <div class="fg"><label>Parking <span class="req">*</span></label><select name="parking" id="selPark" required></select><div class="err-msg">Required</div></div>
         </div>
-        <div class="fg" id="parkImgWrap"><label>Parking Photo <span class="req">*</span></label><div class="img-single"><button type="button" class="img-single-btn" id="parkImgBtn">Upload</button><div class="img-single-preview" id="parkImgPrev"><img></div><input type="hidden" name="parking_image" id="parkImgUrl"></div></div>
         <hr class="div">
         <div class="fg"><label>Furnishing <span class="req">*</span></label><select name="furnishing" id="selFurn" required></select><div class="err-msg">Required</div></div>
         <div class="fg" id="furnWrap"><label>Furnishing Details <span class="req">*</span></label><div class="pills" id="furnP"></div><div class="err-msg">Required</div></div>
@@ -78,6 +77,8 @@
       <div class="btn-row"><button type="button" class="btn btn-out" onclick="S.prev()">← Back</button><button type="button" class="btn btn-dark" onclick="nextStep()">Next →</button></div></div>
       <div class="page" id="p4"><div class="card"><div class="card-t">Balcony Details</div>
         <div id="balCards"></div>
+        <hr class="div">
+        <div class="fg" id="parkImgWrap"><label>Parking Photo <span class="req">*</span></label><div class="img-single"><button type="button" class="img-single-btn" id="parkImgBtn">Upload</button><div class="img-single-preview" id="parkImgPrev"><img></div><input type="hidden" name="parking_image" id="parkImgUrl"></div></div>
         <hr class="div">
         <div class="fg"><label>Video Link <span class="req">*</span></label><input type="url" name="video_link" pattern="https?://.+" required><div class="err-msg">Required</div></div>
         <hr class="div">
@@ -101,10 +102,11 @@ function validateStep(step){
   if(!validatePage(pid))return false;
   if(step===1){const ea=document.querySelectorAll('input[name="extra_area"]:checked');if(!ea.length){toast('Select at least one Extra Area option','err');return false}}
   if(step===2){
-    const park=document.getElementById('selPark').value;
-    if(park&&park!=='No Parking'&&!document.getElementById('parkImgUrl').value){toast('Upload Parking Photo','err');return false}
     if(document.getElementById('selFurn').value!=='Unfurnished'){const fd2=document.querySelectorAll('input[name="furnishing_details"]:checked');if(!fd2.length){toast('Select at least one Furnishing Detail','err');return false}}}
   if(step===3){if(!document.getElementById('exitCUrl').value){toast('Upload Compass Photo','err');return false}}
+  if(step===4){
+    const park=document.getElementById('selPark').value;
+    if(park&&park!=='No Parking'&&!document.getElementById('parkImgUrl').value){toast('Upload Parking Photo','err');return false}}
   return true;
 }
 document.addEventListener('DOMContentLoaded',async()=>{
