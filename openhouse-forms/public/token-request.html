@@ -279,6 +279,8 @@
 <script src="/js/shared.js"></script>
 <script>
 let docsMsel,currentUid,chequeUploader,allOpts,loadedData=null;
+// Snapshot of the Deal Information card's [required] fields, taken before any toggling.
+let dealReqEls=[];
 const ownerDocUrls={owner_pan:'',owner_aadhaar_front:'',owner_aadhaar_back:'',owner_property_doc:''};
 const OWNER_DOC_COL={owner_pan:'owner_pan_url',owner_aadhaar_front:'owner_aadhaar_front_url',owner_aadhaar_back:'owner_aadhaar_back_url',owner_property_doc:'owner_property_doc_url'};
 const OWNER_DOC_ITEM={owner_pan:'pu_ownerPan',owner_aadhaar_front:'pu_ownerAadhaarFront',owner_aadhaar_back:'pu_ownerAadhaarBack',owner_property_doc:'pu_ownerPropDoc'};
@@ -388,6 +390,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     gspEl.addEventListener('input',trCalcBrokerage);
     pgPct.addEventListener('input',trCalcBrokerage);pgAmt.addEventListener('input',trCalcBrokerage);
     ['tr_amaPct','tr_regPct'].forEach(id=>document.getElementById(id).addEventListener('change',trCalcBrokerage));
+    dealReqEls=[...document.getElementById('dealInfoCard').querySelectorAll('[required]')];
     document.getElementById('rip').addEventListener('input',function(){if(this.value==='0'){document.getElementById('rip_na').checked=true;toggleNA('rip','No rent');this.required=false}});
     document.getElementById('rgp').addEventListener('input',function(){if(this.value==='0'){document.getElementById('rgp_na').checked=true;toggleNA('rgp','No rent');this.required=false}});
     setInterval(()=>{const has=[...document.querySelectorAll('#docsSelect input:checked')].some(c=>c.value.includes('Other'));
@@ -455,7 +458,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     if(d.total_deposit!=null){document.getElementById('totalDeposit').value=d.total_deposit;if(gspT>0)document.getElementById('tdPct').value=Math.round(d.total_deposit/gspT*100*1000)/1000}
     if(d.refundable_deposit!=null){document.getElementById('refundableDeposit').value=d.refundable_deposit;if(gspT>0)document.getElementById('rdPct').value=Math.round(d.refundable_deposit/gspT*100*1000)/1000}
     // Deal Information prefill — AMA + Registry drive Agreed; payout fields + total
-    document.getElementById('dealInfoCard').style.display=isDirectSrc(d.source)?'none':'';
+    setDealInfoVisible(!isDirectSrc(d.source));
     document.getElementById('tr_amaPct').value=d.brokerage_ama_signed||'';
     document.getElementById('tr_regPct').value=d.brokerage_registry||'';
     trCalcBrokerage();
@@ -497,6 +500,15 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('tokenForm').style.display='none'}}
 // Deal Information (brokerage) is CP-only — Direct-sourced deals have no CP, so hide card + email block
 const isDirectSrc=s=>String(s||'').trim().toLowerCase()==='direct';
+// Hiding the card is not enough: validateForm() scans every [required] in the form whether
+// visible or not, so a hidden card would block submit on fields the user can't even see.
+function setDealInfoVisible(show){
+  document.getElementById('dealInfoCard').style.display=show?'':'none';
+  dealReqEls.forEach(el=>{
+    el.required=show;
+    if(!show){const fg=el.closest('.fg');if(fg)fg.classList.remove('invalid')}
+  });
+}
 // Deal Information: Deal Value = GSP × 1,00,000; each % dropdown drives its ₹ amount (readonly)
 function trCalcBrokerage(){
   const gsp=parseFloat(String(document.getElementById('gsp').value).replace(/,/g,''))||0;const dv=gsp*100000;
