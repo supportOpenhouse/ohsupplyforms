@@ -53,9 +53,8 @@ module.exports=function(pool){
   });
   router.post('/submit',async(req,res)=>{
     try{
-      const d=req.body;const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]);
+      const d=req.body;const{rows}=await pool.query('SELECT uid FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
-      const oldProp=rows[0];
 
       // Upsert CP master record
       let cpCode=d.cp_code||null;
@@ -113,11 +112,6 @@ module.exports=function(pool){
          d.additional_brokerage||null]);
       res.json({success:true,uid:d.uid,cp_code:cpCode});
       logger.logFormSubmit(d.uid,'cp_bill_submitted',8,req.user?.email,req.user?.name).catch(()=>{});
-      // Alert top managers if any brokerage value moved
-      pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows:nu})=>
-        require('../utils/brokerage-alert').notifyBrokerageChange(pool,oldProp,nu[0],
-          {email:req.user?.email,name:req.user?.name,source:'CP Bill form'})
-      ).catch(e=>console.error('Brokerage alert error:',e));
     }catch(e){console.error('CPBill:',e);res.status(500).json({error:e.message})}
   });
   router.post('/send-email/:uid',async(req,res)=>{

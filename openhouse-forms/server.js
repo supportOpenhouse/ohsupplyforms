@@ -163,9 +163,6 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
     }
     const{rows:updated}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
     res.json({success:true,property:updated[0]});
-    // Alert top managers if any brokerage value moved
-    require('./utils/brokerage-alert').notifyBrokerageChange(pool,oldProp,updated[0],
-      {email:req.user?.email,name:req.user?.name,source:'Admin edit'}).catch(e=>console.error('Brokerage alert error:',e));
     // Log changes
     const logger=require('./utils/logger');
     if(Object.keys(changes).length){
