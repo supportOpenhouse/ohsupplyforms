@@ -152,7 +152,7 @@
       </div>
     </div>
 
-    <div class="card"><div class="card-t">Deal Information</div>
+    <div class="card" id="dealInfoCard"><div class="card-t">Deal Information</div>
       <div class="r3">
         <div class="fg"><label>Deal Type</label><input type="text" id="tr_dealType" value="Acquisition/Supply" class="pre" readonly></div>
         <div class="fg"><label>Deal Value (₹)</label><input type="text" id="tr_dealValue" class="pre" readonly></div>
@@ -455,6 +455,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     if(d.total_deposit!=null){document.getElementById('totalDeposit').value=d.total_deposit;if(gspT>0)document.getElementById('tdPct').value=Math.round(d.total_deposit/gspT*100*1000)/1000}
     if(d.refundable_deposit!=null){document.getElementById('refundableDeposit').value=d.refundable_deposit;if(gspT>0)document.getElementById('rdPct').value=Math.round(d.refundable_deposit/gspT*100*1000)/1000}
     // Deal Information prefill — AMA + Registry drive Agreed; payout fields + total
+    document.getElementById('dealInfoCard').style.display=isDirectSrc(d.source)?'none':'';
     document.getElementById('tr_amaPct').value=d.brokerage_ama_signed||'';
     document.getElementById('tr_regPct').value=d.brokerage_registry||'';
     trCalcBrokerage();
@@ -494,6 +495,8 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     if(d.token_request_email_sent===true){const eb=document.getElementById('emailBtn');eb.innerHTML='🔄 Resend Email';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)';eb.dataset.sent='1'}
     st.className='pf-st show ok';st.textContent=`Loaded: ${uid}${d.token_is_draft?' (Draft)':''}`;
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('tokenForm').style.display='none'}}
+// Deal Information (brokerage) is CP-only — Direct-sourced deals have no CP, so hide card + email block
+const isDirectSrc=s=>String(s||'').trim().toLowerCase()==='direct';
 // Deal Information: Deal Value = GSP × 1,00,000; each % dropdown drives its ₹ amount (readonly)
 function trCalcBrokerage(){
   const gsp=parseFloat(String(document.getElementById('gsp').value).replace(/,/g,''))||0;const dv=gsp*100000;
@@ -674,7 +677,7 @@ function showEmailPreview(){
   // Brokerage block — mirrors the server email (email-sender.js), read from the form's computed fields
   const gv=id=>document.getElementById(id).value;
   const bcell=(pct,amt)=>{const pp=(pct!==''&&pct!=null)?pct+'%':'';const a=(amt!==''&&amt!=null)?Number(String(amt).replace(/,/g,'')):null;const aStr=(a!==null&&!isNaN(a)&&a>0)?` (₹${a.toLocaleString('en-IN')})`:'';return (pp+aStr)||'—'};
-  const brokRows=(gv('tr_amaPct')||gv('tr_regPct'))?`<p style="margin-top:16px"><strong>Brokerage:</strong></p>
+  const brokRows=(!isDirectSrc(p.source)&&(gv('tr_amaPct')||gv('tr_regPct')))?`<p style="margin-top:16px"><strong>Brokerage:</strong></p>
 <table style="font-size:13px;border-collapse:collapse;margin:2px 0 8px">
 <tr><td style="padding:1px 16px 1px 0">Agreed Brokerage:</td><td>${bcell(gv('tr_agreedPct'),gv('tr_agreedAmt'))}</td></tr>
 <tr><td style="padding:1px 16px 1px 0">Brokerage (AMA signed):</td><td>${bcell(gv('tr_amaPct'),gv('tr_amaAmt'))}</td></tr>
