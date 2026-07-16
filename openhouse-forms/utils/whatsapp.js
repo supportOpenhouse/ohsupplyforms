@@ -264,9 +264,11 @@ async function notifyDealTermsShared(property, submitterName, actor) {
 // AMA Signed / Pending Amount Request — triggered on Form 6 email send
 // Recipients: Top Managers, Submitter, Saurabh, Akash Teotia, Amisha (9289996736)
 // To add more recipients: add names to the recipients array below
+// Template body vars: {{1}} uid, {{2}} society, {{3}} tower, {{4}} unit,
+//                     {{5}} owner, {{6}} co-owner, {{7}} POC (assigned_by / BD manager)
 async function notifyAMASigned(property, submitterName, actor) {
   const p = property;
-  const bodyValues = [p.uid||'-', p.society_name||'-', p.tower_no||'-', p.unit_no||'-', p.owner_broker_name||'-', p.co_owner||'-'];
+  const bodyValues = [p.uid||'-', p.society_name||'-', p.tower_no||'-', p.unit_no||'-', p.owner_broker_name||'-', p.co_owner||'-', p.assigned_by||'-'];
   const topMgrs = await getTopManagers();
   const recipients = [...new Set(['Saurabh', 'Akash Teotia', ...topMgrs])];
   if(submitterName && submitterName!=='-') recipients.push(submitterName);
