@@ -3,18 +3,24 @@
   "version": "5.1.0",
   "description": "Openhouse Property Forms — 6 Form Pipeline",
   "main": "server.js",
-  "scripts": { "start": "node server.js", "dev": "node --watch server.js" },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
   "dependencies": {
+    "connect-pg-simple": "^9.0.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "express-session": "^1.18.0",
-    "connect-pg-simple": "^9.0.1",
     "googleapis": "^144.0.0",
+    "nodemailer": "^9.0.3",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "pg": "^8.13.0",
     "puppeteer": "^23.0.0"
   },
-  "engines": { "node": "20.18.1" }
+  "engines": {
+    "node": "20.18.1"
+  }
 }
