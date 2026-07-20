@@ -3,7 +3,7 @@ const logger=require('../utils/logger');
 const{visibilityFilter}=require('../utils/visibility');
 const{notifyVisitCompleted,notifyVisitReassigned,notifyVisitCancelled,notifyVisitScheduled}=require('../utils/whatsapp');
 const{syncVisitCalendar}=require('../utils/calendar');
-const{addReschedule,setCancelled,dateStr}=require('../utils/visit-history');
+const{addReschedule,setCancelled,clearCancelled,dateStr}=require('../utils/visit-history');
 module.exports=function(pool){
   router.get('/prefill/:uid',async(req,res)=>{
     try{const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
@@ -56,6 +56,22 @@ module.exports=function(pool){
       // Remove the calendar event
       syncVisitCalendar(pool,{uid:req.params.uid,action:'delete',actorUserId:req.user?.id}).catch(e=>console.error('Cal cancel sync error:',e));
     }catch(e){console.error('Dead:',e);res.status(500).json({error:e.message})}
+  });
+  // Un-cancel a dead visit — puts the lead back in the pipeline.
+  // Restricted to users with can_assign (admins always allowed); enforced here, not just in the UI.
+  router.post('/uncancel/:uid',async(req,res)=>{
+    try{
+      if(!(req.user?.is_admin||req.user?.can_assign))return res.status(403).json({error:'You do not have permission to un-cancel a lead'});
+      const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
+      if(!rows.length)return res.status(404).json({error:'UID not found'});
+      if(!rows[0].is_dead)return res.status(400).json({error:'This lead is not cancelled'});
+      await pool.query('UPDATE properties SET is_dead=FALSE,visit_date_history=$2,updated_at=NOW() WHERE uid=$1',
+        [req.params.uid,JSON.stringify(clearCancelled(rows[0].visit_date_history))]);
+      res.json({success:true,uid:req.params.uid});
+      logger.logStatusChange(req.params.uid,'visit_uncancelled',true,false,req.user?.email,req.user?.name).catch(()=>{});
+      // Cancelling deleted the calendar event and cleared gcal_event_id, so re-create it
+      syncVisitCalendar(pool,{uid:req.params.uid,action:'create',actorUserId:req.user?.id}).catch(e=>console.error('Cal uncancel sync error:',e));
+    }catch(e){console.error('Uncancel:',e);res.status(500).json({error:e.message})}
   });
   // Re-assign field_exec
   router.post('/reassign/:uid',async(req,res)=>{

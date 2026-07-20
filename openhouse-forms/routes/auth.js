@@ -63,7 +63,7 @@ module.exports = function(pool) {
   // ── Current user info ──
   router.get('/me', isAuthenticated, (req, res) => {
     const u = req.user;
-    res.json({ email: u.email, name: u.name, allowed_forms: u.allowed_forms, is_admin: u.is_admin, is_manager: u.is_manager, is_super: u.is_super });
+    res.json({ email: u.email, name: u.name, allowed_forms: u.allowed_forms, is_admin: u.is_admin, is_manager: u.is_manager, is_super: u.is_super, can_assign: u.can_assign });
   });
 
   // ── Admin: list all users ──

@@ -114,6 +114,8 @@
 <script src="/js/shared.js"></script>
 <script>
 let allProps=[],assignedToList=[];
+// Un-cancel is gated on "can assign visit" (admins too). Server enforces it as well.
+let canAssign=false;
 
 function fmtDt(d){if(!d)return'—';const dt=new Date(d);return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}
 function fmtTime12(t){if(!t)return'—';const[h,m]=t.split(':');const hr=parseInt(h);return`${hr===0?12:hr>12?hr-12:hr}:${m} ${hr>=12?'PM':'AM'}`}
@@ -258,6 +260,11 @@ function renderProps(){
         <div class="uw-btns">
           <button class="btn btn-out btn-sm" onclick="updateProp('${p.uid}',${idx})">Update</button>
         </div>
+      </div>`:''}
+      ${dead&&canAssign?`<div class="update-wrap">
+        <div class="uw-btns">
+          <button class="btn btn-out btn-sm" style="background:#e7f6ec;color:#1a7f37;border:1px solid #b7e0c4" onclick="uncancelProp('${p.uid}')">↩ Un-cancel Lead</button>
+        </div>
       </div>`:''}`;
 
     return`<div class="prop-card${dead?' dead':refunded?' refunded':''}" id="pc_${idx}">
@@ -315,10 +322,23 @@ async function updateProp(uid,idx){
   }catch(e){toast(e.message||'Failed','err')}
 }
 
+async function uncancelProp(uid){
+  if(!confirm(`Un-cancel ${uid}?\n\nThis puts the lead back in the pipeline and restores its calendar event.`))return;
+  try{
+    const r=await fetch(`${API}/api/visit/uncancel/${uid}`,{method:'POST',headers:{'Content-Type':'application/json'}});
+    const d=await r.json();if(!r.ok)throw new Error(d.error);
+    toast('Lead un-cancelled','ok');
+    const p=allProps.find(x=>x.uid===uid);
+    if(p){p.is_dead=false;p._stage=getStage(p)}
+    updateStatCounts();renderProps();
+  }catch(e){toast(e.message||'Failed','err')}
+}
+
 document.addEventListener('DOMContentLoaded',async()=>{
   try{
-    const[cr,pr]=await Promise.all([fetch(`${API}/api/config`),fetch(`${API}/api/my-properties`)]);
+    const[cr,pr,mr]=await Promise.all([fetch(`${API}/api/config`),fetch(`${API}/api/my-properties`),fetch('/auth/me')]);
     const opts=(await cr.json()).options;
+    try{const me=await mr.json();canAssign=!!(me.is_admin||me.can_assign)}catch(e){canAssign=false}
     assignedToList=[...opts.assignedToList].sort();
     allProps=await pr.json();
     allProps.forEach(p=>p._stage=getStage(p));
