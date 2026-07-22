@@ -225,6 +225,10 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='gcal_event_id') THEN ALTER TABLE properties ADD COLUMN gcal_event_id TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='gcal_creator_id') THEN ALTER TABLE properties ADD COLUMN gcal_creator_id INTEGER; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='visit_date_history') THEN ALTER TABLE properties ADD COLUMN visit_date_history JSONB; END IF;
+  -- Gmail thread id of the Form 3 (token request) email — consumed by the separate
+  -- transaction-management process. Deliberately NOT email_thread_id, which is the
+  -- Form 4/6/9 reply-chain and must stay untouched.
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='txn_mgmt_thread_id') THEN ALTER TABLE properties ADD COLUMN txn_mgmt_thread_id TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='replicated') THEN ALTER TABLE properties ADD COLUMN replicated BOOLEAN DEFAULT FALSE; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='replicated_from') THEN ALTER TABLE properties ADD COLUMN replicated_from TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='parking_image') THEN ALTER TABLE properties ADD COLUMN parking_image TEXT; END IF;

@@ -115,8 +115,10 @@ module.exports=function(pool){
         accessToken:user.google_access_token,refreshToken:user.google_refresh_token,
         fromEmail:user.email,property:p,pdfHtml
       });
-      await pool.query('UPDATE properties SET token_request_email_sent=TRUE,updated_at=NOW() WHERE uid=$1',[req.params.uid]);
-      console.log(`Email sent for ${req.params.uid} by ${user.email} — msgId: ${result.messageId}`);
+      // Store the Gmail thread id for the separate transaction-management process.
+      // COALESCE keeps the first send's thread id if the email is ever resent.
+      await pool.query('UPDATE properties SET token_request_email_sent=TRUE,txn_mgmt_thread_id=COALESCE(txn_mgmt_thread_id,$2),updated_at=NOW() WHERE uid=$1',[req.params.uid,result.threadId||null]);
+      console.log(`Email sent for ${req.params.uid} by ${user.email} — msgId: ${result.messageId} | threadId: ${result.threadId}`);
       res.json({success:true,messageId:result.messageId});
       notifyTokenRequest(p,{email:req.user?.email,name:req.user?.name}).catch(e=>console.error('WA token notify error:',e));
     }catch(e){
