@@ -5,9 +5,11 @@ const MIGRATION_SQL = `
 CREATE TABLE IF NOT EXISTS master_societies (
   id SERIAL PRIMARY KEY,
   city TEXT NOT NULL, locality TEXT NOT NULL, society_name TEXT NOT NULL,
+  micro_market TEXT,
   UNIQUE(city, locality, society_name)
 );
 CREATE INDEX IF NOT EXISTS idx_ms_city ON master_societies(city);
+CREATE INDEX IF NOT EXISTS idx_ms_mm ON master_societies(micro_market);
 
 CREATE TABLE IF NOT EXISTS master_areas (
   id SERIAL PRIMARY KEY,
@@ -96,6 +98,7 @@ CREATE INDEX IF NOT EXISTS idx_cpm_phone ON cp_master(cp_phone);
 
 const COMPAT_SQL = `
 DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='master_societies' AND column_name='micro_market') THEN ALTER TABLE master_societies ADD COLUMN micro_market TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='assigned_by') THEN ALTER TABLE properties ADD COLUMN assigned_by TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='token_requested_by') THEN ALTER TABLE properties ADD COLUMN token_requested_by TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='deal_bank_name') THEN ALTER TABLE properties ADD COLUMN deal_bank_name TEXT; END IF;

@@ -127,7 +127,7 @@ tr.row-replicated td{color:#dc2626!important;opacity:.7}
 <header class="hdr">
   <a href="/" class="hdr-logo"><img src="/images/logo_2.png" alt="Openhouse" style="height:32px"></a>
   <div class="hdr-center"><div class="form-name">Admin Dashboard</div></div>
-  <div class="hdr-right"></div>
+  <div class="hdr-right"><button class="btn btn-out btn-sm" id="addSocietyBtn" style="display:none" onclick="openSocietyModal()">🏢 Add Society</button></div>
 </header>
 <div class="ctn wide">
   <div class="stats" id="stats">
@@ -224,6 +224,44 @@ tr.row-replicated td{color:#dc2626!important;opacity:.7}
       <span class="save-status" id="replStatus"></span>
       <button class="btn btn-out btn-sm" onclick="closeReplicate()">Cancel</button>
       <button class="btn btn-dark btn-sm" id="replGoBtn" onclick="doReplicate()">⧉ Replicate</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="societyModal">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-hdr"><h3>🏢 Add Society</h3><button class="btn btn-out btn-sm" onclick="closeSocietyModal()">✕</button></div>
+    <div class="modal-body">
+      <div style="display:grid;gap:10px">
+        <div>
+          <label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">City <span style="color:var(--red)">*</span></label>
+          <input list="soc_cities" id="s_city" placeholder="Select or type new..." style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
+          <datalist id="soc_cities"></datalist>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Locality <span style="color:var(--red)">*</span></label>
+          <input list="soc_localities" id="s_locality" placeholder="Select or type new..." style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
+          <datalist id="soc_localities"></datalist>
+        </div>
+        <div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+            <input type="checkbox" id="s_mmSame" checked> Micro market to be same as locality
+          </label>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Micro Market</label>
+          <input list="soc_micromarkets" id="s_micro" placeholder="Select or type new..." style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
+          <datalist id="soc_micromarkets"></datalist>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Society Name <span style="color:var(--red)">*</span></label>
+          <input type="text" id="s_name" placeholder="e.g. Prestige Lakeside" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
+        </div>
+        <div id="s_msg" style="font-size:11px;min-height:14px"></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--bd)">
+      <button class="btn btn-out btn-sm" onclick="closeSocietyModal()">Cancel</button>
+      <button class="btn btn-dark btn-sm" id="s_saveBtn" onclick="saveSociety()">Add Society</button>
     </div>
   </div>
 </div>
@@ -719,6 +757,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('fDateFrom').max=todayStr;document.getElementById('fDateTo').max=todayStr;
   try{const r=await fetch('/auth/me');if(r.ok){const me=await r.json();IS_ADMIN=!!me.is_admin;IS_SUPER=!!me.is_super}}catch(e){}
   if(!IS_ADMIN){const um=document.getElementById('userMgmtSection');if(um)um.style.display='none'}
+  if(IS_ADMIN){const sb=document.getElementById('addSocietyBtn');if(sb)sb.style.display='inline-flex'}
   if(IS_SUPER){const ab=document.getElementById('addUserBtn');if(ab)ab.style.display='inline-flex'}
   loadData();
   if(IS_ADMIN)loadUsers();
@@ -728,6 +767,52 @@ document.addEventListener('DOMContentLoaded',async()=>{
 const FORM_KEYS=['schedule','visit','token-request','token-deal','ama-details','pending-request','cp-bill','final','listing','admin_p'];
 const FORM_LABELS={schedule:'Schedule',visit:'Audit','token-request':'Token Req','token-deal':'Deal Terms','ama-details':'AMA Req','pending-request':'AMA Signed',final:'Key Handover','cp-bill':'CP Bill',listing:'Listing',admin_p:'Admin Panel'};
 let allUsers=[],userSortCol='email',userSortDir='asc';
+// ══════ ADD SOCIETY (admin only) ══════
+// Micro market mirrors locality while the tickbox is on; unticking frees the field.
+function syncMicroMarket(){
+  const same=document.getElementById('s_mmSame').checked;
+  const mm=document.getElementById('s_micro');
+  mm.disabled=same;
+  mm.style.background=same?'var(--bg)':'';
+  if(same)mm.value=document.getElementById('s_locality').value.trim();
+}
+async function openSocietyModal(){
+  if(!IS_ADMIN)return;
+  ['s_city','s_locality','s_micro','s_name'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('s_mmSame').checked=true;
+  document.getElementById('s_msg').textContent='';
+  syncMicroMarket();
+  document.getElementById('societyModal').classList.add('open');
+  try{
+    const r=await fetch('/api/admin/society-options');if(!r.ok)return;
+    const o=await r.json();
+    const fill=(id,arr)=>{document.getElementById(id).innerHTML=(arr||[]).map(v=>`<option value="${String(v).replace(/"/g,'&quot;')}">`).join('')};
+    fill('soc_cities',o.cities);fill('soc_localities',o.localities);fill('soc_micromarkets',o.micro_markets);
+  }catch(e){}
+}
+function closeSocietyModal(){document.getElementById('societyModal').classList.remove('open')}
+async function saveSociety(){
+  const city=document.getElementById('s_city').value.trim();
+  const locality=document.getElementById('s_locality').value.trim();
+  const society_name=document.getElementById('s_name').value.trim();
+  const micro_market=document.getElementById('s_mmSame').checked?locality:document.getElementById('s_micro').value.trim();
+  const msg=document.getElementById('s_msg');
+  if(!city||!locality||!society_name){msg.style.color='var(--red)';msg.textContent='City, Locality and Society Name are required';return}
+  const btn=document.getElementById('s_saveBtn');btn.disabled=true;btn.textContent='Adding...';
+  try{
+    const r=await fetch('/api/admin/society',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({city,locality,society_name,micro_market})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error);
+    msg.style.color='var(--grn)';msg.textContent=`Added "${d.society_name}" — ${d.locality}, ${d.city}`;
+    document.getElementById('s_name').value='';
+    document.getElementById('s_name').focus();
+  }catch(e){msg.style.color='var(--red)';msg.textContent=e.message||'Failed to add society'}
+  finally{btn.disabled=false;btn.textContent='Add Society'}
+}
+document.getElementById('s_mmSame').addEventListener('change',syncMicroMarket);
+document.getElementById('s_locality').addEventListener('input',syncMicroMarket);
+document.getElementById('societyModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSocietyModal()});
+
 async function loadUsers(){if(!IS_ADMIN)return;try{const r=await fetch('/auth/users');if(!r.ok)return;allUsers=await r.json();renderUsers()}catch(e){console.error(e)}}
 function getUserRole(u){return u.is_admin?3:u.is_top_manager?2:u.is_manager?1:0}
 function renderUsers(){

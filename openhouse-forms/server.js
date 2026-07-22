@@ -100,6 +100,41 @@ app.get('/api/properties', isAuthenticated, hasAdminPanelAccess, async(req,res)=
     FROM properties WHERE TRUE${vis.clause} ORDER BY created_at DESC`,vis.params);res.json(rows)}catch(e){console.error('Properties list error:',e.message);res.status(500).json({error:e.message})}
 });
 
+// ── Societies master: distinct values for the "Add Society" dropdowns ──
+app.get('/api/admin/society-options', isAuthenticated, isAdmin, async(_,res)=>{
+  try{
+    const{rows}=await pool.query(`SELECT
+      ARRAY(SELECT DISTINCT city FROM master_societies WHERE city IS NOT NULL AND city<>'' ORDER BY city) AS cities,
+      ARRAY(SELECT DISTINCT locality FROM master_societies WHERE locality IS NOT NULL AND locality<>'' ORDER BY locality) AS localities,
+      ARRAY(SELECT DISTINCT micro_market FROM master_societies WHERE micro_market IS NOT NULL AND micro_market<>'' ORDER BY micro_market) AS micro_markets`);
+    res.json(rows[0]||{cities:[],localities:[],micro_markets:[]});
+  }catch(e){console.error('Society options error:',e.message);res.status(500).json({error:e.message})}
+});
+
+// ── Societies master: add a new society (admin only) ──
+app.post('/api/admin/society', isAuthenticated, isAdmin, async(req,res)=>{
+  try{
+    const city=(req.body.city||'').trim();
+    const locality=(req.body.locality||'').trim();
+    const society_name=(req.body.society_name||'').trim();
+    // "same as locality" is resolved on the client, but re-apply here so the API is safe on its own
+    const micro_market=(req.body.micro_market||'').trim()||locality;
+    if(!city||!locality||!society_name)return res.status(400).json({error:'City, Locality and Society Name are all required'});
+
+    const{rows:dupe}=await pool.query(
+      `SELECT id FROM master_societies WHERE LOWER(city)=LOWER($1) AND LOWER(locality)=LOWER($2) AND LOWER(society_name)=LOWER($3)`,
+      [city,locality,society_name]);
+    if(dupe.length)return res.status(409).json({error:`"${society_name}" already exists in ${locality}, ${city}`});
+
+    const{rows}=await pool.query(
+      `INSERT INTO master_societies(city,locality,society_name,micro_market) VALUES($1,$2,$3,$4) RETURNING id`,
+      [city,locality,society_name,micro_market]);
+    res.json({success:true,id:rows[0].id,city,locality,society_name,micro_market});
+    require('./utils/logger').log(null,'society_added','master_data',req.user?.email,req.user?.name,
+      {city,locality,society_name,micro_market}).catch(()=>{});
+  }catch(e){console.error('Add society error:',e.message);res.status(500).json({error:e.message})}
+});
+
 app.get('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
   try{const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
     if(!rows.length)return res.status(404).json({error:'Not found'});res.json(rows[0])}catch(e){console.error('Property detail error:',e.message);res.status(500).json({error:e.message})}
