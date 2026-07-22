@@ -69,6 +69,7 @@
         <div class="fg"><label id="owner1Label">Owner Amount (₹) <span class="req">*</span></label><input type="text" inputmode="numeric" id="owner1Amt" oninput="this.value=this.value.replace(/\D/g,'')" required></div>
         <div class="fg" id="owner2Wrap" style="display:none"><label id="owner2Label">Co-owner Amount (₹) <span class="req">*</span></label><input type="text" inputmode="numeric" id="owner2Amt" oninput="this.value=this.value.replace(/\D/g,'')"></div>
       </div>
+      <div id="splitHint" style="font-size:11px;margin-top:6px;min-height:14px"></div>
     </div>
 
     <div class="card" id="coOwnerKycCard" style="display:none">
@@ -112,6 +113,9 @@
 <script src="/js/shared.js"></script>
 <script>
 let currentUid=null,propData=null,isAdmin=false,isManager=false;
+// Remaining (Total Deposit − Token Paid). The Payment Split must always add up to this,
+// since these figures are what the email instructs Accounts to release.
+let remainingAmt=0;
 let cloudCfg=null;
 const coDocUrls={co_aadhaar_front:'',co_aadhaar_back:'',co_pan:'',co_cheque:''};
 const CO_DOC_ITEM={co_aadhaar_front:'pu_coAadhaarFront',co_aadhaar_back:'pu_coAadhaarBack',co_pan:'pu_coPan',co_cheque:'pu_coCheque'};
@@ -166,7 +170,8 @@ async function loadData(){
 
     const td=Number(propData.total_deposit)||0;
     const tk=Number(propData.deal_token_amount)||0;
-    const rem=td-tk;
+    const rem=Math.max(0,td-tk);
+    remainingAmt=rem;
     document.getElementById('ro_totalDeposit').value=td?'₹ '+td.toLocaleString('en-IN'):'—';
     document.getElementById('ro_tokenPaid').value=tk?'₹ '+tk.toLocaleString('en-IN'):'—';
     document.getElementById('ro_remaining').value=rem>0?'₹ '+rem.toLocaleString('en-IN'):'₹ 0';
@@ -185,8 +190,11 @@ async function loadData(){
     if(hasCoOwner){
       document.getElementById('owner2Wrap').style.display='block';
       document.getElementById('owner2Label').textContent=(propData.co_owner||'Co-owner')+' Amount (₹)';
-      const half=Math.round(td/2);
-      document.getElementById('owner1Amt').value=half-tk>0?half-tk:0;
+      // Split the REMAINING (not the total deposit) so the token isn't deducted from
+      // one owner alone. floor + subtract guarantees the two always sum to Remaining,
+      // with any odd rupee going to the primary owner.
+      const half=Math.floor(rem/2);
+      document.getElementById('owner1Amt').value=rem-half;
       document.getElementById('owner2Amt').value=half;
       // Show co-owner KYC card
       document.getElementById('coOwnerKycCard').style.display='block';
@@ -203,6 +211,7 @@ async function loadData(){
       document.getElementById('coOwnerKycCard').style.display='none';
     }
 
+    checkSplit();
     document.getElementById('parForm').style.display='block';
     document.getElementById('emailBtn').style.display=propData.pending_request_submitted_at?'block':'none';
     if(propData.pending_request_email_sent===true){const eb=document.getElementById('emailBtn');eb.innerHTML='🔄 Resend Email';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)';eb.dataset.sent='1'}
@@ -239,6 +248,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   if(!ownerNo&&!hdDate){toast('Tentative Key Handover Date required','err');return}
   const alreadySubmitted=!!(propData&&propData.pending_request_submitted_at);
   if(!document.getElementById('owner1Amt').value){toast('Owner amount required','err');return}
+  if(!checkSplit()){const{sum}=splitTotals();toast(`Payment Split (₹${sum.toLocaleString('en-IN')}) must equal Remaining (₹${remainingAmt.toLocaleString('en-IN')})`,'err');return}
   // Validate co-owner docs if card is visible
   const coKycVisible=document.getElementById('coOwnerKycCard').style.display!=='none';
   if(coKycVisible&&!alreadySubmitted){
@@ -260,11 +270,31 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   });
 });
 
+// The split is editable, so re-check it against Remaining on every keystroke.
+function splitTotals(){
+  const o1=Number(document.getElementById('owner1Amt').value)||0;
+  const o2=document.getElementById('owner2Wrap').style.display==='none'
+    ? 0 : (Number(document.getElementById('owner2Amt').value)||0);
+  return {o1,o2,sum:o1+o2,diff:(o1+o2)-remainingAmt};
+}
+function checkSplit(){
+  const {sum,diff}=splitTotals();
+  const el=document.getElementById('splitHint');
+  if(!el)return true;
+  if(diff===0){el.style.color='var(--grn)';el.textContent=`✓ Split totals ₹${sum.toLocaleString('en-IN')} — matches Remaining`;return true}
+  el.style.color='var(--red)';
+  el.textContent=`⚠ Split totals ₹${sum.toLocaleString('en-IN')} but Remaining is ₹${remainingAmt.toLocaleString('en-IN')} `
+    +`(${diff>0?'over':'short'} by ₹${Math.abs(diff).toLocaleString('en-IN')})`;
+  return false;
+}
+['owner1Amt','owner2Amt'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',checkSplit)});
+
 // Send email — show preview first
 document.getElementById('emailBtn').addEventListener('click',()=>{
   if(!currentUid){toast('Load a property first','warn');return}
   if(!propData?.owner_email){toast('Owner email not found. Set it in Deal Terms form.','err');return}
   if(!propData?.signed_ama_url){toast('AMA is not yet uploaded by the Legal Team.','err');return}
+  if(!checkSplit()){const{sum}=splitTotals();toast(`Cannot send: split (₹${sum.toLocaleString('en-IN')}) does not equal Remaining (₹${remainingAmt.toLocaleString('en-IN')})`,'err');return}
   const addr=[propData?.tower_no,propData?.unit_no,propData?.society_name,propData?.locality,propData?.city].filter(Boolean).join(', ');
   const amaDate=document.getElementById('amaDate').value?new Date(document.getElementById('amaDate').value+'T00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—';
   const o1Name=propData.owner_broker_name||'Owner';
