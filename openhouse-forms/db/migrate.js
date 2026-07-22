@@ -262,7 +262,71 @@ DO $$ BEGIN
 END $$;
 `;
 
-module.exports = { MIGRATION_SQL, COMPAT_SQL, LOGS_TABLE_SQL };
+// Interakt WhatsApp message IDs — one row per API response, for delivery reconciliation.
+// `name` is auto-filled by a trigger: match users.phone first, else properties.contact_no.
+// A trigger (not a CHECK) because the rule is a cross-table lookup, which CHECK can't do.
+const WA_INTERAKT_TABLE_SQL = `
+CREATE TABLE IF NOT EXISTS wa_interakt_id (
+  id_seq SERIAL PRIMARY KEY,
+  phone TEXT NOT NULL,
+  result BOOLEAN,
+  id TEXT,
+  template TEXT,
+  name TEXT,
+  uid TEXT,
+  log_id INTEGER,
+  sent_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- Added after first release; keep idempotent for existing installs.
+DO $wacol$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wa_interakt_id' AND column_name='uid')
+  THEN ALTER TABLE wa_interakt_id ADD COLUMN uid TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='wa_interakt_id' AND column_name='log_id')
+  THEN ALTER TABLE wa_interakt_id ADD COLUMN log_id INTEGER; END IF;
+  -- ON DELETE SET NULL: purging old activity_logs must never delete delivery records.
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='fk_wa_log_id')
+  THEN ALTER TABLE wa_interakt_id ADD CONSTRAINT fk_wa_log_id
+       FOREIGN KEY (log_id) REFERENCES activity_logs(id) ON DELETE SET NULL; END IF;
+END $wacol$;
+CREATE INDEX IF NOT EXISTS idx_wa_phone ON wa_interakt_id(phone);
+CREATE INDEX IF NOT EXISTS idx_wa_id ON wa_interakt_id(id);
+CREATE INDEX IF NOT EXISTS idx_wa_sent ON wa_interakt_id(sent_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_wa_template ON wa_interakt_id(template);
+CREATE INDEX IF NOT EXISTS idx_wa_uid ON wa_interakt_id(uid);
+CREATE INDEX IF NOT EXISTS idx_wa_log_id ON wa_interakt_id(log_id);
+
+-- Resolve name from phone. Compares on digits only so '+91 97113 30512',
+-- '9711330512' and '09711330512' all match the same person.
+CREATE OR REPLACE FUNCTION wa_fill_name() RETURNS TRIGGER AS $wa$
+DECLARE
+  p TEXT := RIGHT(REGEXP_REPLACE(COALESCE(NEW.phone,''), '\\D', '', 'g'), 10);
+BEGIN
+  IF NEW.name IS NOT NULL AND NEW.name <> '' THEN RETURN NEW; END IF;
+  IF p = '' THEN RETURN NEW; END IF;
+
+  SELECT u.name INTO NEW.name FROM users u
+   WHERE RIGHT(REGEXP_REPLACE(COALESCE(u.phone,''), '\\D', '', 'g'), 10) = p
+     AND u.name IS NOT NULL AND u.name <> ''
+   LIMIT 1;
+
+  IF NEW.name IS NULL OR NEW.name = '' THEN
+    SELECT pr.owner_broker_name INTO NEW.name FROM properties pr
+     WHERE RIGHT(REGEXP_REPLACE(COALESCE(pr.contact_no,''), '\\D', '', 'g'), 10) = p
+       AND pr.owner_broker_name IS NOT NULL AND pr.owner_broker_name <> ''
+     ORDER BY pr.created_at DESC
+     LIMIT 1;
+  END IF;
+
+  RETURN NEW;
+END;
+$wa$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_wa_fill_name ON wa_interakt_id;
+CREATE TRIGGER trg_wa_fill_name BEFORE INSERT ON wa_interakt_id
+  FOR EACH ROW EXECUTE FUNCTION wa_fill_name();
+`;
+
+module.exports = { MIGRATION_SQL, COMPAT_SQL, LOGS_TABLE_SQL, WA_INTERAKT_TABLE_SQL };
 
 // One-time seed: populate phone, can_assign, can_visit, is_top_manager from old hardcoded data
 // Run via: node db/migrate.js seed
@@ -318,6 +382,7 @@ if (require.main === module) {
       await pool.query(MIGRATION_SQL); console.log('Migration done');
       await pool.query(COMPAT_SQL); console.log('Compat done');
       await pool.query(LOGS_TABLE_SQL); console.log('Logs table done');
+      await pool.query(WA_INTERAKT_TABLE_SQL); console.log('WA Interakt table done');
       if (process.argv[2] === 'seed') await seedUserRoles();
       process.exit(0);
     } catch(e) { console.error(e); process.exit(1); }

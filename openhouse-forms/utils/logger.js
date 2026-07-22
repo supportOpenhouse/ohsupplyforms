@@ -4,15 +4,30 @@ const DASHBOARD = 'Forms';
 
 function init(pool) { _pool = pool; }
 
+// Returns the new activity_logs.id (or null if logging failed / pool not ready),
+// so callers that need to reference the row — e.g. wa_interakt_id.log_id — can.
 async function log(uid, action, category, actorEmail, actorName, details = {}) {
-  if (!_pool) return;
+  if (!_pool) return null;
   try {
-    await _pool.query(
+    const { rows } = await _pool.query(
       `INSERT INTO activity_logs (uid, action, category, actor_email, actor_name, dashboard, details, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7, NOW() AT TIME ZONE 'Asia/Kolkata')`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7, NOW() AT TIME ZONE 'Asia/Kolkata') RETURNING id`,
       [uid || null, action, category, actorEmail || null, actorName || null, DASHBOARD, JSON.stringify(details)]
     );
-  } catch (e) { console.error('Logger error:', e.message); }
+    return rows.length ? rows[0].id : null;
+  } catch (e) { console.error('Logger error:', e.message); return null; }
+}
+
+// WhatsApp is logged BEFORE sending (so wa_interakt_id rows can carry log_id).
+// Once the batch finishes, fold the per-recipient outcomes back into the same row.
+async function updateWhatsAppResults(logId, results) {
+  if (!_pool || !logId) return;
+  try {
+    await _pool.query(
+      `UPDATE activity_logs SET details = details || $2::jsonb WHERE id = $1`,
+      [logId, JSON.stringify({ recipients: results || [] })]
+    );
+  } catch (e) { console.error('Logger error (wa results):', e.message); }
 }
 
 // ── Form Submissions — action = form name ──
@@ -62,4 +77,4 @@ function logUserChange(action, targetUser, changes, actorEmail, actorName) {
   });
 }
 
-module.exports = { init, log, logFormSubmit, logEmailSent, logWhatsApp, logStatusChange, logAssignment, logScheduleChange, logAdminEdit, logUserChange };
+module.exports = { init, log, logFormSubmit, logEmailSent, logWhatsApp, updateWhatsAppResults, logStatusChange, logAssignment, logScheduleChange, logAdminEdit, logUserChange };

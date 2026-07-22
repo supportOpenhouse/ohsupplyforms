@@ -20,7 +20,7 @@ const PgSession = require('connect-pg-simple')(session);
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const pool = require('./db/pool');
-const { MIGRATION_SQL, COMPAT_SQL, LOGS_TABLE_SQL } = require('./db/migrate');
+const { MIGRATION_SQL, COMPAT_SQL, LOGS_TABLE_SQL, WA_INTERAKT_TABLE_SQL } = require('./db/migrate');
 const { SOCIETIES } = require('./db/seed');
 const { isAuthenticated, hasFormAccess, isAdmin, hasAdminPanelAccess } = require('./middleware/auth');
 const { visibilityFilter } = require('./utils/visibility');
@@ -265,6 +265,7 @@ async function start() {
     await pool.query(MIGRATION_SQL); console.log('Migration done');
     await pool.query(COMPAT_SQL); console.log('Compat done, DB ready');
     await pool.query(LOGS_TABLE_SQL); console.log('Logs table ready');
+    await pool.query(WA_INTERAKT_TABLE_SQL); console.log('WA Interakt table ready');
     require('./utils/whatsapp').init(pool);
     require('./utils/email-sender').init(pool);
     require('./utils/logger').init(pool);
