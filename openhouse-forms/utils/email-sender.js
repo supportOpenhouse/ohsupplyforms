@@ -158,7 +158,30 @@ function generateMsgId() {
 }
 
 // Build RFC 2822 MIME email with PDF attachment
+// Gmail rejects the whole send with "Invalid To header" if any address is malformed.
+// A single DB field can hold two addresses typed with a space/semicolon between them
+// ("a@x.com b@y.com"), which join(', ') would pass straight through. Split on every
+// plausible separator, drop anything that isn't an address, and de-dupe.
+function normalizeAddrList(str) {
+  if (!str) return '';
+  const seen = new Set();
+  const out = [];
+  for (const raw of String(str).split(/[,;\s]+/)) {
+    const a = raw.trim().replace(/^<|>$/g, '');
+    if (!a) continue;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a)) { console.warn(`Email: dropping invalid address "${a}"`); continue; }
+    const key = a.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(a);
+  }
+  return out.join(', ');
+}
+
 function buildMimeEmail({ from, to, cc, subject, bodyHtml, pdfBuffer, pdfFilename, references }) {
+  to = normalizeAddrList(to);
+  cc = normalizeAddrList(cc);
+  if (!to) throw new Error('No valid recipient address after normalising the To list');
   const boundary = 'boundary_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2);
   const pdfBase64 = chunkBase64(Buffer.from(pdfBuffer).toString('base64'));
   const msgId = generateMsgId();
@@ -595,4 +618,4 @@ async function sendKeyHandoverEmail({ accessToken, refreshToken, fromEmail, send
 }
 
 // Send offer email to property owner with PDF attachment
-module.exports = { init, sendTokenRequestEmail, sendDealTermsEmail, sendCPBillEmail, sendPendingAmountEmail, sendKeyHandoverEmail, htmlToPdf }; 
+module.exports = { init, sendTokenRequestEmail, sendDealTermsEmail, sendCPBillEmail, sendPendingAmountEmail, sendKeyHandoverEmail, htmlToPdf, normalizeAddrList }; 
