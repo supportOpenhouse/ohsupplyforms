@@ -34,7 +34,7 @@
         <div class="fg"><label>Floor <span class="req">*</span></label><select name="v_floor" id="selFloor" required></select><div class="err-msg">Required</div></div>
       </div>
       <div class="r3"><div class="fg"><label>Area (in sqft) <span class="req">*</span></label><input type="number" name="area_sqft_edit" id="v_area" step="0.01" required><div class="err-msg">Required</div></div>
-        <div class="fg"><label>Configuration</label><input type="text" id="v_cfg" class="pre" readonly></div>
+        <div class="fg"><label>Configuration</label><select name="configuration" id="v_cfg"></select></div>
         <div class="fg"><label>Ask (In Lakhs)</label><input type="number" name="demand_price" id="v_ask" step="0.01"></div></div>
     </div>
     <div id="startWrap"><button type="button" class="btn btn-dark" id="startBtn" style="width:100%">Start Audit Form</button></div>
@@ -93,6 +93,8 @@
 let S,opts,exitC,parkImg,balUploads={};const pages=['p1','p2','p3','p4'];
 // JSONB columns come back from node-pg already parsed (array), but older/text rows may be strings — handle both.
 const asArr=v=>{try{return Array.isArray(v)?v:(v?JSON.parse(v):[])}catch(e){return[]}};
+// Prefilled config may not match the option list exactly (e.g. "3BHK" vs "3 BHK") — keep it as an option so it isn't lost.
+function setCfg(v){const sel=document.getElementById('v_cfg');if(v&&![...sel.options].some(o=>o.value===v))sel.add(new Option(v,v));sel.value=v}
 // Parking Photo is mandatory unless "No Parking" is selected — hide+skip it in that case.
 function toggleParkImg(){document.getElementById('parkImgWrap').style.display=document.getElementById('selPark').value==='No Parking'?'none':'block'}
 function goStep(n){if(n<S.current){S.show(n);return}for(let i=S.current;i<n;i++){if(!validateStep(i)){return}}S.show(n)}
@@ -123,6 +125,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     fillPills(document.getElementById('furnP'),'furnishing_details',opts.furnishingDetails.filter(x=>x!=='No Items'));
     fillNumSelect(document.getElementById('selLift'),1,10,'Select');fillNumSelect(document.getElementById('selTFloor'),1,50,'Select');fillNumSelect(document.getElementById('selFlat'),1,15,'Select');
     fillFloorSelect(document.getElementById('selFloor'),'Select');
+    fillSelect(document.getElementById('v_cfg'),opts.configurations,'Select');
     fillSelect(document.getElementById('selExit'),opts.directions,'Select');
     exitC=initSingleUpload('exitCBtn','exitCPrev','exitCUrl');
     document.getElementById('selFurn').addEventListener('change',e=>{document.getElementById('furnWrap').style.display=e.target.value==='Unfurnished'?'none':'block'});
@@ -173,7 +176,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     document.getElementById('v_ab').value=d.assigned_by||'';document.getElementById('v_at').value=d.field_exec||'';
     document.getElementById('v_unit').value=d.unit_no||'';document.getElementById('v_tower').value=d.tower_no||'';
     document.getElementById('selFloor').value=d.floor??'';document.getElementById('v_area').value=d.area_sqft??'';
-    document.getElementById('v_cfg').value=d.configuration||'';document.getElementById('v_ask').value=d.demand_price||'';
+    setCfg(d.configuration||'');document.getElementById('v_ask').value=d.demand_price||'';
     const sv=(n,v)=>{const el=document.querySelector(`[name="${n}"]`);if(el&&v!=null)el.value=v};
     const sr=(n,v)=>{if(!v)return;const rb=document.querySelector(`input[name="${n}"][value="${v}"]`);if(rb)rb.checked=true};
     sv('bathrooms',d.bathrooms);sv('balconies',d.balconies);
