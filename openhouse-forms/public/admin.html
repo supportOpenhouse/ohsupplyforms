@@ -593,6 +593,10 @@ function ef(l,name,val,type='text'){const v=val===null||val===undefined?'':val;
 function efSel(l,name,val,opts){const v=val==null?'':String(val);const list=v&&!opts.includes(v)?[...opts,v]:opts;const optHtml=list.map(o=>`<option value="${o}"${o===v?' selected':''}>${o}</option>`).join('');
   return`<div class="prev-item"><div class="pi-label">${l}</div><select name="${name}"><option value="">—</option>${optHtml}</select></div>`}
 function efArea(l,name,val){const v=val===null||val===undefined?'':val;return`<div class="prev-item full"><div class="pi-label">${l}</div><textarea name="${name}" rows="2">${String(v).replace(/</g,'&lt;')}</textarea></div>`}
+// Multi-select for JSONB-array columns (e.g. extra_area). saveModal() reads el.selectedOptions for these.
+function efMulti(l,name,vals,opts){const sel=new Set((vals||[]).map(String));const list=[...opts];sel.forEach(v=>{if(!list.includes(v))list.push(v)});
+  const optHtml=list.map(o=>`<option value="${String(o).replace(/"/g,'&quot;')}"${sel.has(String(o))?' selected':''}>${o}</option>`).join('');
+  return`<div class="prev-item"><div class="pi-label">${l} <span style="text-transform:none;color:var(--tx3)">(⌘/ctrl-click for multiple)</span></div><select name="${name}" multiple size="4" data-json="1">${optHtml}</select></div>`}
 function efRO(l,v){const isEmpty=v===null||v===undefined||v===''||v==='null';return`<div class="prev-item"><div class="pi-label">${l}</div><div class="pi-readonly" style="font-size:12px;color:${isEmpty?'#bbb':'var(--tx)'}">${isEmpty?'—':v}</div></div>`}
 function efLock(name,checked){return`<div class="prev-item"><div class="pi-label">Email</div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--tx)"><input type="checkbox" name="${name}" ${checked?'checked':''} style="width:auto;margin:0"> Email Sent Lock</label></div>`}
 
@@ -627,7 +631,7 @@ function buildModal(p){
   </div></div>`;
 
   html+=`<div class="prev-section"><div class="prev-section-t">Visit (Form 2)</div><div class="prev-grid">
-    ${efRO('Extra Area',extras.length?extras.join(', '):'—')}${ef('Bathrooms','bathrooms',p.bathrooms,'number')}${ef('Balconies','balconies',p.balconies,'number')}
+    ${efMulti('Extra Area','extra_area',parseJ(p.extra_area),FORM_OPTS.extraAreas||[])}${ef('Bathrooms','bathrooms',p.bathrooms,'number')}${ef('Balconies','balconies',p.balconies,'number')}
     ${efSel('Gas Pipeline','gas_pipeline',p.gas_pipeline,FORM_OPTS.yesNo)}${efSel('Parking','parking',p.parking,FORM_OPTS.parkingOptions)}${efSel('Furnishing','furnishing',p.furnishing,FORM_OPTS.furnishingLevels)}
     ${efRO('Furnishing Items',furnItems.length?furnItems.join(', '):'—')}
     ${ef('Total Lifts','total_lifts',p.total_lifts,'number')}${ef('Floors in Tower','total_floors_tower',p.total_floors_tower,'number')}${ef('Flats/Floor','total_flats_floor',p.total_flats_floor,'number')}
@@ -718,6 +722,7 @@ async function saveModal(){
     const body={};
     document.querySelectorAll('#modalBody input[name],#modalBody select[name],#modalBody textarea[name]').forEach(el=>{
       if(el.type==='checkbox')body[el.name]=el.checked;
+      else if(el.multiple)body[el.name]=JSON.stringify([...el.selectedOptions].map(o=>o.value)); // JSONB array column
       else body[el.name]=el.value;
     });
     const r=await fetch(`${API}/api/admin/property/${currentModalUid}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
