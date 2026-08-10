@@ -593,10 +593,29 @@ function ef(l,name,val,type='text'){const v=val===null||val===undefined?'':val;
 function efSel(l,name,val,opts){const v=val==null?'':String(val);const list=v&&!opts.includes(v)?[...opts,v]:opts;const optHtml=list.map(o=>`<option value="${o}"${o===v?' selected':''}>${o}</option>`).join('');
   return`<div class="prev-item"><div class="pi-label">${l}</div><select name="${name}"><option value="">—</option>${optHtml}</select></div>`}
 function efArea(l,name,val){const v=val===null||val===undefined?'':val;return`<div class="prev-item full"><div class="pi-label">${l}</div><textarea name="${name}" rows="2">${String(v).replace(/</g,'&lt;')}</textarea></div>`}
-// Multi-select for JSONB-array columns (e.g. extra_area). saveModal() reads el.selectedOptions for these.
-function efMulti(l,name,vals,opts){const sel=new Set((vals||[]).map(String));const list=[...opts];sel.forEach(v=>{if(!list.includes(v))list.push(v)});
-  const optHtml=list.map(o=>`<option value="${String(o).replace(/"/g,'&quot;')}"${sel.has(String(o))?' selected':''}>${o}</option>`).join('');
-  return`<div class="prev-item"><div class="pi-label">${l} <span style="text-transform:none;color:var(--tx3)">(⌘/ctrl-click for multiple)</span></div><select name="${name}" multiple size="4" data-json="1">${optHtml}</select></div>`}
+// Click-to-open tick dropdown for JSONB-array columns (e.g. extra_area). A hidden input holds
+// the JSON array so saveModal() picks it up like any other named field — no special-casing.
+function efMulti(l,name,vals,opts){
+  const sel=new Set((vals||[]).map(v=>String(v).trim()).filter(Boolean));
+  const list=[...opts];sel.forEach(v=>{if(!list.includes(v))list.push(v)});
+  const rows=list.map(o=>{const c=sel.has(String(o).trim());
+    return`<label class="msel-opt${c?' checked':''}"><input type="checkbox" value="${String(o).replace(/"/g,'&quot;')}" ${c?'checked':''} onchange="msddToggle(this)"><span>${o}</span></label>`}).join('');
+  const summary=sel.size?[...sel].join(', '):'Select...';
+  return`<div class="prev-item"><div class="pi-label">${l}</div>
+    <div class="msdd" style="position:relative">
+      <div class="msdd-trig" onclick="msddOpen(this)" style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:5px 8px;border:1px solid var(--bd);border-radius:4px;background:var(--sf);cursor:pointer;font-size:12px">
+        <span class="msdd-sum" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${sel.size?'var(--tx)':'#bbb'}">${summary}</span><span style="color:var(--tx3);flex-shrink:0">▾</span>
+      </div>
+      <div class="msel msdd-panel" style="display:none;position:absolute;left:0;right:0;z-index:30;margin-top:2px;box-shadow:0 6px 18px rgba(0,0,0,.12)"><div class="msel-opts">${rows}</div></div>
+      <input type="hidden" name="${name}" value="${JSON.stringify([...sel]).replace(/"/g,'&quot;')}">
+    </div></div>`}
+function msddOpen(trig){const p=trig.parentElement.querySelector('.msdd-panel');const isOpen=p.style.display!=='none';
+  document.querySelectorAll('.msdd-panel').forEach(x=>x.style.display='none');p.style.display=isOpen?'none':'block'}
+function msddToggle(cb){const dd=cb.closest('.msdd');cb.closest('.msel-opt').classList.toggle('checked',cb.checked);
+  const vals=[...dd.querySelectorAll('.msel-opt input[type=checkbox]:checked')].map(x=>x.value);
+  dd.querySelector('input[type=hidden]').value=JSON.stringify(vals);
+  const sum=dd.querySelector('.msdd-sum');sum.textContent=vals.length?vals.join(', '):'Select...';sum.style.color=vals.length?'var(--tx)':'#bbb'}
+document.addEventListener('click',e=>{if(!e.target.closest('.msdd'))document.querySelectorAll('.msdd-panel').forEach(x=>x.style.display='none')});
 function efRO(l,v){const isEmpty=v===null||v===undefined||v===''||v==='null';return`<div class="prev-item"><div class="pi-label">${l}</div><div class="pi-readonly" style="font-size:12px;color:${isEmpty?'#bbb':'var(--tx)'}">${isEmpty?'—':v}</div></div>`}
 function efLock(name,checked){return`<div class="prev-item"><div class="pi-label">Email</div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--tx)"><input type="checkbox" name="${name}" ${checked?'checked':''} style="width:auto;margin:0"> Email Sent Lock</label></div>`}
 
@@ -722,8 +741,7 @@ async function saveModal(){
     const body={};
     document.querySelectorAll('#modalBody input[name],#modalBody select[name],#modalBody textarea[name]').forEach(el=>{
       if(el.type==='checkbox')body[el.name]=el.checked;
-      else if(el.multiple)body[el.name]=JSON.stringify([...el.selectedOptions].map(o=>o.value)); // JSONB array column
-      else body[el.name]=el.value;
+      else body[el.name]=el.value; // extra_area's hidden input already holds a JSON array string
     });
     const r=await fetch(`${API}/api/admin/property/${currentModalUid}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();if(!r.ok)throw new Error(d.error);
