@@ -1,7 +1,7 @@
 // External integrations — push from other Openhouse apps
 const express = require('express'), router = express.Router();
 const logger = require('../utils/logger');
-const { notifyVisitScheduled, notifyVisitCancelled } = require('../utils/whatsapp');
+const { notifyVisitScheduled, notifyVisitCancelled, notifyVisitReassigned } = require('../utils/whatsapp');
 const { syncVisitCalendar } = require('../utils/calendar');
 const { initHistory, setCancelled, addReschedule, dateStr } = require('../utils/visit-history');
 
@@ -257,27 +257,46 @@ module.exports = function (pool) {
       if (prop.is_dead)            return res.status(400).json({ error: 'visit is cancelled, cannot reschedule' });
       if (prop.visit_submitted_at) return res.status(400).json({ error: 'visit already completed, cannot reschedule' });
 
+      // Optional field-exec change. When sent, it must be an active user (same rule as /schedule).
+      const newExec = d.field_exec ? String(d.field_exec).trim() : '';
+      if (newExec) {
+        const { rows: u } = await pool.query(
+          'SELECT 1 FROM users WHERE LOWER(name) = LOWER($1) AND is_active = TRUE LIMIT 1', [newExec]
+        );
+        if (!u.length) return res.status(400).json({ error: `field_exec '${newExec}' is not an active user in Forms app` });
+      }
+      const execChanged = newExec && newExec.toLowerCase() !== String(prop.field_exec || '').toLowerCase();
+      const finalExec = newExec || prop.field_exec;
+
       // Record the old date in the history only when the date actually changes (matches in-app behaviour)
       const dateChanged = dateStr(prop.schedule_date) !== dateStr(newDate);
       const newHist = dateChanged ? JSON.stringify(addReschedule(prop.visit_date_history, prop.schedule_date, newDate)) : null;
       await pool.query(
-        'UPDATE properties SET schedule_date = $1, schedule_time = $2, visit_date_history = COALESCE($4, visit_date_history), updated_at = NOW() WHERE uid = $3',
-        [newDate, newTime, prop.uid, newHist]
+        'UPDATE properties SET schedule_date = $1, schedule_time = $2, field_exec = $5, visit_date_history = COALESCE($4, visit_date_history), updated_at = NOW() WHERE uid = $3',
+        [newDate, newTime, prop.uid, newHist, finalExec]
       );
-      res.json({ success: true, uid: prop.uid, schedule_date: newDate, schedule_time: newTime });
+      res.json({ success: true, uid: prop.uid, schedule_date: newDate, schedule_time: newTime, field_exec: finalExec });
 
       const actorEmail    = d.actor_email || null;
       const actorName     = d.actor_name  || 'External API';
       const rescheduledFrom = d.rescheduled_from || d.source_app || 'External';
 
       logger.logScheduleChange(prop.uid, 'visit_rescheduled_via_external',
-        { old_date: prop.schedule_date, new_date: newDate, old_time: prop.schedule_time, new_time: newTime, rescheduled_from: rescheduledFrom },
+        { old_date: prop.schedule_date, new_date: newDate, old_time: prop.schedule_time, new_time: newTime,
+          old_field_exec: prop.field_exec, new_field_exec: finalExec, rescheduled_from: rescheduledFrom },
         actorEmail, actorName).catch(() => {});
-      // Update the Google Calendar event time (uses the stored creator's token)
+      if (execChanged) {
+        logger.logAssignment(prop.uid, 'visit_reassigned_via_external', prop.field_exec, finalExec, actorEmail, actorName, rescheduledFrom).catch(() => {});
+      }
+      // Update the Google Calendar event (time + attendees, since the exec may have changed)
       syncVisitCalendar(pool, { uid: prop.uid, action: 'update' }).catch(e => console.error('External cal reschedule sync error:', e));
-      // Re-notify the assignee of the new date/time (same as an in-app reschedule)
-      notifyVisitScheduled({ ...prop, schedule_date: newDate, schedule_time: newTime },
-        { email: actorEmail, name: actorName }).catch(e => console.error('External WA reschedule notify error:', e));
+      // Notify the (possibly new) assignee. Reassign template when the exec changed, else the schedule one.
+      const notifyProp = { ...prop, schedule_date: newDate, schedule_time: newTime, field_exec: finalExec };
+      if (execChanged) {
+        notifyVisitReassigned(notifyProp, finalExec, { email: actorEmail, name: actorName }).catch(e => console.error('External WA reassign notify error:', e));
+      } else {
+        notifyVisitScheduled(notifyProp, { email: actorEmail, name: actorName }).catch(e => console.error('External WA reschedule notify error:', e));
+      }
     } catch (e) {
       console.error('External /reschedule error:', e);
       res.status(500).json({ error: e.message });
