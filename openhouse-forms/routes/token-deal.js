@@ -46,8 +46,9 @@ module.exports=function(pool){
   });
   router.post('/submit',async(req,res)=>{
     try{
-      const d=req.body;const{rows}=await pool.query('SELECT uid FROM properties WHERE uid=$1',[d.uid]);
+      const d=req.body;const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
+      const oldRow=rows[0];const wasSubmitted=!!oldRow.token_deal_submitted_at;
       if(d.deal_token_amount==null||d.deal_token_amount==='')return res.status(400).json({error:'Token amount required'});
       await pool.query(`UPDATE properties SET deal_token_amount=$1,
         deal_bank_name=$2,deal_bank_account_number=$3,deal_ifsc_code=$4,deal_transfer_date=$5,deal_neft_reference=$6,
@@ -57,7 +58,8 @@ module.exports=function(pool){
          d.deal_bank_name||null,d.deal_bank_account_number||null,d.deal_ifsc_code||null,d.deal_transfer_date||null,(d.deal_neft_reference||'').toUpperCase()||null,
          d.uid,d.owner_email||null,d.co_owner_email||null,d.third_owner_email||null,d.broker_email||null]);
       res.json({success:true,uid:d.uid});
-      logger.logFormSubmit(d.uid,'deal_terms_submitted',4,req.user?.email,req.user?.name).catch(()=>{});
+      pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows:nu})=>
+        logger.logFormSubmit(d.uid,'deal_terms_submitted',4,req.user?.email,req.user?.name,{wasSubmitted,oldRow,newRow:nu[0]})).catch(()=>{});
     }catch(e){console.error('TokenDeal:',e);res.status(500).json({error:e.message})}
   });
   router.get('/pdf/:uid',async(req,res)=>{

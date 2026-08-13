@@ -20,9 +20,9 @@ module.exports=function(pool){
   });
   router.post('/submit',async(req,res)=>{
     try{
-      const d=req.body;const{rows}=await pool.query('SELECT uid,occupancy_status,owner_will_vacate,ama_date FROM properties WHERE uid=$1',[d.uid]);
+      const d=req.body;const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
-      const r=rows[0];
+      const r=rows[0];const oldRow=r;const wasSubmitted=!!r.final_submitted_at;
       // Owner staying & not vacating → actual key handover date = Date of AMA (server is authoritative).
       const ownerNo=r.occupancy_status==='Owner Staying'&&r.owner_will_vacate==='No';
       let khd;
@@ -39,7 +39,8 @@ module.exports=function(pool){
         WHERE uid=$2`,
         [parseFloat(d.remaining_amount)||null,d.uid,khd]);
       res.json({success:true,uid:d.uid});
-      logger.logFormSubmit(d.uid,'key_handover_submitted',9,req.user?.email,req.user?.name).catch(()=>{});
+      pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows:nu})=>
+        logger.logFormSubmit(d.uid,'key_handover_submitted',9,req.user?.email,req.user?.name,{wasSubmitted,oldRow,newRow:nu[0]})).catch(()=>{});
     }catch(e){console.error('Final:',e);res.status(500).json({error:e.message})}
   });
   router.get('/pdf/:uid',async(req,res)=>{

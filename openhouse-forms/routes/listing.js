@@ -98,8 +98,9 @@ module.exports=function(pool){
   });
   router.post('/submit',async(req,res)=>{
     try{
-      const d=req.body;const{rows}=await pool.query('SELECT uid FROM properties WHERE uid=$1',[d.uid]);
+      const d=req.body;const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
+      const oldRow=rows[0];const wasSubmitted=!!oldRow.listing_submitted_at;
       await pool.query(`UPDATE properties SET
         maintenance_charges=$1,society_move_in_charges=$2,
         electricity_charges=$3,dg_charges=$4,
@@ -113,7 +114,8 @@ module.exports=function(pool){
          d.gas_pipeline||null,d.club_facility||null,
          d.seller_residential_status||null,d.sellers_available_on_registry||null,d.uid]);
       res.json({success:true,uid:d.uid});
-      logger.logFormSubmit(d.uid,'listing_submitted',9,req.user?.email,req.user?.name).catch(()=>{});
+      pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows:nu})=>
+        logger.logFormSubmit(d.uid,'listing_submitted',9,req.user?.email,req.user?.name,{wasSubmitted,oldRow,newRow:nu[0]})).catch(()=>{});
     }catch(e){console.error('Listing:',e);res.status(500).json({error:e.message})}
   });
   

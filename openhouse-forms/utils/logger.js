@@ -30,8 +30,37 @@ async function updateWhatsAppResults(logId, results) {
   } catch (e) { console.error('Logger error (wa results):', e.message); }
 }
 
+// Field-level diff of two DB rows (both come from pg, so types already match).
+// Ignores bookkeeping columns that change on every write.
+function diffRows(oldRow, newRow) {
+  const changes = {};
+  if (!oldRow || !newRow) return changes;
+  const skip = k => k === 'created_at' || k === 'updated_at' || /_submitted_at$/.test(k);
+  const norm = v => v == null ? null : (v instanceof Date ? v.toISOString() : (typeof v === 'object' ? JSON.stringify(v) : v));
+  for (const k of new Set([...Object.keys(oldRow), ...Object.keys(newRow)])) {
+    if (skip(k)) continue;
+    const o = oldRow[k], n = newRow[k];
+    const no = norm(o), nn = norm(n);
+    if (no === nn) continue;
+    if (no != null && nn != null && no !== '' && nn !== '' && !isNaN(no) && !isNaN(nn) && Number(no) === Number(nn)) continue; // numeric-equal (REAL vs text)
+    changes[k] = { old: o ?? null, new: n ?? null };
+  }
+  return changes;
+}
+
 // ── Form Submissions — action = form name ──
-function logFormSubmit(uid, action, formNumber, actorEmail, actorName, isDraft = false) {
+// The 6th arg is either a legacy boolean (isDraft) or an options object:
+//   { isDraft, wasSubmitted, oldRow, newRow }
+// When wasSubmitted is true, logs "<form>_resubmitted" with a field-level {old,new} diff.
+function logFormSubmit(uid, action, formNumber, actorEmail, actorName, opts = false) {
+  const o = (opts && typeof opts === 'object') ? opts : { isDraft: !!opts };
+  const isDraft = !!o.isDraft;
+  if (o.wasSubmitted) {
+    const changes = diffRows(o.oldRow, o.newRow);
+    const reAction = action.replace(/_submitted$/, '_resubmitted');
+    return log(uid, reAction, 'form', actorEmail, actorName,
+      { form_number: formNumber, is_draft: isDraft, resubmitted: true, changed_fields: Object.keys(changes), changes });
+  }
   return log(uid, action, 'form', actorEmail, actorName, { form_number: formNumber, is_draft: isDraft });
 }
 

@@ -22,8 +22,9 @@ module.exports=function(pool){
 
   router.post('/submit',async(req,res)=>{
     try{
-      const d=req.body;const{rows}=await pool.query('SELECT uid,occupancy_status FROM properties WHERE uid=$1',[d.uid]);
+      const d=req.body;const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
+      const oldRow=rows[0];const wasSubmitted=!!oldRow.pending_request_submitted_at;
       // Owner staying & not vacating ("do nothing"): no tentative date — clear it so a stale value can't linger.
       const ownerNo=rows[0].occupancy_status==='Owner Staying'&&d.owner_will_vacate==='No';
       await pool.query(`UPDATE properties SET ama_date=$1,signed_ama_url=COALESCE($3,signed_ama_url),
@@ -36,7 +37,8 @@ module.exports=function(pool){
          d.co_owner_aadhaar_front_url||null,d.co_owner_aadhaar_back_url||null,
          d.co_owner_pan_url||null,d.co_owner_cheque_url||null,ownerNo?null:(d.key_handover_date||null),d.owner_will_vacate||null]);
       res.json({success:true,uid:d.uid});
-      logger.logFormSubmit(d.uid,'pending_request_submitted',6,req.user?.email,req.user?.name).catch(()=>{});
+      pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows:nu})=>
+        logger.logFormSubmit(d.uid,'pending_request_submitted',6,req.user?.email,req.user?.name,{wasSubmitted,oldRow,newRow:nu[0]})).catch(()=>{});
     }catch(e){console.error('PendingRequest:',e);res.status(500).json({error:e.message})}
   });
 

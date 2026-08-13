@@ -16,8 +16,9 @@ module.exports=function(pool){
   });
   router.post('/submit',async(req,res)=>{
     try{
-      const d=req.body;const{rows}=await pool.query('SELECT uid FROM properties WHERE uid=$1',[d.uid]);
+      const d=req.body;const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
+      const oldRow=rows[0];const wasSubmitted=!!oldRow.ama_submitted_at;
       await pool.query(`UPDATE properties SET
         ama_prop_docs=$1,
         docs_verification_mode=$2,
@@ -45,8 +46,8 @@ module.exports=function(pool){
          d.ama_soa_url||null,
          d.ama_lod_url||null]);
       res.json({success:true,uid:d.uid});
-      logger.logFormSubmit(d.uid,'ama_details_submitted',5,req.user?.email,req.user?.name).catch(()=>{});
       pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows})=>{
+        logger.logFormSubmit(d.uid,'ama_details_submitted',5,req.user?.email,req.user?.name,{wasSubmitted,oldRow,newRow:rows[0]}).catch(()=>{});
         if(rows[0])notifyAMASubmitted(rows[0],null,{email:req.user?.email,name:req.user?.name}).catch(e=>console.error('WA AMA notify error:',e));
       }).catch(e=>console.error('WA AMA fetch error:',e));
     }catch(e){console.error('AMA:',e);res.status(500).json({error:e.message})}

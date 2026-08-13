@@ -15,6 +15,8 @@ module.exports=function(pool){
   router.post('/submit',async(req,res)=>{
     try{
       const d=req.body;if(!d.uid)return res.status(400).json({error:'UID required'});
+      const{rows:oldRows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]);
+      const oldRow=oldRows[0]||null;const wasSubmitted=!!(oldRow&&oldRow.visit_submitted_at);
       await pool.query(`UPDATE properties SET
         source=$1,demand_price=$2,owner_broker_name=$3,first_name=$4,last_name=$5,contact_no=$6,
         city=$7,locality=$8,society_name=$9,unit_no=$10,tower_no=$11,floor=$12,configuration=$13,area_sqft=$14,
@@ -33,8 +35,8 @@ module.exports=function(pool){
          d.exit_facing||null,d.exit_compass_image||null,d.video_link||null,
          d.balcony_details||'[]',d.additional_images||'[]',d.visit_remarks||null,d.parking_image||null,d.uid]);
       res.json({success:true,uid:d.uid});
-      logger.logFormSubmit(d.uid,'visit_submitted',2,req.user?.email,req.user?.name).catch(()=>{});
       pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows})=>{
+        logger.logFormSubmit(d.uid,'visit_submitted',2,req.user?.email,req.user?.name,{wasSubmitted,oldRow,newRow:rows[0]}).catch(()=>{});
         if(rows[0])notifyVisitCompleted(rows[0],{email:req.user?.email,name:req.user?.name}).catch(e=>console.error('WA visit notify error:',e));
       }).catch(e=>console.error('WA visit fetch error:',e));
       // Mark the calendar event done

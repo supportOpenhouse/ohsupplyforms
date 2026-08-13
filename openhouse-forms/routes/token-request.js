@@ -19,8 +19,9 @@ module.exports=function(pool){
   router.post('/submit',async(req,res)=>{
     try{
       const d=req.body;const isDraft=d.is_draft===true||d.is_draft==='true';
-      const{rows}=await pool.query('SELECT uid FROM properties WHERE uid=$1',[d.uid]);
+      const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
+      const oldRow=rows[0];const wasSubmitted=!!oldRow.token_submitted_at;
       await pool.query(`UPDATE properties SET
         unit_no=$22,tower_no=$23,floor=$24,area_sqft=$25,demand_price=$26,
         token_requested_by=$1,deal_token_amount=$2,
@@ -62,7 +63,8 @@ module.exports=function(pool){
          d.brokerage_ama_signed||null,d.brokerage_ama_signed_amount||null,d.brokerage_registry||null,d.brokerage_registry_amount||null,
          d.to_be_released_now||null,d.incentive_visit||null,d.incentive_owner_meeting||null,d.total_cp_amount||null,d.additional_brokerage||null]);
       res.json({success:true,uid:d.uid,draft:isDraft});
-      logger.logFormSubmit(d.uid,'token_request_submitted',3,req.user?.email,req.user?.name,isDraft).catch(()=>{});
+      pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows:nu})=>
+        logger.logFormSubmit(d.uid,'token_request_submitted',3,req.user?.email,req.user?.name,{isDraft,wasSubmitted,oldRow,newRow:nu[0]})).catch(()=>{});
     }catch(e){console.error('TokenReq:',e);res.status(500).json({error:e.message})}
   });
   // Update owner name (CP → Owner correction)

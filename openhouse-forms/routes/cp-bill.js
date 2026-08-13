@@ -53,8 +53,9 @@ module.exports=function(pool){
   });
   router.post('/submit',async(req,res)=>{
     try{
-      const d=req.body;const{rows}=await pool.query('SELECT uid FROM properties WHERE uid=$1',[d.uid]);
+      const d=req.body;const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
+      const oldRow=rows[0];const wasSubmitted=!!oldRow.cp_bill_submitted_at;
 
       // Upsert CP master record
       let cpCode=d.cp_code||null;
@@ -111,7 +112,8 @@ module.exports=function(pool){
          d.brokerage_ama_signed||null,d.brokerage_ama_signed_amount||null,d.brokerage_registry||null,d.brokerage_registry_amount||null,
          d.additional_brokerage||null]);
       res.json({success:true,uid:d.uid,cp_code:cpCode});
-      logger.logFormSubmit(d.uid,'cp_bill_submitted',8,req.user?.email,req.user?.name).catch(()=>{});
+      pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows:nu})=>
+        logger.logFormSubmit(d.uid,'cp_bill_submitted',8,req.user?.email,req.user?.name,{wasSubmitted,oldRow,newRow:nu[0]})).catch(()=>{});
     }catch(e){console.error('CPBill:',e);res.status(500).json({error:e.message})}
   });
   router.post('/send-email/:uid',async(req,res)=>{
