@@ -3,7 +3,7 @@ const express = require('express'), router = express.Router();
 const logger = require('../utils/logger');
 const { notifyVisitScheduled, notifyVisitCancelled } = require('../utils/whatsapp');
 const { syncVisitCalendar } = require('../utils/calendar');
-const { initHistory, setCancelled } = require('../utils/visit-history');
+const { initHistory, setCancelled, addReschedule, dateStr } = require('../utils/visit-history');
 
 const CITY_MAP = { 'Gurgaon': 'G', 'Noida': 'N', 'Ghaziabad': 'GH' };
 const SRC_MAP = { 'CP': 'C', 'Direct': 'D', 'CP Listing': 'C' };
@@ -212,20 +212,74 @@ module.exports = function (pool) {
       );
       res.json({ success: true, uid: prop.uid, already_cancelled: false });
 
-      const actorEmail = d.actor_email || null;
-      const actorName  = d.actor_name  || 'Direct Inventory App';
-      const reason     = d.reason || '';
+      const actorEmail   = d.actor_email || null;
+      const actorName    = d.actor_name  || 'External API';
+      // "Cancelled from" is whatever the calling app sends — never hardcoded.
+      const cancelledFrom = d.cancelled_from || d.source_app || 'External';
+      const reason       = d.reason || '';
 
       logger.logStatusChange(prop.uid, 'visit_cancelled_via_external', false, true, actorEmail, actorName).catch(() => {});
-      if (reason) {
-        // Reason isn't part of logStatusChange's shape; record it as a separate entry.
-        logger.log(prop.uid, 'visit_cancel_reason', 'note', actorEmail, actorName, { reason, source_app: 'Direct Inventory' }).catch(() => {});
-      }
+      // Always record where the cancel came from (+ optional reason), so it shows in the activity log.
+      logger.log(prop.uid, 'visit_cancel_reason', 'note', actorEmail, actorName,
+        { cancelled_from: cancelledFrom, reason: reason || null }).catch(() => {});
       notifyVisitCancelled(prop, actorName, { email: actorEmail, name: actorName }).catch(e => console.error('External WA cancel notify error:', e));
       // Remove the calendar event (uses the stored creator's token)
       syncVisitCalendar(pool, { uid: prop.uid, action: 'delete' }).catch(e => console.error('External cal cancel sync error:', e));
     } catch (e) {
       console.error('External /cancel error:', e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // POST /api/external/reschedule — change a scheduled visit's date/time from another app.
+  // Mirrors the in-app /api/visits/reschedule/:uid: records the old date in visit history,
+  // updates the calendar event, and logs who/where the change came from.
+  router.post('/reschedule', authCheck, async (req, res) => {
+    try {
+      const d = req.body || {};
+      const leadId  = d.lead_id ? String(d.lead_id) : '';
+      const newDate = d.schedule_date || '';
+      const newTime = d.schedule_time || '';
+      if (!leadId)  return res.status(400).json({ error: 'lead_id required' });
+      if (!newDate) return res.status(400).json({ error: 'schedule_date required' });
+      if (!newTime) return res.status(400).json({ error: 'schedule_time required' });
+      const [sh, sm] = String(newTime).split(':').map(Number);
+      if (isNaN(sh) || isNaN(sm)) return res.status(400).json({ error: 'schedule_time must be in HH:MM format' });
+      const today = new Date().toISOString().split('T')[0];
+      if (newDate < today) return res.status(400).json({ error: 'schedule_date cannot be in the past' });
+
+      const { rows } = await pool.query(
+        'SELECT * FROM properties WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 1',
+        [leadId]
+      );
+      if (!rows.length) return res.status(404).json({ error: `no visit found for lead_id ${leadId}` });
+      const prop = rows[0];
+      if (prop.is_dead)            return res.status(400).json({ error: 'visit is cancelled, cannot reschedule' });
+      if (prop.visit_submitted_at) return res.status(400).json({ error: 'visit already completed, cannot reschedule' });
+
+      // Record the old date in the history only when the date actually changes (matches in-app behaviour)
+      const dateChanged = dateStr(prop.schedule_date) !== dateStr(newDate);
+      const newHist = dateChanged ? JSON.stringify(addReschedule(prop.visit_date_history, prop.schedule_date, newDate)) : null;
+      await pool.query(
+        'UPDATE properties SET schedule_date = $1, schedule_time = $2, visit_date_history = COALESCE($4, visit_date_history), updated_at = NOW() WHERE uid = $3',
+        [newDate, newTime, prop.uid, newHist]
+      );
+      res.json({ success: true, uid: prop.uid, schedule_date: newDate, schedule_time: newTime });
+
+      const actorEmail    = d.actor_email || null;
+      const actorName     = d.actor_name  || 'External API';
+      const rescheduledFrom = d.rescheduled_from || d.source_app || 'External';
+
+      logger.logScheduleChange(prop.uid, 'visit_rescheduled_via_external',
+        { old_date: prop.schedule_date, new_date: newDate, old_time: prop.schedule_time, new_time: newTime, rescheduled_from: rescheduledFrom },
+        actorEmail, actorName).catch(() => {});
+      // Update the Google Calendar event time (uses the stored creator's token)
+      syncVisitCalendar(pool, { uid: prop.uid, action: 'update' }).catch(e => console.error('External cal reschedule sync error:', e));
+      // Re-notify the assignee of the new date/time (same as an in-app reschedule)
+      notifyVisitScheduled({ ...prop, schedule_date: newDate, schedule_time: newTime },
+        { email: actorEmail, name: actorName }).catch(e => console.error('External WA reschedule notify error:', e));
+    } catch (e) {
+      console.error('External /reschedule error:', e);
       res.status(500).json({ error: e.message });
     }
   });
