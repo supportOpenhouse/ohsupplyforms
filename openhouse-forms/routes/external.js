@@ -70,18 +70,23 @@ module.exports = function (pool) {
         return res.status(400).json({ error: `field_exec '${d.field_exec}' is not an active user in Forms app` });
       }
 
-      // 6. IDEMPOTENCY — check if this lead_id already has a schedule
-      const existing = await pool.query(
-        'SELECT uid FROM properties WHERE lead_id = $1 LIMIT 1',
+      // 6. Existing row for this lead_id?
+      //    - A LIVE schedule (not cancelled/refunded/replicated) → idempotent no-op.
+      //    - Only a CANCELLED (is_dead) row → revive it below instead of minting a new UID.
+      const { rows: liveRows } = await pool.query(
+        `SELECT uid FROM properties WHERE lead_id = $1
+           AND is_dead IS NOT TRUE AND is_token_refunded IS NOT TRUE AND replicated IS NOT TRUE
+         ORDER BY created_at DESC LIMIT 1`,
         [String(d.lead_id)]
       );
-      if (existing.rows.length) {
-        return res.json({
-          success: true,
-          uid: existing.rows[0].uid,
-          already_existed: true
-        });
+      if (liveRows.length) {
+        return res.json({ success: true, uid: liveRows[0].uid, already_existed: true });
       }
+      const { rows: deadRows } = await pool.query(
+        'SELECT uid FROM properties WHERE lead_id = $1 AND is_dead IS TRUE ORDER BY created_at DESC LIMIT 1',
+        [String(d.lead_id)]
+      );
+      const reviveUid = deadRows.length ? deadRows[0].uid : null;
 
       // 7. Slot conflict check — same as Form 1 (30-min window per visit)
       const [sh, sm] = String(d.schedule_time).split(':').map(Number);
@@ -125,46 +130,63 @@ module.exports = function (pool) {
         });
       }
 
-      // 8. Generate UID using same logic as schedule.js
-      const prefix = `OH${ci}${si}`;
-      const { rows: maxRows } = await pool.query(
-        `SELECT MAX(CAST(REPLACE(uid, $1, '') AS INTEGER)) AS max_num FROM properties WHERE uid LIKE $2`,
-        [prefix, prefix + '%']
-      );
-      const next = (maxRows[0].max_num || 1000) + 1;
-      const uid = prefix + String(next);
-
-      // 9. Build owner name
+      // 8. Build owner name
       const ownerName = [d.first_name, d.last_name].filter(Boolean).join(' ');
 
-      // 10. Insert property row
-      await pool.query(`INSERT INTO properties(
-          uid, schedule_date, schedule_time, lead_id, source,
-          first_name, last_name, owner_broker_name, contact_no,
-          area_sqft, demand_price, city, society_name, locality,
-          unit_no, tower_no, floor, configuration,
-          assigned_by, field_exec, visit_date_history, schedule_submitted_at
-        ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())`,
-        [uid, d.schedule_date, d.schedule_time, String(d.lead_id), d.source,
-         d.first_name, d.last_name || null, ownerName, phone,
-         parseFloat(d.area_sqft) || null, parseFloat(d.demand_price) || null,
-         d.city, d.society_name, d.locality,
-         d.unit_no || null, d.tower_no || null,
-         d.floor || null, d.configuration,
-         d.assigned_by, d.field_exec, JSON.stringify(initHistory(d.schedule_date))]
-      );
+      let uid;
+      if (reviveUid) {
+        // 9a. Revive the cancelled row: un-cancel + overwrite with this request's schedule data,
+        //     and reset the visit history so it reads as a fresh visit.
+        uid = reviveUid;
+        await pool.query(`UPDATE properties SET
+            is_dead = FALSE,
+            schedule_date=$2, schedule_time=$3, source=$4,
+            first_name=$5, last_name=$6, owner_broker_name=$7, contact_no=$8,
+            area_sqft=$9, demand_price=$10, city=$11, society_name=$12, locality=$13,
+            unit_no=$14, tower_no=$15, floor=$16, configuration=$17,
+            assigned_by=$18, field_exec=$19, visit_date_history=$20,
+            schedule_submitted_at=NOW(), updated_at=NOW()
+          WHERE uid=$1`,
+          [uid, d.schedule_date, d.schedule_time, d.source,
+           d.first_name, d.last_name || null, ownerName, phone,
+           parseFloat(d.area_sqft) || null, parseFloat(d.demand_price) || null,
+           d.city, d.society_name, d.locality,
+           d.unit_no || null, d.tower_no || null, d.floor || null, d.configuration,
+           d.assigned_by, d.field_exec, JSON.stringify(initHistory(d.schedule_date))]);
+      } else {
+        // 9b. Fresh property — generate UID (same logic as schedule.js) and insert.
+        const prefix = `OH${ci}${si}`;
+        const { rows: maxRows } = await pool.query(
+          `SELECT MAX(CAST(REPLACE(uid, $1, '') AS INTEGER)) AS max_num FROM properties WHERE uid LIKE $2`,
+          [prefix, prefix + '%']
+        );
+        uid = prefix + String((maxRows[0].max_num || 1000) + 1);
+        await pool.query(`INSERT INTO properties(
+            uid, schedule_date, schedule_time, lead_id, source,
+            first_name, last_name, owner_broker_name, contact_no,
+            area_sqft, demand_price, city, society_name, locality,
+            unit_no, tower_no, floor, configuration,
+            assigned_by, field_exec, visit_date_history, schedule_submitted_at
+          ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW())`,
+          [uid, d.schedule_date, d.schedule_time, String(d.lead_id), d.source,
+           d.first_name, d.last_name || null, ownerName, phone,
+           parseFloat(d.area_sqft) || null, parseFloat(d.demand_price) || null,
+           d.city, d.society_name, d.locality,
+           d.unit_no || null, d.tower_no || null, d.floor || null, d.configuration,
+           d.assigned_by, d.field_exec, JSON.stringify(initHistory(d.schedule_date))]);
+      }
 
       // 11. Respond immediately
-      res.json({ success: true, uid, already_existed: false });
+      res.json({ success: true, uid, already_existed: false, revived: !!reviveUid });
 
       // 12. Resolve actor for logs/WA — use provided actor_email if given, else null (don't fabricate)
       const actorEmail = d.actor_email || null;
       const actorName = d.actor_name || 'CP Listings App';
 
       // 13. Fire-and-forget logging
-      logger.log(uid, 'schedule_submitted_via_external', 'form',
+      logger.log(uid, reviveUid ? 'schedule_revived_via_external' : 'schedule_submitted_via_external', 'form',
         actorEmail, actorName,
-        { source_app: 'CP Listings', lead_id: String(d.lead_id), form: 'schedule', form_number: 1 }
+        { source_app: d.source_app || 'CP Listings', lead_id: String(d.lead_id), form: 'schedule', form_number: 1, revived: !!reviveUid }
       ).catch(() => {});
 
       // 14. Fire-and-forget WhatsApp notification (same as form submit)
