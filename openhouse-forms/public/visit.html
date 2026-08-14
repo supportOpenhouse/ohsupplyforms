@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     document.getElementById('selPark').addEventListener('change',toggleParkImg);toggleParkImg();
     fillSelect(document.getElementById('selFurn'),opts.furnishingLevels,'Select');
     fillPills(document.getElementById('furnP'),'furnishing_details',opts.furnishingDetails.filter(x=>x!=='No Items'));
-    fillNumSelect(document.getElementById('selLift'),1,10,'Select');fillNumSelect(document.getElementById('selTFloor'),1,50,'Select');fillNumSelect(document.getElementById('selFlat'),1,15,'Select');
+    fillNumSelect(document.getElementById('selLift'),0,10,'Select');fillNumSelect(document.getElementById('selTFloor'),1,50,'Select');fillNumSelect(document.getElementById('selFlat'),1,15,'Select');
     fillFloorSelect(document.getElementById('selFloor'),'Select');
     fillSelect(document.getElementById('v_cfg'),opts.configurations,'Select');
     fillSelect(document.getElementById('selExit'),opts.directions,'Select');
