@@ -319,10 +319,10 @@ tr.row-replicated td{color:#dc2626!important;opacity:.7}
           <button class="btn btn-out btn-sm" onclick="calToday()">Today</button>
         </div>
         <div class="cal-legend">
-          <span class="lg"><span class="dot" style="background:#16a34a"></span>Done</span>
-          <span class="lg"><span class="dot" style="background:#f59e0b"></span>Pending</span>
-          <span class="lg"><span class="dot" style="background:#dc2626"></span>Overdue</span>
-          <span class="lg"><span class="dot" style="background:#9ca3af"></span>Cancelled</span>
+          <span class="lg"><span class="dot" style="background:#16a34a"></span>Done <b id="calCntDone">0</b></span>
+          <span class="lg"><span class="dot" style="background:#f59e0b"></span>Pending <b id="calCntPending">0</b></span>
+          <span class="lg"><span class="dot" style="background:#dc2626"></span>Overdue <b id="calCntOverdue">0</b></span>
+          <span class="lg"><span class="dot" style="background:#9ca3af"></span>Cancelled <b id="calCntCancelled">0</b></span>
         </div>
         <div id="calGrid"></div>
       </div>
@@ -514,16 +514,21 @@ function calBackToMonth(){document.getElementById('calDayView').style.display='n
 function renderCalendar(){
   const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('calLabel').textContent=`${MN[calMonth]} ${calYear}`;
-  // group: date → field exec → visits
-  const byDate={};
+  // group: date → field exec → visits, and tally status counts for the shown month
+  const byDate={};const counts={done:0,pending:0,overdue:0,cancelled:0};
   allData.forEach(p=>{
     const ds=calDayKey(p);if(!ds)return;
     const[y,m]=ds.split('-').map(Number);
     if(y!==calYear||m-1!==calMonth)return;
+    counts[visitCalStatus(p)]++;
     const exec=p.field_exec||'Unassigned';
     const d=byDate[ds]=byDate[ds]||{};
     (d[exec]=d[exec]||[]).push(p);
   });
+  document.getElementById('calCntDone').textContent=counts.done;
+  document.getElementById('calCntPending').textContent=counts.pending;
+  document.getElementById('calCntOverdue').textContent=counts.overdue;
+  document.getElementById('calCntCancelled').textContent=counts.cancelled;
   const startDow=new Date(calYear,calMonth,1).getDay();
   const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
   const t=new Date();const todayStr=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
