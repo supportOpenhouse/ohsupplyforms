@@ -190,12 +190,8 @@ async function loadData(){
     if(hasCoOwner){
       document.getElementById('owner2Wrap').style.display='block';
       document.getElementById('owner2Label').textContent=(propData.co_owner||'Co-owner')+' Amount (₹)';
-      // Split the REMAINING (not the total deposit) so the token isn't deducted from
-      // one owner alone. floor + subtract guarantees the two always sum to Remaining,
-      // with any odd rupee going to the primary owner.
-      const half=Math.floor(rem/2);
-      document.getElementById('owner1Amt').value=rem-half;
-      document.getElementById('owner2Amt').value=half;
+      // Payment Split left empty on purpose — filled manually. checkSplit() still enforces
+      // that whatever is entered sums to Remaining before submit/email.
       // Show co-owner KYC card
       document.getElementById('coOwnerKycCard').style.display='block';
       for(const[key,col]of Object.entries(CO_DOC_COL)){
@@ -207,7 +203,7 @@ async function loadData(){
       }
     }else{
       document.getElementById('owner2Wrap').style.display='none';
-      document.getElementById('owner1Amt').value=rem>0?rem:0;
+      // Payment Split left empty on purpose — filled manually.
       document.getElementById('coOwnerKycCard').style.display='none';
     }
 
