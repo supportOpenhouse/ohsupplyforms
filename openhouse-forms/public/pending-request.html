@@ -208,7 +208,8 @@ async function loadData(){
     }else{
       document.getElementById('owner2Wrap').style.display='none';
       document.getElementById('swapAmtBtn').style.display='none';
-      // Single owner — Payment Split left empty on purpose, filled manually.
+      // Single owner → auto-fill the full Remaining (= Total Deposit − Token Paid).
+      document.getElementById('owner1Amt').value=rem;
       document.getElementById('coOwnerKycCard').style.display='none';
     }
 
