@@ -66,7 +66,7 @@
 
     <div class="card"><div class="card-t">Payment Split</div>
       <div class="r2" id="amountFields">
-        <div class="fg"><label id="owner1Label">Owner Amount (₹) <span class="req">*</span></label><input type="text" inputmode="numeric" id="owner1Amt" oninput="this.value=this.value.replace(/\D/g,'')" required></div>
+        <div class="fg"><label id="owner1Label" style="display:flex;align-items:center;gap:8px"><span id="owner1LabelText">Owner Amount (₹) <span class="req">*</span></span><button type="button" id="swapAmtBtn" onclick="swapPaymentSplit()" title="Swap owner & co-owner amounts" style="display:none;border:1px solid var(--bd);background:var(--sf);border-radius:6px;padding:0 7px;cursor:pointer;font-size:14px;line-height:1.5">⇄</button></label><input type="text" inputmode="numeric" id="owner1Amt" oninput="this.value=this.value.replace(/\D/g,'')" required></div>
         <div class="fg" id="owner2Wrap" style="display:none"><label id="owner2Label">Co-owner Amount (₹) <span class="req">*</span></label><input type="text" inputmode="numeric" id="owner2Amt" oninput="this.value=this.value.replace(/\D/g,'')"></div>
       </div>
       <div id="splitHint" style="font-size:11px;margin-top:6px;min-height:14px"></div>
@@ -186,12 +186,16 @@ async function loadData(){
 
     // Payment amounts — editable
     const hasCoOwner=!!(propData.co_owner&&propData.co_owner.trim());
-    document.getElementById('owner1Label').textContent=(propData.owner_broker_name||'Owner')+' Amount (₹)';
+    document.getElementById('owner1LabelText').textContent=(propData.owner_broker_name||'Owner')+' Amount (₹)';
     if(hasCoOwner){
       document.getElementById('owner2Wrap').style.display='block';
       document.getElementById('owner2Label').textContent=(propData.co_owner||'Co-owner')+' Amount (₹)';
-      // Payment Split left empty on purpose — filled manually. checkSplit() still enforces
-      // that whatever is entered sums to Remaining before submit/email.
+      // Default split: co-owner gets Total Deposit / 2, owner gets the rest (= TD/2 − Token Paid).
+      // Deriving owner from `rem` keeps the two summing exactly to Remaining (checkSplit passes).
+      const halfTd=Math.round(td/2);
+      document.getElementById('owner2Amt').value=halfTd;
+      document.getElementById('owner1Amt').value=rem-halfTd;
+      document.getElementById('swapAmtBtn').style.display='inline-block';
       // Show co-owner KYC card
       document.getElementById('coOwnerKycCard').style.display='block';
       for(const[key,col]of Object.entries(CO_DOC_COL)){
@@ -203,7 +207,8 @@ async function loadData(){
       }
     }else{
       document.getElementById('owner2Wrap').style.display='none';
-      // Payment Split left empty on purpose — filled manually.
+      document.getElementById('swapAmtBtn').style.display='none';
+      // Single owner — Payment Split left empty on purpose, filled manually.
       document.getElementById('coOwnerKycCard').style.display='none';
     }
 
@@ -272,6 +277,11 @@ function splitTotals(){
   const o2=document.getElementById('owner2Wrap').style.display==='none'
     ? 0 : (Number(document.getElementById('owner2Amt').value)||0);
   return {o1,o2,sum:o1+o2,diff:(o1+o2)-remainingAmt};
+}
+function swapPaymentSplit(){
+  const a=document.getElementById('owner1Amt'),b=document.getElementById('owner2Amt');
+  const t=a.value;a.value=b.value;b.value=t;
+  checkSplit();
 }
 function checkSplit(){
   const {sum,diff}=splitTotals();
