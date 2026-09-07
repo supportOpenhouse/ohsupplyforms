@@ -66,7 +66,7 @@
 
     <div class="card"><div class="card-t">Payment Split</div>
       <div class="r2" id="amountFields">
-        <div class="fg"><label id="owner1Label" style="display:flex;align-items:center;gap:8px"><span id="owner1LabelText">Owner Amount (₹) <span class="req">*</span></span><button type="button" id="swapAmtBtn" onclick="swapPaymentSplit()" title="Swap owner & co-owner amounts" style="display:none;border:1px solid var(--bd);background:var(--sf);border-radius:6px;padding:0 7px;cursor:pointer;font-size:14px;line-height:1.5">⇄</button></label><input type="text" inputmode="numeric" id="owner1Amt" oninput="this.value=this.value.replace(/\D/g,'')" required></div>
+        <div class="fg"><label id="owner1Label" style="display:flex;align-items:center;gap:8px"><span id="owner1LabelText">Owner Amount (₹) <span class="req">*</span></span><button type="button" id="swapAmtBtn" onclick="swapPaymentSplit()" title="Swap owner & co-owner amounts" style="display:none;flex:0 0 auto;align-items:center;justify-content:center;border:1px solid var(--bd);background:var(--sf);border-radius:5px;padding:0 5px;height:16px;cursor:pointer;font-size:11px;line-height:1;color:var(--tx2)">⇄</button></label><input type="text" inputmode="numeric" id="owner1Amt" oninput="this.value=this.value.replace(/\D/g,'')" required></div>
         <div class="fg" id="owner2Wrap" style="display:none"><label id="owner2Label">Co-owner Amount (₹) <span class="req">*</span></label><input type="text" inputmode="numeric" id="owner2Amt" oninput="this.value=this.value.replace(/\D/g,'')"></div>
       </div>
       <div id="splitHint" style="font-size:11px;margin-top:6px;min-height:14px"></div>
@@ -195,7 +195,7 @@ async function loadData(){
       const halfTd=Math.round(td/2);
       document.getElementById('owner2Amt').value=halfTd;
       document.getElementById('owner1Amt').value=rem-halfTd;
-      document.getElementById('swapAmtBtn').style.display='inline-block';
+      document.getElementById('swapAmtBtn').style.display='inline-flex';
       // Show co-owner KYC card
       document.getElementById('coOwnerKycCard').style.display='block';
       for(const[key,col]of Object.entries(CO_DOC_COL)){
@@ -259,6 +259,20 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
       if(!coDocUrls[key]){missing.push(label);document.getElementById(CO_DOC_ITEM[key]).classList.add('missing')}
     }
     if(missing.length){toast(`Upload required: ${missing.join(', ')}`,'err');return}
+  }
+
+  // Final confirm — show the Payment Split before submitting
+  {
+    const o1=Number(document.getElementById('owner1Amt').value)||0;
+    const hasCo=document.getElementById('owner2Wrap').style.display!=='none';
+    const n1=(propData&&propData.owner_broker_name)||'Owner';
+    const lines=[`${n1}: ₹${o1.toLocaleString('en-IN')}`];
+    if(hasCo){
+      const o2=Number(document.getElementById('owner2Amt').value)||0;
+      const n2=(propData&&propData.co_owner)||'Co-owner';
+      lines.push(`${n2}: ₹${o2.toLocaleString('en-IN')}`);
+    }
+    if(!confirm(`This is the Payment Split:\n\n${lines.join('\n')}\n\nProceed to submit?`))return;
   }
 
   const body={uid:currentUid,ama_date:amaDate,key_handover_date:ownerNo?null:hdDate,owner_will_vacate:occ==='Owner Staying'?vacate:null};
