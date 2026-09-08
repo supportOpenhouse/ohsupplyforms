@@ -241,12 +241,12 @@
         </div>
       </div>
       <div id="ownerEditWrap" style="display:none;margin-bottom:12px">
-        <div style="font-size:10px;color:var(--tx3);margin-bottom:6px;font-weight:600">Enter owner details:</div>
+        <div style="font-size:10px;color:var(--tx3);margin-bottom:6px;font-weight:600">Enter owner details (all required):</div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
-          <input type="text" id="ownerFirst" placeholder="First Name" style="flex:1;font-size:14px;padding:8px 10px;border:1px solid var(--bd);border-radius:var(--r)">
-          <input type="text" id="ownerLast" placeholder="Last Name" style="flex:1;font-size:14px;padding:8px 10px;border:1px solid var(--bd);border-radius:var(--r)">
+          <input type="text" id="ownerFirst" placeholder="First Name *" style="flex:1;font-size:14px;padding:8px 10px;border:1px solid var(--bd);border-radius:var(--r)">
+          <input type="text" id="ownerLast" placeholder="Last Name *" style="flex:1;font-size:14px;padding:8px 10px;border:1px solid var(--bd);border-radius:var(--r)">
         </div>
-        <input type="tel" id="ownerPhone" placeholder="Phone Number (10 digits)" maxlength="10" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')" style="width:100%;font-size:14px;padding:8px 10px;border:1px solid var(--bd);border-radius:var(--r);font-family:var(--mono)">
+        <input type="tel" id="ownerPhone" placeholder="Phone Number (10 digits) *" maxlength="10" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')" style="width:100%;font-size:14px;padding:8px 10px;border:1px solid var(--bd);border-radius:var(--r);font-family:var(--mono)">
       </div>
       <div style="display:flex;gap:8px" id="ownerBtnRow">
         <button type="button" class="btn btn-out" id="ownerCpBtn" style="flex:1">This is CP</button>
@@ -647,13 +647,15 @@ document.getElementById('ownerBackBtn').addEventListener('click',()=>{
 document.getElementById('ownerSaveBtn').addEventListener('click',async()=>{
   const first=document.getElementById('ownerFirst').value.trim();
   const last=document.getElementById('ownerLast').value.trim();
-  if(!first){toast('Enter at least first name','err');return}
   const phone=document.getElementById('ownerPhone').value.trim();
-  if(phone&&(phone.length!==10||phone[0]==='0')){toast('Enter valid 10-digit phone number','err');return}
+  if(!first){toast('First name is required','err');return}
+  if(!last){toast('Last name is required','err');return}
+  if(!phone){toast('Phone number is required','err');return}
+  if(phone.length!==10||phone[0]==='0'){toast('Enter valid 10-digit phone number','err');return}
   const fullName=[first,last].filter(Boolean).join(' ');
   const btn=document.getElementById('ownerSaveBtn');btn.disabled=true;btn.textContent='Saving...';
   try{
-    const r=await fetch(`${API}/api/token-request/update-owner/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({first_name:first,last_name:last,owner_broker_name:fullName,contact_no:phone||undefined,cp_name:window._cpNameBefore||null,cp_phone:window._cpPhoneBefore||null})});
+    const r=await fetch(`${API}/api/token-request/update-owner/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({first_name:first,last_name:last,owner_broker_name:fullName,contact_no:phone,cp_name:window._cpNameBefore||null,cp_phone:window._cpPhoneBefore||null})});
     const d=await r.json();if(!r.ok)throw new Error(d.error);
     document.getElementById('d_owner').value=fullName;
     if(loadedData)loadedData.owner_broker_name=fullName;
