@@ -6,6 +6,17 @@ const pool = require('./pool');
 // Extracted from the uploaded Excel screenshot.
 // To add more societies later, just add rows here and re-run:
 //   node db/seed.js
+//
+// SAFE TO RE-RUN. This list is the ORIGINAL import (~51 rows) and is long since
+// outgrown by the live table (~1,160 rows). It also carries only the three name
+// columns, while the live rows also hold `micro_market`, `affordable` and
+// `active` — all set elsewhere (admin UI / SQL), none of them here.
+//
+// So this seed is strictly ADDITIVE: it inserts rows that are missing and never
+// updates or deletes an existing one. It used to `DELETE FROM master_societies`
+// first, which on today's data would have destroyed 1,161 rows to reinsert 51,
+// taking every micro_market, every affordable flag, and the `active` flags that
+// block submissions with it — silently, and on a table six other services read.
 // ═══════════════════════════════════════════════════════════
 
 const SOCIETIES = [
@@ -74,18 +85,20 @@ async function seed() {
   try {
     await client.query('BEGIN');
 
-    // Clear existing data (safe re-run)
-    await client.query('DELETE FROM master_societies');
+    const { rows: [before] } = await client.query('SELECT COUNT(*)::int AS n FROM master_societies');
 
-    // Insert all rows
+    // Insert-only. DO NOTHING on conflict, so an existing row keeps its
+    // micro_market / affordable / active exactly as they are.
     const insertSQL = `
       INSERT INTO master_societies (city, locality, society_name)
       VALUES ($1, $2, $3)
       ON CONFLICT (city, locality, society_name) DO NOTHING
     `;
 
+    let added = 0;
     for (const [city, locality, society] of SOCIETIES) {
-      await client.query(insertSQL, [city, locality, society]);
+      const { rowCount } = await client.query(insertSQL, [city, locality, society]);
+      added += rowCount;
     }
 
     await client.query('COMMIT');
@@ -96,9 +109,10 @@ async function seed() {
       FROM master_societies 
       GROUP BY city ORDER BY city
     `);
-    console.log('✓ Seeded society data:');
+    console.log('✓ Society data seeded (insert-only — nothing was deleted or overwritten):');
     result.rows.forEach(r => console.log(`  ${r.city}: ${r.count} societies`));
-    console.log(`  Total: ${SOCIETIES.length} rows`);
+    console.log(`  Added ${added} new row(s); ${before.n} existed before, ${before.n + added} now.`);
+    if (added === 0) console.log('  (every row in this file was already present)');
 
   } catch (err) {
     await client.query('ROLLBACK');

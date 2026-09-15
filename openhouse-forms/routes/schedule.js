@@ -64,7 +64,7 @@ module.exports=function(pool){
           WHERE LOWER(TRIM(society_name))=LOWER(TRIM($1)) AND ($2::text='' OR LOWER(TRIM(locality))=LOWER(TRIM($2)))`,
           [d.society_name,d.locality||'']);
         if(soc.rows[0]&&soc.rows[0].active===false)
-          return res.status(403).json({error:`Submissions are blocked for ${d.society_name}${d.locality?', '+d.locality:''} — this society is inactive.`});
+          return res.status(403).json({error:`Submissions are blocked for ${d.society_name}${d.locality?', '+d.locality:''} — this society is inactive. Please contact admin.`});
       }
       // Reject past dates
       if(d.schedule_date){const today=new Date().toISOString().split('T')[0];

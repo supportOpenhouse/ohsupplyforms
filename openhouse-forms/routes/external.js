@@ -53,7 +53,7 @@ module.exports = function (pool) {
         [d.society_name, d.locality || '']
       );
       if (soc.rows[0] && soc.rows[0].active === false) {
-        return res.status(403).json({ error: `Submissions are blocked for ${d.society_name}, ${d.locality} — this society is inactive.` });
+        return res.status(403).json({ error: `Submissions are blocked for ${d.society_name}, ${d.locality} — this society is inactive. Please contact admin.` });
       }
 
       // 3. Validate phone (10 digits, no leading 0)
