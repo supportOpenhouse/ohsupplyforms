@@ -99,6 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_cpm_phone ON cp_master(cp_phone);
 const COMPAT_SQL = `
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='master_societies' AND column_name='micro_market') THEN ALTER TABLE master_societies ADD COLUMN micro_market TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='master_societies' AND column_name='active') THEN ALTER TABLE master_societies ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='assigned_by') THEN ALTER TABLE properties ADD COLUMN assigned_by TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='token_requested_by') THEN ALTER TABLE properties ADD COLUMN token_requested_by TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='deal_bank_name') THEN ALTER TABLE properties ADD COLUMN deal_bank_name TEXT; END IF;

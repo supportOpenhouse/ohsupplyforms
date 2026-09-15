@@ -58,6 +58,14 @@ module.exports=function(pool){
       const uid=d.uid.trim().toUpperCase();
       const ex=await pool.query('SELECT uid FROM properties WHERE uid=$1',[uid]);
       if(ex.rows.length)return res.status(400).json({error:'UID already exists'});
+      // Block submissions for societies marked inactive in master_societies
+      if(d.society_name){
+        const soc=await pool.query(`SELECT bool_and(active) AS active FROM master_societies
+          WHERE LOWER(TRIM(society_name))=LOWER(TRIM($1)) AND ($2::text='' OR LOWER(TRIM(locality))=LOWER(TRIM($2)))`,
+          [d.society_name,d.locality||'']);
+        if(soc.rows[0]&&soc.rows[0].active===false)
+          return res.status(403).json({error:`Submissions are blocked for ${d.society_name}${d.locality?', '+d.locality:''} — this society is inactive.`});
+      }
       // Reject past dates
       if(d.schedule_date){const today=new Date().toISOString().split('T')[0];
         if(d.schedule_date<today)return res.status(400).json({error:'Schedule date cannot be in the past'})}

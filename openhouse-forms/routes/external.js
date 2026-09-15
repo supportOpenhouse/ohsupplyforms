@@ -45,6 +45,17 @@ module.exports = function (pool) {
       if (!ci) return res.status(400).json({ error: `Unsupported city: ${d.city}. Allowed: ${Object.keys(CITY_MAP).join(', ')}` });
       if (!si) return res.status(400).json({ error: `Unsupported source: ${d.source}. Allowed: ${Object.keys(SRC_MAP).join(', ')}` });
 
+      // 2b. Block submissions for societies marked inactive in master_societies
+      const soc = await pool.query(
+        `SELECT bool_and(active) AS active FROM master_societies
+         WHERE LOWER(TRIM(society_name)) = LOWER(TRIM($1))
+           AND ($2::text = '' OR LOWER(TRIM(locality)) = LOWER(TRIM($2)))`,
+        [d.society_name, d.locality || '']
+      );
+      if (soc.rows[0] && soc.rows[0].active === false) {
+        return res.status(403).json({ error: `Submissions are blocked for ${d.society_name}, ${d.locality} — this society is inactive.` });
+      }
+
       // 3. Validate phone (10 digits, no leading 0)
       const phone = String(d.contact_no).replace(/\D/g, '');
       if (phone.length !== 10 || phone.startsWith('0')) {
