@@ -56,9 +56,18 @@ Multi-form property management system for Openhouse. Ground staff fills visit fo
    - **Runtime:** `Node`
    - **Build Command:** `npm install`
    - **Start Command:** `npm start`
-5. Add **Environment Variable:**
+5. Add **Environment Variables:**
    - Key: `DATABASE_URL`
    - Value: *(paste Neon connection string from Step 1)*
+   - Key: `CP_INVENTORY_DB_URL`
+   - Value: *(the CP-Inventory Neon connection string — a **different** database,
+     the one holding `channel_partners`)*
+
+   > `CP_INVENTORY_DB_URL` backs the Channel Partner picker on the CP Bill form.
+   > CP identity is owned by the shared `channel_partners` directory, which lives
+   > in its own database, so the forms app opens a second read pool for it. Without
+   > the variable the app still starts and every other form works — only the CP
+   > search returns 503.
 6. Click **"Deploy"**
 
 ### Step 4: Seed Society Data

@@ -2,37 +2,55 @@ const express=require('express'),router=express.Router();
 const logger=require('../utils/logger');
 const{visibilityFilter}=require('../utils/visibility');
 const{sendCPBillEmail}=require('../utils/email-sender');
+const cpPool=require('../db/cpPool');
 
 module.exports=function(pool){
-  // ── CP Master: next code ──
-  router.get('/cp-master/next-code',async(req,res)=>{
-    try{
-      const{rows}=await pool.query(`SELECT cp_code FROM cp_master ORDER BY id DESC LIMIT 1`);
-      let next=1;
-      if(rows.length){const last=rows[0].cp_code;const num=parseInt(last.replace('CP',''))||0;next=num+1}
-      const code='CP'+String(next).padStart(4,'0');
-      res.json({cp_code:code});
-    }catch(e){res.status(500).json({error:e.message})}
+  // ── CP code for a NEW cp ──
+  // Codes are owned by the shared channel_partners directory now. Supply used to
+  // mint its own CP00xx here (max(id)+1), which resolved to nothing in the
+  // directory and even collided within supply — CP0130 sat on two different
+  // people. A CP that is not in the directory simply has no code until it is
+  // onboarded there; name + phone still identify them, and phone is the key every
+  // downstream system matches on.
+  router.get('/cp-master/next-code',async(_req,res)=>{
+    res.json({cp_code:null});
   });
 
-  // ── CP Master: search ──
+  // ── CP search — the SHARED channel_partners directory ──
+  // Columns are aliased to the names the form already uses (cp_name / cp_firm /
+  // cp_pan_card_url), so the picker markup and JS stay unchanged.
   router.get('/cp-master/search',async(req,res)=>{
     try{
       const q=(req.query.q||'').trim();
       if(!q)return res.json([]);
-      const{rows}=await pool.query(
-        `SELECT id,cp_code,cp_name,cp_phone,cp_firm,cp_email FROM cp_master
-         WHERE cp_code ILIKE $1 OR cp_name ILIKE $1 OR cp_phone ILIKE $1 OR cp_firm ILIKE $1
-         ORDER BY cp_name ASC LIMIT 20`,
-        ['%'+q+'%']);
+      if(!cpPool)return res.status(503).json({error:'CP directory is not configured on this server'});
+      const digits=q.replace(/\D/g,'');
+      const{rows}=await cpPool.query(
+        `SELECT id, cp_code, name AS cp_name, phone AS cp_phone,
+                company AS cp_firm, email AS cp_email
+           FROM channel_partners
+          WHERE is_active IS NOT FALSE
+            AND (cp_code ILIKE $1 OR name ILIKE $1 OR company ILIKE $1
+                 OR ($2 <> '' AND regexp_replace(COALESCE(phone,''),'[^0-9]','','g') LIKE '%'||$2||'%'))
+          ORDER BY name ASC LIMIT 20`,
+        ['%'+q+'%', digits]);
       res.json(rows);
     }catch(e){res.status(500).json({error:e.message})}
   });
 
-  // ── CP Master: get full record ──
+  // ── CP full record — the SHARED directory ──
+  // `cp_pan_url` is the directory's name for what supply calls `cp_pan_card_url`;
+  // aliasing here keeps importCp() in cp-bill.html working untouched.
   router.get('/cp-master/:id',async(req,res)=>{
     try{
-      const{rows}=await pool.query('SELECT * FROM cp_master WHERE id=$1',[req.params.id]);
+      if(!cpPool)return res.status(503).json({error:'CP directory is not configured on this server'});
+      const{rows}=await cpPool.query(
+        `SELECT id, cp_code, name AS cp_name, phone AS cp_phone,
+                company AS cp_firm, email AS cp_email,
+                cp_aadhaar_front_url, cp_aadhaar_back_url,
+                cp_pan_url AS cp_pan_card_url, cp_cancelled_cheque_url,
+                cp_gst_invoice_url, cp_coi_url
+           FROM channel_partners WHERE id=$1`,[req.params.id]);
       if(!rows.length)return res.status(404).json({error:'CP not found'});
       res.json(rows[0]);
     }catch(e){res.status(500).json({error:e.message})}
@@ -57,38 +75,61 @@ module.exports=function(pool){
       if(!rows.length)return res.status(404).json({error:'UID not found'});
       const oldRow=rows[0];const wasSubmitted=!!oldRow.cp_bill_submitted_at;
 
-      // Upsert CP master record
-      let cpCode=d.cp_code||null;
-      if(d.cp_name&&d.cp_phone){
-        if(d.cp_master_id){
-          // Existing CP — update docs if new ones uploaded
-          await pool.query(`UPDATE cp_master SET
-            cp_name=COALESCE(NULLIF($1,''),cp_name),cp_phone=COALESCE(NULLIF($2,''),cp_phone),
-            cp_firm=COALESCE(NULLIF($3,''),cp_firm),cp_email=COALESCE(NULLIF($4,''),cp_email),
-            cp_aadhaar_front_url=COALESCE(NULLIF($5,''),cp_aadhaar_front_url),
-            cp_aadhaar_back_url=COALESCE(NULLIF($6,''),cp_aadhaar_back_url),
-            cp_pan_card_url=COALESCE(NULLIF($7,''),cp_pan_card_url),
-            cp_cancelled_cheque_url=COALESCE(NULLIF($8,''),cp_cancelled_cheque_url),
-            updated_at=NOW() WHERE id=$9`,
-            [d.cp_name,d.cp_phone,d.cp_firm||'',d.cp_email||'',
-             d.cp_aadhaar_front_url||'',d.cp_aadhaar_back_url||'',d.cp_pan_card_url||'',d.cp_cancelled_cheque_url||'',
-             d.cp_master_id]);
-        }else if(cpCode){
-          // New CP — insert
-          await pool.query(`INSERT INTO cp_master(cp_code,cp_name,cp_phone,cp_firm,cp_email,
-            cp_aadhaar_front_url,cp_aadhaar_back_url,cp_pan_card_url,cp_cancelled_cheque_url)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
-            ON CONFLICT(cp_code) DO UPDATE SET cp_name=$2,cp_phone=$3,cp_firm=COALESCE(NULLIF($4,''),cp_master.cp_firm),
-            cp_email=COALESCE(NULLIF($5,''),cp_master.cp_email),
-            cp_aadhaar_front_url=COALESCE(NULLIF($6,''),cp_master.cp_aadhaar_front_url),
-            cp_aadhaar_back_url=COALESCE(NULLIF($7,''),cp_master.cp_aadhaar_back_url),
-            cp_pan_card_url=COALESCE(NULLIF($8,''),cp_master.cp_pan_card_url),
-            cp_cancelled_cheque_url=COALESCE(NULLIF($9,''),cp_master.cp_cancelled_cheque_url),
-            updated_at=NOW()`,
-            [cpCode,d.cp_name,d.cp_phone,d.cp_firm||null,d.cp_email||null,
-             d.cp_aadhaar_front_url||null,d.cp_aadhaar_back_url||null,d.cp_pan_card_url||null,d.cp_cancelled_cheque_url||null]);
+      // Resolve the CP against the SHARED directory so properties.cp_code holds a
+      // code that actually maps. Two paths:
+      //   picked from the directory -> cp_master_id is its channel_partners.id
+      //   typed by hand             -> match on PHONE (last 10), the only reliable
+      //                                key across the two systems
+      // The local cp_master table is no longer written: its CP00xx codes are a
+      // separate numbering scheme that resolves to nothing in the directory, and
+      // it minted them as max(id)+1, so the same code landed on different people.
+      let cpCode=null, cpDirectoryId=null;
+      if(cpPool&&(d.cp_master_id||d.cp_phone)){
+        try{
+          const p10=String(d.cp_phone||'').replace(/\D/g,'').slice(-10);
+          const{rows:dir}=d.cp_master_id
+            ? await cpPool.query('SELECT id,cp_code FROM channel_partners WHERE id=$1',[d.cp_master_id])
+            : await cpPool.query(
+                `SELECT id,cp_code FROM channel_partners
+                  WHERE right(regexp_replace(COALESCE(phone,''),'[^0-9]','','g'),10)=$1
+                  ORDER BY id DESC LIMIT 1`,[p10]);
+          if(dir.length){cpCode=dir[0].cp_code;cpDirectoryId=dir[0].id}
+        }catch(e){console.error('CP directory lookup failed:',e.message)}
+      }
+      // The four KYC documents uploaded here belong to the PARTNER, not to this
+      // one property, so push them onto the resolved directory row — that is what
+      // the CRM's KYC review reads and what a generated invoice pulls from. Note
+      // the directory calls the PAN column `cp_pan_url`, supply calls it
+      // `cp_pan_card_url`.
+      //
+      // Fill-if-empty (COALESCE/NULLIF), never overwrite: a document already on the
+      // directory has usually been through KYC review, and a later bill form must
+      // not silently replace it. `cp_kyc_status` is deliberately untouched — the
+      // CRM's review flow owns it, and writing a doc is not an approval.
+      if(cpPool&&cpDirectoryId){
+        try{
+          await cpPool.query(
+            `UPDATE channel_partners SET
+               cp_aadhaar_front_url=COALESCE(NULLIF(cp_aadhaar_front_url,''),NULLIF($1,'')),
+               cp_aadhaar_back_url =COALESCE(NULLIF(cp_aadhaar_back_url,''),NULLIF($2,'')),
+               cp_pan_url          =COALESCE(NULLIF(cp_pan_url,''),NULLIF($3,'')),
+               cp_cancelled_cheque_url=COALESCE(NULLIF(cp_cancelled_cheque_url,''),NULLIF($4,'')),
+               cp_gst_invoice_url  =COALESCE(NULLIF(cp_gst_invoice_url,''),NULLIF($5,'')),
+               cp_coi_url          =COALESCE(NULLIF(cp_coi_url,''),NULLIF($6,''))
+             WHERE id=$7`,
+            [d.cp_aadhaar_front_url||'',d.cp_aadhaar_back_url||'',
+             d.cp_pan_card_url||'',d.cp_cancelled_cheque_url||'',
+             d.cp_gst_invoice_url||'',d.cp_coi_url||'',cpDirectoryId]);
+        }catch(e){
+          // Never fail the bill submission over the directory — the documents are
+          // still saved on the property below.
+          console.error('CP directory doc sync failed:',e.message);
         }
       }
+
+      // Unresolved (directory down, or a CP not in it yet) leaves cp_code NULL
+      // rather than writing a code that maps to nobody — name and phone are still
+      // saved, and the phone is what every downstream system matches on anyway.
 
       await pool.query(`UPDATE properties SET
         cp_code=$19,cp_name=$1,cp_phone=$2,cp_firm=$3,cp_email=$4,
