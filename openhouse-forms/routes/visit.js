@@ -48,6 +48,16 @@ module.exports=function(pool){
     try{
       const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
+      const prop=rows[0];
+      // A completed visit cannot be cancelled. /api/external/cancel has always
+      // enforced this; this in-app route did not, so a finished visit could be
+      // "cancelled" months later — which is how OHGD1491 died on 16 Sep 2026: its
+      // visit completed 8 May and the deal was already at Form 4, six hours past
+      // token_deal_submitted_at. Cancelling is for a visit that has not happened;
+      // dropping a live deal is a different decision and belongs elsewhere.
+      if(prop.is_dead)return res.json({success:true,uid:prop.uid,already_cancelled:true});
+      if(prop.visit_submitted_at)
+        return res.status(400).json({error:'Visit already completed, cannot cancel. To drop this property, cancel the deal instead.'});
       await pool.query('UPDATE properties SET is_dead=TRUE,visit_date_history=$2,updated_at=NOW() WHERE uid=$1',
         [req.params.uid,JSON.stringify(setCancelled(rows[0].visit_date_history,rows[0].schedule_date))]);
       res.json({success:true,uid:req.params.uid});
