@@ -175,6 +175,20 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
     if(!rows.length)return res.status(404).json({error:'UID not found'});
     const oldProp=rows[0];
     const d=req.body;delete d.uid;delete d.created_at;delete d.updated_at;
+
+    // Reviving a cancelled property is super-admin only. Cancelling stays open to
+    // any admin — it is the reversal that needs the higher bar, because a revived
+    // row re-enters every downstream pipeline (Demand, CP Inventory, the CRM) and
+    // the cancellation itself is usually a deliberate commercial decision.
+    // Compared as strings: the checkbox posts 'false'/'true', not booleans.
+    const wantsDead=Object.prototype.hasOwnProperty.call(d,'is_dead')
+      ? !(d.is_dead===false||d.is_dead==='false'||d.is_dead===''||d.is_dead==null)
+      : null;
+    if(oldProp.is_dead===true&&wantsDead===false&&!req.user?.is_super){
+      return res.status(403).json({
+        error:'Only a super admin can revive a cancelled property. Ask a super admin to un-cancel it.'});
+    }
+
     const allowed=ADMIN_EDITABLE;
     const sets=[];const vals=[];let i=1;
     const changes={};
@@ -234,13 +248,18 @@ app.post('/api/admin/property/:uid/replicate', isAuthenticated, isAdmin, async(r
     const{rows:mx}=await pool.query(`SELECT MAX(CAST(REPLACE(uid,$1,'') AS INTEGER)) AS max_num FROM properties WHERE uid LIKE $2`,[prefix,prefix+'%']);
     const newUid=prefix+String((mx[0].max_num||1000)+1);
     // Columns that get fresh values; everything else is copied verbatim from the source row.
+    // is_dead is reset rather than copied: replicating a cancelled property is how
+    // a dead lead gets a fresh start, so the copy must be born LIVE. Inheriting the
+    // flag made the new row invisible in every form list the moment it was created,
+    // and only a super admin could then revive it.
     const OVERRIDE=new Set(['uid','source','lead_id','created_at','updated_at','replicated','replicated_from',
+      'is_dead',
       'gcal_event_id','gcal_creator_id','email_thread_id','email_message_id']);
     // Exclude generated/identity columns (e.g. a generated "stage" column) — they reject explicit inserts.
     const{rows:colRows}=await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='properties' AND is_generated='NEVER' AND is_identity='NO'`);
     const copyCols=colRows.map(r=>r.column_name).filter(c=>!OVERRIDE.has(c));
-    const insertCols=[...copyCols,'uid','source','lead_id','replicated','replicated_from'].map(c=>`"${c}"`).join(',');
-    const selectExprs=[...copyCols.map(c=>`"${c}"`),'$1','$2','$3','FALSE','$4'].join(',');
+    const insertCols=[...copyCols,'uid','source','lead_id','replicated','replicated_from','is_dead'].map(c=>`"${c}"`).join(',');
+    const selectExprs=[...copyCols.map(c=>`"${c}"`),'$1','$2','$3','FALSE','$4','FALSE'].join(',');
     await pool.query(`INSERT INTO properties(${insertCols}) SELECT ${selectExprs} FROM properties WHERE uid=$4`,[newUid,source,lead_id,srcUid]);
     await pool.query('UPDATE properties SET replicated=TRUE,updated_at=NOW() WHERE uid=$1',[srcUid]);
     res.json({success:true,uid:newUid});
