@@ -22,6 +22,25 @@ module.exports=function(pool){
       const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
       const oldRow=rows[0];const wasSubmitted=!!oldRow.token_submitted_at;
+
+      // Form 3 re-writes the unit's identity columns on every submit, so a field
+      // that arrives blank BLANKS the stored value. That is how floor was lost:
+      // it is TEXT holding 'Top'/'Ground' on 152 rows, was parseInt()'d to NaN,
+      // and the null overwrote it — silently, because the form had shown the
+      // value fine.
+      //
+      // keepIfBlank is the structural guard: for identity fields the form only
+      // ever echoes back, an empty submit keeps what is already stored rather
+      // than erasing it. These are never legitimately cleared here — clearing a
+      // unit's floor or tower is an admin edit, not a token request.
+      const keepIfBlank=(incoming,current)=>{
+        const v=incoming==null?'':String(incoming).trim();
+        return v===''?(current??null):incoming;
+      };
+      // floor is TEXT and legitimately holds 'Top', 'Ground', 'LG', 'Stilt' —
+      // 152 live rows are non-numeric. It was parseInt()'d here, so any such
+      // value became NaN -> null and this UPDATE silently wiped it. Never
+      // coerce it; every other route stores it as typed.
       await pool.query(`UPDATE properties SET
         unit_no=$22,tower_no=$23,floor=$24,area_sqft=$25,demand_price=$26,
         token_requested_by=$1,deal_token_amount=$2,
@@ -51,7 +70,9 @@ module.exports=function(pool){
          parseInt(d.grace_period)||null,d.rent_payable_grace_period||null,
          d.documents_available||'[]',d.token_remarks||null,isDraft,d.uid,
          d.token_remarks_printed||null,d.co_owner||null,
-         d.unit_no||null,d.tower_no||null,parseInt(d.floor)||null,parseFloat(d.area_sqft)||null,parseFloat(d.demand_price)||null,
+         keepIfBlank(d.unit_no,oldRow.unit_no),keepIfBlank(d.tower_no,oldRow.tower_no),
+         keepIfBlank(d.floor,oldRow.floor),
+         parseFloat(d.area_sqft)||oldRow.area_sqft||null,parseFloat(d.demand_price)||oldRow.demand_price||null,
          d.co_owner_number||null,
          d.owner_pan_url||null,d.owner_aadhaar_front_url||null,d.owner_aadhaar_back_url||null,d.owner_property_doc_url||null,
          d.total_deposit!=null&&d.total_deposit!==''?parseFloat(d.total_deposit):null,d.refundable_deposit!=null&&d.refundable_deposit!==''?parseFloat(d.refundable_deposit):null,
