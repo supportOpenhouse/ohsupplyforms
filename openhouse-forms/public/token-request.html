@@ -607,7 +607,7 @@ document.getElementById('emailBtn').addEventListener('click',()=>{
   document.getElementById('ownerSaveRow').style.display='none';
   document.getElementById('ownerCheckModal').style.display='flex';
 });
-document.getElementById('ownerBtnRow').addEventListener('click',(e)=>{
+document.getElementById('ownerBtnRow').addEventListener('click',async(e)=>{
   const btn=e.target.closest('button');if(!btn)return;
   if(btn.id==='ownerOkBtn'){
     document.getElementById('coOwnerWrap').style.display='block';
@@ -622,6 +622,22 @@ document.getElementById('ownerBtnRow').addEventListener('click',(e)=>{
       if(coPhone&&(coPhone.length!==10||coPhone[0]==='0')){toast('Enter valid 10-digit phone','err');return}
       document.getElementById('d_coowner').value=coName;
       document.getElementById('d_coowner_number').value=coPhone;
+      // Setting the form inputs only feeds the email — this popup never submits
+      // the form, so without this call the co-owner never reaches the database
+      // and the Form-4 deal-terms mail has nothing to show.
+      btn.disabled=true;
+      try{
+        const r=await fetch(`${API}/api/token-request/update-co-owner/${currentUid}`,
+          {method:'POST',headers:{'Content-Type':'application/json'},
+           body:JSON.stringify({co_owner:coName,co_owner_number:coPhone||null})});
+        const d=await r.json();
+        if(!r.ok)throw new Error(d.error||'Could not save co-owner');
+      }catch(err){
+        btn.disabled=false;
+        toast(err.message||'Could not save co-owner','err');
+        return;   // don't send a mail naming a co-owner we failed to store
+      }
+      btn.disabled=false;
     }
     document.getElementById('ownerCheckModal').style.display='none';
     showEmailPreview();

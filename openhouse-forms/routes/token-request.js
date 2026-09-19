@@ -107,6 +107,37 @@ module.exports=function(pool){
     }catch(e){console.error('UpdateOwner:',e);res.status(500).json({error:e.message})}
   });
 
+  // Persist the co-owner captured in the "Confirm Owner Name" popup.
+  //
+  // That popup copied the name/phone into the hidden d_coowner inputs and went
+  // straight to the email preview WITHOUT submitting the form, so the co-owner
+  // reached the token-request mail but never the database — the column stayed
+  // NULL and the Form-4 deal-terms mail had nothing to show. (OHNC1985, 18 Sep
+  // 2026: co-owner in the mail, co_owner NULL in the row, and no log entry
+  // because nothing ever wrote it.)
+  router.post('/update-co-owner/:uid',async(req,res)=>{
+    try{
+      const{co_owner,co_owner_number}=req.body;
+      const name=(co_owner||'').trim();
+      if(!name)return res.status(400).json({error:'Co-owner name required'});
+      const phone=(co_owner_number||'').trim()||null;
+      const{rows:old}=await pool.query(
+        'SELECT co_owner,co_owner_number FROM properties WHERE uid=$1',[req.params.uid]);
+      if(!old.length)return res.status(404).json({error:'UID not found'});
+      await pool.query(
+        'UPDATE properties SET co_owner=$1,co_owner_number=COALESCE($2,co_owner_number),'
+        +'updated_at=NOW() WHERE uid=$3',[name,phone,req.params.uid]);
+      res.json({success:true});
+      const changes={};
+      if(old[0].co_owner!==name)changes.co_owner={old:old[0].co_owner,new:name};
+      if(phone&&old[0].co_owner_number!==phone)
+        changes.co_owner_number={old:old[0].co_owner_number,new:phone};
+      if(Object.keys(changes).length)
+        logger.log(req.params.uid,'co-owner change','pre-email change',
+                   req.user?.email,req.user?.name,{changes}).catch(()=>{});
+    }catch(e){console.error('UpdateCoOwner:',e);res.status(500).json({error:e.message})}
+  });
+
   router.get('/pdf/:uid',async(req,res)=>{
     try{const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
       if(!rows.length)return res.status(404).json({error:'Not found'});
