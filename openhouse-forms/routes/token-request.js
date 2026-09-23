@@ -162,6 +162,17 @@ module.exports=function(pool){
       if(!pRows.length)return res.status(404).json({error:'Property not found'});
       const p=pRows[0];
       if(!p.token_submitted_at)return res.status(400).json({error:'Token request must be submitted first'});
+      // The cancelled cheque is how accounts verifies the account the token is
+      // paid into, and the mail is what carries it to them. Sending without it
+      // means a resubmission that adds the cheque later never reaches anyone —
+      // exactly what happened to OHGC1805 (mailed 21 Sep, cheque added 23 Sep).
+      // A ZERO token has no cheque by design (the form clears those fields), so
+      // it is exempt.
+      const tokenAmt=parseFloat(String(p.deal_token_amount??'').replace(/,/g,''));
+      const zeroToken=Number.isFinite(tokenAmt)&&tokenAmt===0;
+      if(!zeroToken&&!String(p.cheque_image_url||'').trim()){
+        return res.status(400).json({error:'Upload the cancelled cheque before sending this email.'});
+      }
       if(p.token_request_email_sent===true&&!(req.body&&req.body.force))return res.status(409).json({error:'Email Sent Already',alreadySent:true});
       const baseUrl=process.env.APP_URL||'';
       const pdfHtml=generateReceiptHTML(p,'deal',baseUrl);

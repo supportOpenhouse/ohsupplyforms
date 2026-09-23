@@ -584,6 +584,15 @@ document.getElementById('pdfModal').addEventListener('click',e=>{if(e.target===e
 
 document.getElementById('emailBtn').addEventListener('click',()=>{
   if(!currentUid){toast('Load a property first','warn');return}
+  // The cheque is what accounts verifies the token account against, and the mail
+  // is what delivers it. Adding it in a later resubmission does NOT re-send, so
+  // a mail sent without it never gets one. Zero-token deals have no cheque by
+  // design and are exempt. The server enforces this too.
+  if(!isZeroToken()&&!document.getElementById('chequeUrl').value.trim()){
+    toast('Upload the cancelled cheque before sending the email','err',5000);
+    document.getElementById('chequeBtn')?.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
   const ownerName=document.getElementById('d_owner').value||loadedData?.owner_broker_name||'';
   document.getElementById('ownerCheckName').textContent=ownerName;
   document.getElementById('ownerEditWrap').style.display='none';
