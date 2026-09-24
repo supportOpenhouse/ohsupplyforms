@@ -479,9 +479,9 @@ async function sendCPBillEmail({ accessToken, refreshToken, fromEmail, senderNam
   <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Deal Value:</td><td>${p.deal_value||'—'}</td></tr>
   <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Total Brokerage:</td><td>${p.total_brokerage_amount?'₹'+Number(p.total_brokerage_amount).toLocaleString('en-IN'):'—'}</td></tr>
   <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">To be Released Now:</td><td>${p.to_be_released_now?'₹'+Number(p.to_be_released_now).toLocaleString('en-IN'):'—'}</td></tr>
-  <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Incentive for Visit:</td><td>${p.incentive_visit?'₹'+Number(p.incentive_visit).toLocaleString('en-IN'):'—'}</td></tr>
-  <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Incentive for Owner Meeting:</td><td>${p.incentive_owner_meeting?'₹'+Number(p.incentive_owner_meeting).toLocaleString('en-IN'):'—'}</td></tr>
-  <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Additional Brokerage:</td><td>${p.additional_brokerage?'₹'+Number(p.additional_brokerage).toLocaleString('en-IN'):'—'}</td></tr>
+  ${Number(p.incentive_visit)>0?`<tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Incentive for Visit:</td><td>₹${Number(p.incentive_visit).toLocaleString('en-IN')}</td></tr>`:''}
+  ${Number(p.incentive_owner_meeting)>0?`<tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Incentive for Owner Meeting:</td><td>₹${Number(p.incentive_owner_meeting).toLocaleString('en-IN')}</td></tr>`:''}
+  ${Number(p.additional_brokerage)>0?`<tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Additional Brokerage:</td><td>₹${Number(p.additional_brokerage).toLocaleString('en-IN')}</td></tr>`:''}
   <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap">Total Amount:</td><td>${p.total_cp_amount?'₹'+Number(p.total_cp_amount).toLocaleString('en-IN'):'—'}</td></tr>
 ${p.cp_bill_remarks?`  <tr><td style="padding:2px 12px 2px 0;font-weight:bold;white-space:nowrap;vertical-align:top">Remarks:</td><td>${p.cp_bill_remarks}</td></tr>`:''}
 </table>

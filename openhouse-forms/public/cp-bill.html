@@ -524,9 +524,9 @@ ${previewIsFirm?`<tr><td style="padding:1px 10px 1px 0;font-weight:600">GST Appl
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Deal Value:</td><td>${document.getElementById('f_dealValue').value||'—'}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Total Brokerage:</td><td>₹${document.getElementById('f_totalBrokerage').value||'—'}</td></tr>
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">To be Released Now:</td><td>₹${document.getElementById('f_release').value||'—'}</td></tr>
-<tr><td style="padding:1px 10px 1px 0;font-weight:600">Incentive for Visit:</td><td>₹${document.getElementById('f_incentiveVisit').value||'—'}</td></tr>
-<tr><td style="padding:1px 10px 1px 0;font-weight:600">Incentive for Owner Meeting:</td><td>₹${document.getElementById('f_incentiveMeeting').value||'—'}</td></tr>
-<tr><td style="padding:1px 10px 1px 0;font-weight:600">Additional Brokerage:</td><td>₹${document.getElementById('f_addlBrokerage').value||'—'}</td></tr>
+${Number(document.getElementById('f_incentiveVisit').value)>0?`<tr><td style="padding:1px 10px 1px 0;font-weight:600">Incentive for Visit:</td><td>₹${document.getElementById('f_incentiveVisit').value}</td></tr>`:''}
+${Number(document.getElementById('f_incentiveMeeting').value)>0?`<tr><td style="padding:1px 10px 1px 0;font-weight:600">Incentive for Owner Meeting:</td><td>₹${document.getElementById('f_incentiveMeeting').value}</td></tr>`:''}
+${Number(document.getElementById('f_addlBrokerage').value)>0?`<tr><td style="padding:1px 10px 1px 0;font-weight:600">Additional Brokerage:</td><td>₹${document.getElementById('f_addlBrokerage').value}</td></tr>`:''}
 <tr><td style="padding:1px 10px 1px 0;font-weight:600">Total Amount:</td><td>${document.getElementById('f_totalAmount').value||'—'}</td></tr>
 ${document.getElementById('f_cpBillRemarks').value.trim()?`<tr><td style="padding:1px 10px 1px 0;font-weight:600;vertical-align:top">Remarks:</td><td>${document.getElementById('f_cpBillRemarks').value.trim()}</td></tr>`:''}
 </table>
