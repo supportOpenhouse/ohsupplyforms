@@ -4,6 +4,57 @@ const{visibilityFilter}=require('../utils/visibility');
 const{sendCPBillEmail}=require('../utils/email-sender');
 const cpPool=require('../db/cpPool');
 
+// ── The CP-app cutover ──
+// Sourcing bills are raised from ONE place per property, decided by when its Token
+// Request MAIL actually went out:
+//   before CUTOVER -> this internal form
+//   on/after       -> the Channel Partner app, through the CRM relay
+// so the same bill can never be raised from both sides.
+//
+// The anchor is `activity_logs.email_token_request` (written by utils/logger
+// logEmailSent when the mail is sent, once, never rewritten) — NOT
+// properties.token_submitted_at, which tracks the LATEST Form-3 submission and so
+// moves forward on a resubmission. That column let a 12-Sep property read as 21 Sep
+// and be billed from both sides; the CRM relay anchors on the same log for the same
+// reason. MIN() is deliberate: the FIRST mail is when the deal entered the world, so
+// a resend must not move the anchor either.
+//
+// A property with NO such log predates the logging (they were billed Apr-May), so it
+// belongs to the form era and stays visible. The relay excludes those already,
+// because a missing timestamp fails its `>= cutoff` test.
+const CP_APP_CUTOVER = (process.env.RELAY_MIN_TOKEN_DATE || '2026-09-18').trim();
+
+// Hide a property from this form once its token mail is on/after the cutover.
+// Written as an anti-join, NOT a per-row correlated subquery: this aggregates the
+// 532 email_token_request rows ONCE via idx_logs_action (bitmap scan, 4.5ms over
+// 123k log rows), where a correlated version would re-run per candidate property.
+// Requires the caller to alias `properties` as `p`.
+const CUTOVER_CLAUSE = CP_APP_CUTOVER ? `
+      AND p.uid NOT IN (
+        SELECT a.uid FROM activity_logs a
+         WHERE a.action = 'email_token_request'
+         GROUP BY a.uid
+        HAVING min(a.created_at) >= '${CP_APP_CUTOVER}'::date)` : '';
+
+// Is this property still the FORM's to bill? The dropdown filter above is only the
+// UI; prefill/submit/send-email are reachable directly (a bookmarked ?uid=, a stale
+// tab), so the rule is enforced here too. Same anchor, same reason.
+async function formEraOk(pool, uid){
+  if(!CP_APP_CUTOVER) return true;
+  const{rows}=await pool.query(
+    `SELECT min(created_at) AS at FROM activity_logs
+      WHERE uid=$1 AND action='email_token_request'`,[uid]);
+  const at=rows[0]&&rows[0].at;
+  // No token-mail log at all => predates the logging => form era. The relay
+  // excludes those anyway, since a missing timestamp fails its `>= cutoff` test.
+  if(!at) return true;
+  return new Date(at) < new Date(`${CP_APP_CUTOVER}T00:00:00`);
+}
+
+const CUTOVER_MSG = uid =>
+  `${uid}'s Token Request email went out on or after ${CP_APP_CUTOVER}, so its `
+  + `sourcing bill is raised by the Channel Partner in the CP app, not here.`;
+
 module.exports=function(pool){
   // ── CP code for a NEW cp ──
   // Codes are owned by the shared channel_partners directory now. Supply used to
@@ -63,16 +114,20 @@ module.exports=function(pool){
       FROM properties p WHERE p.uid=$1`,[req.params.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
       const p=rows[0];if(!p.pending_request_submitted_at)return res.status(400).json({error:'AMA Acknowledgement (Form 6) must be submitted first'});
+      if(!await formEraOk(pool,req.params.uid))
+        return res.status(409).json({error:CUTOVER_MSG(req.params.uid)});
       res.json(p)}catch(e){res.status(500).json({error:e.message})}
   });
   router.get('/uids',async(req,res)=>{
-    try{const vis=visibilityFilter(req.user);const{rows}=await pool.query(`SELECT uid,city,society_name,unit_no,tower_no,owner_broker_name,final_submitted_at,cp_bill_submitted_at
-      FROM properties WHERE pending_request_submitted_at IS NOT NULL AND is_dead IS NOT TRUE AND is_token_refunded IS NOT TRUE AND replicated IS NOT TRUE AND uid !~ '^OH[A-Z]*D[0-9]'${vis.clause} ORDER BY updated_at DESC`,vis.params);res.json(rows)}catch(e){res.status(500).json({error:e.message})}
+    try{const vis=visibilityFilter(req.user);const{rows}=await pool.query(`SELECT p.uid,p.city,p.society_name,p.unit_no,p.tower_no,p.owner_broker_name,p.final_submitted_at,p.cp_bill_submitted_at
+      FROM properties p WHERE p.pending_request_submitted_at IS NOT NULL AND p.is_dead IS NOT TRUE AND p.is_token_refunded IS NOT TRUE AND p.replicated IS NOT TRUE AND p.uid !~ '^OH[A-Z]*D[0-9]'${CUTOVER_CLAUSE}${vis.clause} ORDER BY p.updated_at DESC`,vis.params);res.json(rows)}catch(e){res.status(500).json({error:e.message})}
   });
   router.post('/submit',async(req,res)=>{
     try{
       const d=req.body;const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
+      if(!await formEraOk(pool,d.uid))
+        return res.status(409).json({error:CUTOVER_MSG(d.uid)});
       const oldRow=rows[0];const wasSubmitted=!!oldRow.cp_bill_submitted_at;
 
       // Resolve the CP against the SHARED directory so properties.cp_code holds a
@@ -161,6 +216,8 @@ module.exports=function(pool){
     try{
       const userId=req.user?.id;
       if(!userId)return res.status(401).json({error:'Not authenticated'});
+      if(!await formEraOk(pool,req.params.uid))
+        return res.status(409).json({error:CUTOVER_MSG(req.params.uid)});
       const{rows:uRows}=await pool.query('SELECT email,name,google_access_token,google_refresh_token FROM users WHERE id=$1',[userId]);
       if(!uRows.length)return res.status(401).json({error:'User not found'});
       const user=uRows[0];
