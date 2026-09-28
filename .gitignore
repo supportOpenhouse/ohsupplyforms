@@ -29,5 +29,5 @@ dist/
 build/
 .cache/
 preview-my-properties.html
-
+docs/
 graphify-out/
