@@ -80,6 +80,8 @@
         <hr class="div">
         <div class="fg" id="parkImgWrap"><label>Parking Photo <span class="req">*</span></label><div class="img-single"><button type="button" class="img-single-btn" id="parkImgBtn">Upload</button><div class="img-single-preview" id="parkImgPrev"><img></div><input type="hidden" name="parking_image" id="parkImgUrl"></div></div>
         <hr class="div">
+        <div class="fg"><label>Lift Panel Photo</label><div class="img-single"><button type="button" class="img-single-btn" id="liftImgBtn">Upload</button><div class="img-single-preview" id="liftImgPrev"><img></div><input type="hidden" name="lift_panel_image" id="liftImgUrl"></div></div>
+        <hr class="div">
         <div class="fg"><label>Video Link <span class="req">*</span></label><input type="url" name="video_link" pattern="https?://.+" required><div class="err-msg">Required</div></div>
         <hr class="div">
         <div class="fg"><label>Remarks (optional)</label><textarea name="visit_remarks" id="visitRemarks" rows="3" placeholder="Any observations, notes..."></textarea></div>
@@ -90,7 +92,7 @@
 </div>
 <script src="/js/shared.js"></script>
 <script>
-let S,opts,exitC,parkImg,balUploads={};const pages=['p1','p2','p3','p4'];
+let S,opts,exitC,parkImg,liftImg,balUploads={};const pages=['p1','p2','p3','p4'];
 // JSONB columns come back from node-pg already parsed (array), but older/text rows may be strings — handle both.
 const asArr=v=>{try{return Array.isArray(v)?v:(v?JSON.parse(v):[])}catch(e){return[]}};
 // Prefilled config may not match the option list exactly (e.g. "3BHK" vs "3 BHK") — keep it as an option so it isn't lost.
@@ -120,6 +122,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     fillRadios(document.getElementById('gasGrp'),'gas_pipeline',opts.yesNo);
     fillSelect(document.getElementById('selPark'),opts.parkingOptions,'Select');
     parkImg=initSingleUpload('parkImgBtn','parkImgPrev','parkImgUrl');
+    liftImg=initSingleUpload('liftImgBtn','liftImgPrev','liftImgUrl');
     document.getElementById('selPark').addEventListener('change',toggleParkImg);toggleParkImg();
     fillSelect(document.getElementById('selFurn'),opts.furnishingLevels,'Select');
     fillPills(document.getElementById('furnP'),'furnishing_details',opts.furnishingDetails.filter(x=>x!=='No Items'));
@@ -183,6 +186,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     asArr(d.extra_area).forEach(v=>{const cb=document.querySelector(`input[name="extra_area"][value="${v}"]`);if(cb){cb.checked=true;cb.closest('label').style.cssText='background:var(--ac);color:#fff;border-color:var(--ac)'}});
     sr('gas_pipeline',d.gas_pipeline);sv('parking',d.parking);sv('furnishing',d.furnishing);
     if(d.parking_image)parkImg.setUrl(d.parking_image);toggleParkImg();
+    if(d.lift_panel_image)liftImg.setUrl(d.lift_panel_image);
     if(d.furnishing==='Unfurnished')document.getElementById('furnWrap').style.display='none';
     asArr(d.furnishing_details).forEach(v=>{const cb=document.querySelector(`input[name="furnishing_details"][value="${v}"]`);if(cb){cb.checked=true;cb.closest('label').style.cssText='background:var(--ac);color:#fff;border-color:var(--ac)'}});
     sv('total_lifts',d.total_lifts);sv('total_floors_tower',d.total_floors_tower);sv('total_flats_floor',d.total_flats_floor);
