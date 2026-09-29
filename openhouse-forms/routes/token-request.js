@@ -182,11 +182,25 @@ module.exports=function(pool){
       });
       // Store the Gmail thread id + the RFC822 Message-ID header (<...@mail.gmail.com>)
       // for the separate transaction-management process — NOT Gmail's internal message
-      // id. COALESCE keeps the FIRST send's ids if the email is ever resent, so the pair
-      // always belongs to the same message.
+      // id. The CRM replies INTO this thread when Accounts sends the token-PAYMENT
+      // confirmation, so this pair must name the mail the recipients are actually
+      // reading.
+      //
+      // This used to COALESCE the other way round, keeping the FIRST send's ids forever.
+      // That was wrong on a resend: reaching this line at all requires `force` (the 409
+      // above), so a resend is always deliberate — the sender is superseding a mail that
+      // was incorrect, and the new mail is the live thread. Keeping the old pointer made
+      // Accounts' payment confirmation land in the superseded thread, under figures the
+      // POC had already been told to ignore. Seen on OHGHC1816 (resent 28 Sep 16:01,
+      // pointer still naming the 13:21 mail) and 18 other properties.
+      //
+      // Both ids are written together or not at all, so the pair always belongs to the
+      // same message — which is what the original COALESCE was really protecting. They
+      // are only overwritten when this send actually produced them, so a send that
+      // returns no ids cannot blank a good pointer.
       await pool.query(`UPDATE properties SET token_request_email_sent=TRUE,
-        txn_mgmt_thread_id=COALESCE(txn_mgmt_thread_id,$2),
-        txn_mgmt_message_id=COALESCE(txn_mgmt_message_id,$3),
+        txn_mgmt_thread_id=COALESCE($2,txn_mgmt_thread_id),
+        txn_mgmt_message_id=COALESCE($3,txn_mgmt_message_id),
         updated_at=NOW() WHERE uid=$1`,[req.params.uid,result.threadId||null,result.rfc822MsgId||null]);
       console.log(`Email sent for ${req.params.uid} by ${user.email} — gmailId: ${result.messageId} | rfc822: ${result.rfc822MsgId} | threadId: ${result.threadId}`);
       res.json({success:true,messageId:result.messageId});
