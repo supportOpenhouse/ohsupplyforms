@@ -80,7 +80,7 @@
         <hr class="div">
         <div class="fg" id="parkImgWrap"><label>Parking Photo <span class="req">*</span></label><div class="img-single"><button type="button" class="img-single-btn" id="parkImgBtn">Upload</button><div class="img-single-preview" id="parkImgPrev"><img></div><input type="hidden" name="parking_image" id="parkImgUrl"></div></div>
         <hr class="div">
-        <div class="fg"><label>Lift Panel Photo</label><div class="img-single"><button type="button" class="img-single-btn" id="liftImgBtn">Upload</button><div class="img-single-preview" id="liftImgPrev"><img></div><input type="hidden" name="lift_panel_image" id="liftImgUrl"></div></div>
+        <div class="fg" id="liftImgWrap"><label>Lift Panel Photo <span class="req">*</span></label><div class="img-single"><button type="button" class="img-single-btn" id="liftImgBtn">Upload</button><div class="img-single-preview" id="liftImgPrev"><img></div><input type="hidden" name="lift_panel_image" id="liftImgUrl"></div></div>
         <hr class="div">
         <div class="fg"><label>Video Link <span class="req">*</span></label><input type="url" name="video_link" pattern="https?://.+" required><div class="err-msg">Required</div></div>
         <hr class="div">
@@ -98,6 +98,8 @@ const asArr=v=>{try{return Array.isArray(v)?v:(v?JSON.parse(v):[])}catch(e){retu
 // Prefilled config may not match the option list exactly (e.g. "3BHK" vs "3 BHK") — keep it as an option so it isn't lost.
 function setCfg(v){const sel=document.getElementById('v_cfg');if(v&&![...sel.options].some(o=>o.value===v))sel.add(new Option(v,v));sel.value=v}
 // Parking Photo is mandatory unless "No Parking" is selected — hide+skip it in that case.
+// Lift Panel Photo is mandatory unless Total Lifts is 0 — hide+skip it in that case.
+function toggleLiftImg(){document.getElementById('liftImgWrap').style.display=document.getElementById('selLift').value==='0'?'none':'block'}
 function toggleParkImg(){document.getElementById('parkImgWrap').style.display=document.getElementById('selPark').value==='No Parking'?'none':'block'}
 function goStep(n){if(n<S.current){S.show(n);return}for(let i=S.current;i<n;i++){if(!validateStep(i)){return}}S.show(n)}
 function nextStep(){if(validateStep(S.current))S.next()}
@@ -110,7 +112,8 @@ function validateStep(step){
   if(step===3){if(!document.getElementById('exitCUrl').value){toast('Upload Compass Photo','err');return false}}
   if(step===4){
     const park=document.getElementById('selPark').value;
-    if(park&&park!=='No Parking'&&!document.getElementById('parkImgUrl').value){toast('Upload Parking Photo','err');return false}}
+    if(park&&park!=='No Parking'&&!document.getElementById('parkImgUrl').value){toast('Upload Parking Photo','err');return false}
+    if(document.getElementById('selLift').value!=='0'&&!document.getElementById('liftImgUrl').value){toast('Upload Lift Panel Photo','err');return false}}
   return true;
 }
 document.addEventListener('DOMContentLoaded',async()=>{
@@ -123,6 +126,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     fillSelect(document.getElementById('selPark'),opts.parkingOptions,'Select');
     parkImg=initSingleUpload('parkImgBtn','parkImgPrev','parkImgUrl');
     liftImg=initSingleUpload('liftImgBtn','liftImgPrev','liftImgUrl');
+    document.getElementById('selLift').addEventListener('change',toggleLiftImg);
     document.getElementById('selPark').addEventListener('change',toggleParkImg);toggleParkImg();
     fillSelect(document.getElementById('selFurn'),opts.furnishingLevels,'Select');
     fillPills(document.getElementById('furnP'),'furnishing_details',opts.furnishingDetails.filter(x=>x!=='No Items'));
@@ -189,7 +193,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     if(d.lift_panel_image)liftImg.setUrl(d.lift_panel_image);
     if(d.furnishing==='Unfurnished')document.getElementById('furnWrap').style.display='none';
     asArr(d.furnishing_details).forEach(v=>{const cb=document.querySelector(`input[name="furnishing_details"][value="${v}"]`);if(cb){cb.checked=true;cb.closest('label').style.cssText='background:var(--ac);color:#fff;border-color:var(--ac)'}});
-    sv('total_lifts',d.total_lifts);sv('total_floors_tower',d.total_floors_tower);sv('total_flats_floor',d.total_flats_floor);
+    sv('total_lifts',d.total_lifts);sv('total_floors_tower',d.total_floors_tower);sv('total_flats_floor',d.total_flats_floor);toggleLiftImg();
     sv('exit_facing',d.exit_facing);if(d.exit_compass_image)exitC.setUrl(d.exit_compass_image);sv('video_link',d.video_link);
     if(d.visit_remarks)document.getElementById('visitRemarks').value=d.visit_remarks;
     if(d.balconies){document.getElementById('selBal').value=d.balconies;buildBalconyCards()}
