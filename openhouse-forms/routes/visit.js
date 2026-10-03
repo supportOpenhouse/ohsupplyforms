@@ -4,6 +4,7 @@ const{visibilityFilter}=require('../utils/visibility');
 const{notifyVisitCompleted,notifyVisitReassigned,notifyVisitCancelled,notifyVisitScheduled}=require('../utils/whatsapp');
 const{syncVisitCalendar}=require('../utils/calendar');
 const{addReschedule,setCancelled,clearCancelled,dateStr}=require('../utils/visit-history');
+const{amaSigned,AMA_LOCK_MSG}=require('../utils/ama-lock');
 module.exports=function(pool){
   router.get('/prefill/:uid',async(req,res)=>{
     try{const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
@@ -56,6 +57,9 @@ module.exports=function(pool){
       // token_deal_submitted_at. Cancelling is for a visit that has not happened;
       // dropping a live deal is a different decision and belongs elsewhere.
       if(prop.is_dead)return res.json({success:true,uid:prop.uid,already_cancelled:true});
+      // Normally unreachable (an AMA implies a completed visit) — but imported and
+      // replicated rows can carry a signed AMA with no visit_submitted_at.
+      if(amaSigned(prop))return res.status(409).json({error:AMA_LOCK_MSG,ama_locked:true});
       if(prop.visit_submitted_at)
         return res.status(400).json({error:'Visit already completed, cannot cancel. To drop this property, cancel the deal instead.'});
       await pool.query('UPDATE properties SET is_dead=TRUE,visit_date_history=$2,updated_at=NOW() WHERE uid=$1',

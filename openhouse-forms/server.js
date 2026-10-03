@@ -189,6 +189,20 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
         error:'Only a super admin can revive a cancelled property. Ask a super admin to un-cancel it.'});
     }
 
+    // No cancelling once the AMA is signed — super admins included. Judged on the
+    // row as it is NOW (oldProp), so the same request cannot clear the AMA date and
+    // cancel in one go. Only a flip TO cancelled is refused: the form posts every
+    // checkbox on every save, so an unchanged false, or an undo, passes through.
+    const wantsRefunded=Object.prototype.hasOwnProperty.call(d,'is_token_refunded')
+      ? !(d.is_token_refunded===false||d.is_token_refunded==='false'||d.is_token_refunded===''||d.is_token_refunded==null)
+      : null;
+    const cancelling=(wantsDead===true&&oldProp.is_dead!==true)
+      ||(wantsRefunded===true&&oldProp.is_token_refunded!==true);
+    if(cancelling){
+      const{amaSigned,AMA_LOCK_MSG}=require('./utils/ama-lock');
+      if(amaSigned(oldProp))return res.status(409).json({error:AMA_LOCK_MSG,ama_locked:true});
+    }
+
     const allowed=ADMIN_EDITABLE;
     const sets=[];const vals=[];let i=1;
     const changes={};

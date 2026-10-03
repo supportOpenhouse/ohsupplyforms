@@ -629,6 +629,9 @@ document.addEventListener('click',e=>{if(!e.target.closest('.msdd'))document.que
 function efRO(l,v){const isEmpty=v===null||v===undefined||v===''||v==='null';return`<div class="prev-item"><div class="pi-label">${l}</div><div class="pi-readonly" style="font-size:12px;color:${isEmpty?'#bbb':'var(--tx)'}">${isEmpty?'—':v}</div></div>`}
 function efLock(name,checked){return`<div class="prev-item"><div class="pi-label">Email</div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--tx)"><input type="checkbox" name="${name}" ${checked?'checked':''} style="width:auto;margin:0"> Email Sent Lock</label></div>`}
 
+// Mirrors utils/ama-lock.js: once the AMA is signed the property cannot be
+// cancelled from here (the server refuses it too). Undoing a cancel stays allowed.
+function amaSigned(p){return !!(p&&(String(p.signed_ama_url||'').trim()||p.ama_date||p.pending_request_submitted_at||p.cp_bill_submitted_at||p.listing_submitted_at||p.final_submitted_at))}
 function buildModal(p){
   currentModalUid=p.uid;
   const rb=document.getElementById('replicateBtn');
@@ -640,13 +643,18 @@ function buildModal(p){
   const extras=parseJ(p.extra_area).filter(x=>x!=='No Extra Room');const furnItems=parseJ(p.furnishing_details).filter(x=>x!=='No Items');const docs=parseJ(p.documents_available);
   let propDocsHtml='—';try{const pd=typeof p.ama_prop_docs==='string'?JSON.parse(p.ama_prop_docs):(p.ama_prop_docs||{});const rows=Object.entries(pd).filter(([k,v])=>v&&(v.status||v.url));if(rows.length)propDocsHtml=rows.map(([k,v])=>`${k}: <b>${v.status||'—'}</b>${v.url?` — <a href="${v.url}" target="_blank">View ↗</a>`:''}`).join('<br>')}catch(e){}
 
+  // AMA signed: a box that is not already ticked cannot be ticked. A ticked one stays
+  // live so an existing cancellation can still be undone.
+  const amaLock=amaSigned(p);
+  const lockTip='AMA signed — cannot be cancelled here. Record a post-AMA cancellation in the Transaction Management Dashboard.';
+  const lockAttr=(on)=>(amaLock&&!on)?`disabled title="${lockTip}"`:'';
   let html=`<div class="prev-status">${statusHtml}
-    <label style="margin-left:auto;display:flex;align-items:center;gap:4px;font-size:10px;color:#b45309;font-weight:600;cursor:pointer">
-      <input type="checkbox" name="is_token_refunded" ${p.is_token_refunded?'checked':''} style="margin:0"> Cancelled Post Token
+    <label style="margin-left:auto;display:flex;align-items:center;gap:4px;font-size:10px;color:#b45309;font-weight:600;cursor:pointer" ${lockAttr(p.is_token_refunded)}>
+      <input type="checkbox" name="is_token_refunded" ${p.is_token_refunded?'checked':''} ${lockAttr(p.is_token_refunded)} style="margin:0"> Cancelled Post Token
     </label>
-    <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--red);font-weight:600;cursor:pointer">
-      <input type="checkbox" name="is_dead" ${p.is_dead?'checked':''} style="margin:0"> Cancelled
-    </label></div>`;
+    <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--red);font-weight:600;cursor:pointer" ${lockAttr(p.is_dead)}>
+      <input type="checkbox" name="is_dead" ${p.is_dead?'checked':''} ${lockAttr(p.is_dead)} style="margin:0"> Cancelled
+    </label>${amaLock?'<span style="font-size:10px;color:var(--tx3)">🔒 AMA signed</span>':''}</div>`;
 
   html+=`<div class="prev-section"><div class="prev-section-t">Schedule (Form 1)</div><div class="prev-grid">
     ${efRO('UID',p.uid)}${ef('City','city',p.city)}${ef('Society','society_name',p.society_name)}

@@ -302,9 +302,17 @@ async function confirmSendEmail(){
     if(e.message&&e.message.includes('log out'))toast('Please logout and login again','warn',8000);
   }finally{btn.disabled=false;btn.textContent='✉ Confirm & Send'}
 }
+// Mirrors utils/ama-lock.js: once the AMA is signed the property cannot be
+// cancelled from here (the server refuses it too). Undoing a cancel stays allowed.
+function amaSigned(p){return !!(p&&(String(p.signed_ama_url||'').trim()||p.ama_date||p.pending_request_submitted_at||p.cp_bill_submitted_at||p.listing_submitted_at||p.final_submitted_at))}
 function updateRefundBtn(refunded){
   const btn=document.getElementById('refundBtn');
+  btn.disabled=false;btn.title='';
   if(refunded){btn.textContent='↩ Undo Cancel';btn.style.color='var(--tx3)';btn.style.borderColor='var(--tx3)'}
+  else if(amaSigned(propData)){
+    btn.textContent='🔒 AMA signed';btn.disabled=true;btn.style.color='var(--tx3)';btn.style.borderColor='var(--tx3)';
+    btn.title='The AMA is signed — this property can no longer be cancelled here. Record a post-AMA cancellation in the Transaction Management Dashboard.';
+  }
   else{btn.textContent='Cancel Post Token';btn.style.color='#b45309';btn.style.borderColor='#b45309'}
 }
 document.getElementById('refundBtn').addEventListener('click',async()=>{
@@ -318,7 +326,7 @@ document.getElementById('refundBtn').addEventListener('click',async()=>{
     const d=await r.json();if(!r.ok)throw new Error(d.error);
     toast(d.is_token_refunded?'Marked as Cancelled Post Token':'Cancelled Post Token undone','ok');
     loadData();
-  }catch(e){toast(e.message||'Failed','err')}finally{btn.disabled=false}
+  }catch(e){toast(e.message||'Failed','err')}finally{updateRefundBtn(propData?.is_token_refunded)}
 });
 </script>
 </body></html>

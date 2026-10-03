@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const { notifyVisitScheduled, notifyVisitCancelled, notifyVisitReassigned } = require('../utils/whatsapp');
 const { syncVisitCalendar } = require('../utils/calendar');
 const { initHistory, setCancelled, addReschedule, dateStr } = require('../utils/visit-history');
+const { amaSigned, AMA_LOCK_MSG } = require('../utils/ama-lock');
 
 const CITY_MAP = { 'Gurgaon': 'G', 'Noida': 'N', 'Ghaziabad': 'GH' };
 const SRC_MAP = { 'CP': 'C', 'Direct': 'D', 'CP Listing': 'C' };
@@ -234,6 +235,9 @@ module.exports = function (pool) {
 
       if (prop.is_dead) {
         return res.json({ success: true, uid: prop.uid, already_cancelled: true });
+      }
+      if (amaSigned(prop)) {
+        return res.status(409).json({ error: AMA_LOCK_MSG, ama_locked: true });
       }
       if (prop.visit_submitted_at) {
         return res.status(400).json({ error: 'visit already completed, cannot cancel' });
