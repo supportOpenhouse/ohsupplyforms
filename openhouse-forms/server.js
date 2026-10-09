@@ -240,6 +240,24 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
   }catch(e){console.error('Admin update error:',e.message);res.status(500).json({error:e.message})}
 });
 
+// Columns a replicated copy resets to their default, so it restarts at Visit
+// Completed: the post-visit form timestamps, mail flags and threads, the manual
+// status, the cancel flags, and the records of the source's own deal (signed AMA,
+// token transfer, key handover, CP bills, its Core seller home).
+const REPLICATE_RESET=[
+  'is_dead','is_token_refunded',
+  'token_submitted_at','token_is_draft','token_deal_submitted_at','ama_submitted_at',
+  'pending_request_submitted_at','listing_submitted_at','cp_bill_submitted_at','final_submitted_at',
+  'token_request_email_sent','token_deal_email_sent','pending_request_email_sent','cp_bill_email_sent','final_email_sent',
+  'email_thread_id','email_message_id','txn_mgmt_thread_id','txn_mgmt_message_id',
+  'status_override','status_override_at',
+  'signed_ama_url','ama_date','deal_transfer_date','deal_neft_reference','key_handover_date','core_home_id',
+  'cp_sourcing_bill_url','cp_sourcing_invoice_no','cp_sourcing_bill_at',
+  'cp_selling_bill_url','cp_selling_invoice_no','cp_selling_bill_at',
+  'cp_selling_ats_bill_url','cp_selling_ats_invoice_no','cp_selling_ats_bill_at',
+  'cp_sourcing_registry_bill_url','cp_sourcing_registry_invoice_no','cp_sourcing_registry_bill_at',
+];
+
 // Admin: Replicate a property into a new OH ID. Clones the FULL source row server-side —
 // every column (incl. JSONB and columns owned by the other dashboards, with full timestamp
 // precision) — except identity/control fields and shared external-resource handles
@@ -262,20 +280,34 @@ app.post('/api/admin/property/:uid/replicate', isAuthenticated, isAdmin, async(r
     const{rows:mx}=await pool.query(`SELECT MAX(CAST(REPLACE(uid,$1,'') AS INTEGER)) AS max_num FROM properties WHERE uid LIKE $2`,[prefix,prefix+'%']);
     const newUid=prefix+String((mx[0].max_num||1000)+1);
     // Columns that get fresh values; everything else is copied verbatim from the source row.
-    // is_dead is reset rather than copied: replicating a cancelled property is how
-    // a dead lead gets a fresh start, so the copy must be born LIVE. Inheriting the
-    // flag made the new row invisible in every form list the moment it was created,
-    // and only a super admin could then revive it.
+    // The copy restarts at VISIT COMPLETED. Everything captured up to the visit, and
+    // the form data typed since (so the forms prefill), is copied. Everything that
+    // records what HAPPENED to the source after its visit is reset to the column
+    // default (REPLICATE_RESET below), because it belongs to the source's deal, not
+    // the copy's: OHGC1931 (from OHGC1733, 9 Oct 2026) came out "Cancelled Post
+    // Token" / "Token Transferred", on the source's Core seller home and mail thread.
+    // Replicating is THE way a dead lead comes back (nothing un-cancels — see
+    // utils/no-uncancel.js), so the copy must be born live.
     const OVERRIDE=new Set(['uid','source','lead_id','created_at','updated_at','replicated','replicated_from',
-      'is_dead',
-      'gcal_event_id','gcal_creator_id','email_thread_id','email_message_id']);
+      'gcal_event_id','gcal_creator_id']);
     // Exclude generated/identity columns (e.g. a generated "stage" column) — they reject explicit inserts.
     const{rows:colRows}=await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='properties' AND is_generated='NEVER' AND is_identity='NO'`);
+    const have=new Set(colRows.map(r=>r.column_name));
     const copyCols=colRows.map(r=>r.column_name).filter(c=>!OVERRIDE.has(c));
-    const insertCols=[...copyCols,'uid','source','lead_id','replicated','replicated_from','is_dead'].map(c=>`"${c}"`).join(',');
-    const selectExprs=[...copyCols.map(c=>`"${c}"`),'$1','$2','$3','FALSE','$4','FALSE'].join(',');
-    await pool.query(`INSERT INTO properties(${insertCols}) SELECT ${selectExprs} FROM properties WHERE uid=$4`,[newUid,source,lead_id,srcUid]);
-    await pool.query('UPDATE properties SET replicated=TRUE,updated_at=NOW() WHERE uid=$1',[srcUid]);
+    const insertCols=[...copyCols,'uid','source','lead_id','replicated','replicated_from'].map(c=>`"${c}"`).join(',');
+    const selectExprs=[...copyCols.map(c=>`"${c}"`),'$1','$2','$3','FALSE','$4'].join(',');
+    const resetSets=REPLICATE_RESET.filter(c=>have.has(c)).map(c=>`"${c}"=DEFAULT`);
+    const client=await pool.connect();
+    try{
+      await client.query('BEGIN');
+      await client.query(`INSERT INTO properties(${insertCols}) SELECT ${selectExprs} FROM properties WHERE uid=$4`,[newUid,source,lead_id,srcUid]);
+      // cancelled_on belongs to the source's cancellation, not the copy's visit.
+      await client.query(`UPDATE properties SET ${resetSets.join(',')},
+          visit_date_history = visit_date_history - 'cancelled_on' WHERE uid=$1`,[newUid]);
+      await client.query('UPDATE properties SET replicated=TRUE,updated_at=NOW() WHERE uid=$1',[srcUid]);
+      await client.query('COMMIT');
+    }catch(e){await client.query('ROLLBACK').catch(()=>{});throw e}
+    finally{client.release()}
     res.json({success:true,uid:newUid});
     require('./utils/logger').log(newUid,'replicate','admin',req.user?.email,req.user?.name,{source_uid:srcUid,source,lead_id}).catch(()=>{});
   }catch(e){console.error('Replicate error:',e.message);res.status(500).json({error:e.message})}
