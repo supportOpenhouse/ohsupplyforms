@@ -643,11 +643,12 @@ function buildModal(p){
   const extras=parseJ(p.extra_area).filter(x=>x!=='No Extra Room');const furnItems=parseJ(p.furnishing_details).filter(x=>x!=='No Items');const docs=parseJ(p.documents_available);
   let propDocsHtml='—';try{const pd=typeof p.ama_prop_docs==='string'?JSON.parse(p.ama_prop_docs):(p.ama_prop_docs||{});const rows=Object.entries(pd).filter(([k,v])=>v&&(v.status||v.url));if(rows.length)propDocsHtml=rows.map(([k,v])=>`${k}: <b>${v.status||'—'}</b>${v.url?` — <a href="${v.url}" target="_blank">View ↗</a>`:''}`).join('<br>')}catch(e){}
 
-  // AMA signed: a box that is not already ticked cannot be ticked. A ticked one stays
-  // live so an existing cancellation can still be undone.
+  // A ticked box is locked: a cancellation is final, and the way back is Replicate.
+  // AMA signed: a box that is not already ticked cannot be ticked either.
   const amaLock=amaSigned(p);
   const lockTip='AMA signed — cannot be cancelled here. Record a post-AMA cancellation in the Transaction Management Dashboard.';
-  const lockAttr=(on)=>(amaLock&&!on)?`disabled title="${lockTip}"`:'';
+  const finalTip='Cancelled — this cannot be undone. To bring the property back, use Replicate.';
+  const lockAttr=(on)=>on?`disabled title="${finalTip}"`:amaLock?`disabled title="${lockTip}"`:'';
   let html=`<div class="prev-status">${statusHtml}
     <label style="margin-left:auto;display:flex;align-items:center;gap:4px;font-size:10px;color:#b45309;font-weight:600;cursor:pointer" ${lockAttr(p.is_token_refunded)}>
       <input type="checkbox" name="is_token_refunded" ${p.is_token_refunded?'checked':''} ${lockAttr(p.is_token_refunded)} style="margin:0"> Cancelled Post Token

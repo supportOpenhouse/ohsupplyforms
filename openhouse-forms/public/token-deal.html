@@ -308,7 +308,11 @@ function amaSigned(p){return !!(p&&(String(p.signed_ama_url||'').trim()||p.ama_d
 function updateRefundBtn(refunded){
   const btn=document.getElementById('refundBtn');
   btn.disabled=false;btn.title='';
-  if(refunded){btn.textContent='↩ Undo Cancel';btn.style.color='var(--tx3)';btn.style.borderColor='var(--tx3)'}
+  // A cancellation is final — the way back is an admin Replicate, not an undo.
+  if(refunded){
+    btn.textContent='Cancelled Post Token';btn.disabled=true;btn.style.color='var(--tx3)';btn.style.borderColor='var(--tx3)';
+    btn.title='Cancelled — this cannot be undone. To bring the property back, ask an admin to replicate it.';
+  }
   else if(amaSigned(propData)){
     btn.textContent='🔒 AMA signed';btn.disabled=true;btn.style.color='var(--tx3)';btn.style.borderColor='var(--tx3)';
     btn.title='The AMA is signed — this property can no longer be cancelled here. Record a post-AMA cancellation in the Transaction Management Dashboard.';
@@ -317,14 +321,13 @@ function updateRefundBtn(refunded){
 }
 document.getElementById('refundBtn').addEventListener('click',async()=>{
   if(!currentUid)return;
-  const isRefunded=propData?.is_token_refunded;
-  const msg=isRefunded?'Undo cancelled post token for this property?':'Cancel post token? This means the property deal is lost and it will be hidden from all forms.';
-  if(!confirm(msg))return;
+  if(propData?.is_token_refunded)return;
+  if(!confirm('Cancel post token? This means the property deal is lost and it will be hidden from all forms.\n\nThis cannot be undone.'))return;
   const btn=document.getElementById('refundBtn');btn.disabled=true;
   try{
     const r=await fetch(`${API}/api/token-deal/token-refunded/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'}});
     const d=await r.json();if(!r.ok)throw new Error(d.error);
-    toast(d.is_token_refunded?'Marked as Cancelled Post Token':'Cancelled Post Token undone','ok');
+    toast('Marked as Cancelled Post Token','ok');
     loadData();
   }catch(e){toast(e.message||'Failed','err')}finally{updateRefundBtn(propData?.is_token_refunded)}
 });

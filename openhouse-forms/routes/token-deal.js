@@ -4,6 +4,7 @@ const{generateReceiptHTML}=require('../utils/pdf-template');
 const{sendDealTermsEmail}=require('../utils/email-sender');
 const{visibilityFilter}=require('../utils/visibility');
 const{amaSigned,AMA_LOCK_MSG}=require('../utils/ama-lock');
+const{UNCANCEL_LOCK_MSG}=require('../utils/no-uncancel');
 const{getPhone,notifyDealTermsShared}=require('../utils/whatsapp');
 
 /** Fields forwarded to Core for Home + Seller creation (explicit allow-list). */
@@ -188,7 +189,9 @@ module.exports=function(pool){
       const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
       const newVal=!rows[0].is_token_refunded;
-      // Cancelling is refused once the AMA is signed; undoing a cancel is not.
+      // A cancellation is final — the way back is Replicate (utils/no-uncancel.js).
+      if(!newVal)return res.status(409).json({error:UNCANCEL_LOCK_MSG,uncancel_locked:true});
+      // Cancelling is refused once the AMA is signed.
       if(newVal&&amaSigned(rows[0]))return res.status(409).json({error:AMA_LOCK_MSG,ama_locked:true});
       await pool.query('UPDATE properties SET is_token_refunded=$1,updated_at=NOW() WHERE uid=$2',[newVal,req.params.uid]);
       res.json({success:true,is_token_refunded:newVal});

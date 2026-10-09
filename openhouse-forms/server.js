@@ -176,26 +176,26 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
     const oldProp=rows[0];
     const d=req.body;delete d.uid;delete d.created_at;delete d.updated_at;
 
-    // Reviving a cancelled property is super-admin only. Cancelling stays open to
-    // any admin — it is the reversal that needs the higher bar, because a revived
-    // row re-enters every downstream pipeline (Demand, CP Inventory, the CRM) and
-    // the cancellation itself is usually a deliberate commercial decision.
     // Compared as strings: the checkbox posts 'false'/'true', not booleans.
     const wantsDead=Object.prototype.hasOwnProperty.call(d,'is_dead')
       ? !(d.is_dead===false||d.is_dead==='false'||d.is_dead===''||d.is_dead==null)
       : null;
-    if(oldProp.is_dead===true&&wantsDead===false&&!req.user?.is_super){
-      return res.status(403).json({
-        error:'Only a super admin can revive a cancelled property. Ask a super admin to un-cancel it.'});
+    const wantsRefunded=Object.prototype.hasOwnProperty.call(d,'is_token_refunded')
+      ? !(d.is_token_refunded===false||d.is_token_refunded==='false'||d.is_token_refunded===''||d.is_token_refunded==null)
+      : null;
+
+    // A cancellation is final — nobody un-cancels, super admins included. The way
+    // back is Replicate (see utils/no-uncancel.js). Judged on the row as it is NOW.
+    if((oldProp.is_dead===true&&wantsDead===false)
+      ||(oldProp.is_token_refunded===true&&wantsRefunded===false)){
+      const{UNCANCEL_LOCK_MSG}=require('./utils/no-uncancel');
+      return res.status(409).json({error:UNCANCEL_LOCK_MSG,uncancel_locked:true});
     }
 
     // No cancelling once the AMA is signed — super admins included. Judged on the
     // row as it is NOW (oldProp), so the same request cannot clear the AMA date and
     // cancel in one go. Only a flip TO cancelled is refused: the form posts every
-    // checkbox on every save, so an unchanged false, or an undo, passes through.
-    const wantsRefunded=Object.prototype.hasOwnProperty.call(d,'is_token_refunded')
-      ? !(d.is_token_refunded===false||d.is_token_refunded==='false'||d.is_token_refunded===''||d.is_token_refunded==null)
-      : null;
+    // checkbox on every save, so an unchanged false passes through.
     const cancelling=(wantsDead===true&&oldProp.is_dead!==true)
       ||(wantsRefunded===true&&oldProp.is_token_refunded!==true);
     if(cancelling){
