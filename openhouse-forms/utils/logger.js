@@ -72,8 +72,9 @@ function logEmailSent(uid, action, sender, toList, ccList, gmailId, subject) {
 }
 
 // ── Status — action = specific status name ──
-function logStatusChange(uid, action, oldVal, newVal, actorEmail, actorName) {
-  return log(uid, action, 'status', actorEmail, actorName, { old: oldVal, new: newVal });
+// `extra` is merged into details — e.g. { cancel_reason } on a cancellation.
+function logStatusChange(uid, action, oldVal, newVal, actorEmail, actorName, extra = {}) {
+  return log(uid, action, 'status', actorEmail, actorName, { old: oldVal, new: newVal, ...extra });
 }
 
 // ── Assignment — action = specific change name ──

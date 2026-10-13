@@ -157,9 +157,11 @@ document.addEventListener('DOMContentLoaded',async()=>{
     // Dead schedule
     document.getElementById('deadBtn').addEventListener('click',async()=>{
       const uid=document.getElementById('fUid').value;if(!uid)return;
-      if(!confirm(`Cancel schedule for ${uid}?\n\nThis will permanently remove it from all form dropdowns. This cannot be undone.`))return;
+      const reason=prompt(`Cancel schedule for ${uid}?\n\nThis will permanently remove it from all form dropdowns. This cannot be undone.\n\nEnter the cancel reason:`);
+      if(reason===null)return;
+      if(!reason.trim()){toast('Cancel reason is required','err');return}
       const btn=document.getElementById('deadBtn');btn.disabled=true;btn.textContent='Marking...';
-      try{const r=await fetch(`${API}/api/visit/dead/${uid}`,{method:'POST',headers:{'Content-Type':'application/json'}});
+      try{const r=await fetch(`${API}/api/visit/dead/${uid}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:reason.trim()})});
         const d=await r.json();if(!r.ok)throw new Error(d.error);
         toast('Schedule cancelled','ok');
         btn.textContent='✕ Cancelled';btn.style.background='#b33a2e';btn.style.color='#fff';

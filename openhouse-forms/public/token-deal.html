@@ -322,10 +322,12 @@ function updateRefundBtn(refunded){
 document.getElementById('refundBtn').addEventListener('click',async()=>{
   if(!currentUid)return;
   if(propData?.is_token_refunded)return;
-  if(!confirm('Cancel post token? This means the property deal is lost and it will be hidden from all forms.\n\nThis cannot be undone.'))return;
+  const reason=prompt('Cancel post token? This means the property deal is lost and it will be hidden from all forms.\n\nThis cannot be undone.\n\nEnter the cancel reason:');
+  if(reason===null)return;
+  if(!reason.trim()){toast('Cancel reason is required','err');return}
   const btn=document.getElementById('refundBtn');btn.disabled=true;
   try{
-    const r=await fetch(`${API}/api/token-deal/token-refunded/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'}});
+    const r=await fetch(`${API}/api/token-deal/token-refunded/${currentUid}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:reason.trim()})});
     const d=await r.json();if(!r.ok)throw new Error(d.error);
     toast('Marked as Cancelled Post Token','ok');
     loadData();

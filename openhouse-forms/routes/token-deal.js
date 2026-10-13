@@ -193,9 +193,12 @@ module.exports=function(pool){
       if(!newVal)return res.status(409).json({error:UNCANCEL_LOCK_MSG,uncancel_locked:true});
       // Cancelling is refused once the AMA is signed.
       if(newVal&&amaSigned(rows[0]))return res.status(409).json({error:AMA_LOCK_MSG,ama_locked:true});
-      await pool.query('UPDATE properties SET is_token_refunded=$1,updated_at=NOW() WHERE uid=$2',[newVal,req.params.uid]);
+      const reason=String(req.body?.reason||'').trim();
+      if(!reason)return res.status(400).json({error:'Cancel reason is required'});
+      const cancelReason=`Cancelled Post Token : ${reason}`;
+      await pool.query('UPDATE properties SET is_token_refunded=$1,cancel_reason=$3,updated_at=NOW() WHERE uid=$2',[newVal,req.params.uid,cancelReason]);
       res.json({success:true,is_token_refunded:newVal});
-      logger.logStatusChange(req.params.uid,newVal?'cancelled_post_token':'undo_cancelled_post_token',!newVal,newVal,req.user?.email,req.user?.name).catch(()=>{});
+      logger.logStatusChange(req.params.uid,'cancelled_post_token',false,true,req.user?.email,req.user?.name,{cancel_reason:cancelReason}).catch(()=>{});
     }catch(e){res.status(500).json({error:e.message})}
   });
   return router;

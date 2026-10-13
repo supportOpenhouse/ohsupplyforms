@@ -225,9 +225,12 @@ module.exports = function (pool) {
         return res.status(400).json({ error: 'visit already completed, cannot cancel' });
       }
 
+      // Reason is optional on this API (existing callers don't send it); stored when given.
+      const reason       = String(d.reason || '').trim();
+      const cancelReason = reason ? `Cancelled : ${reason}` : null;
       await pool.query(
-        'UPDATE properties SET is_dead = TRUE, visit_date_history = $2, updated_at = NOW() WHERE uid = $1',
-        [prop.uid, JSON.stringify(setCancelled(prop.visit_date_history, prop.schedule_date))]
+        'UPDATE properties SET is_dead = TRUE, cancel_reason = COALESCE($3, cancel_reason), visit_date_history = $2, updated_at = NOW() WHERE uid = $1',
+        [prop.uid, JSON.stringify(setCancelled(prop.visit_date_history, prop.schedule_date)), cancelReason]
       );
       res.json({ success: true, uid: prop.uid, already_cancelled: false });
 
@@ -235,9 +238,9 @@ module.exports = function (pool) {
       const actorName    = d.actor_name  || 'External API';
       // "Cancelled from" is whatever the calling app sends — never hardcoded.
       const cancelledFrom = d.cancelled_from || d.source_app || 'External';
-      const reason       = d.reason || '';
 
-      logger.logStatusChange(prop.uid, 'visit_cancelled_via_external', false, true, actorEmail, actorName).catch(() => {});
+      logger.logStatusChange(prop.uid, 'visit_cancelled_via_external', false, true, actorEmail, actorName,
+        cancelReason ? { cancel_reason: cancelReason } : {}).catch(() => {});
       // Always record where the cancel came from (+ optional reason), so it shows in the activity log.
       logger.log(prop.uid, 'visit_cancel_reason', 'note', actorEmail, actorName,
         { cancelled_from: cancelledFrom, reason: reason || null }).catch(() => {});

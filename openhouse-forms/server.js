@@ -202,6 +202,15 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
       const{amaSigned,AMA_LOCK_MSG}=require('./utils/ama-lock');
       if(amaSigned(oldProp))return res.status(409).json({error:AMA_LOCK_MSG,ama_locked:true});
     }
+    // Every cancellation carries a reason, stored as "<type> : <text>".
+    let cancelReason=null;
+    if(cancelling){
+      const reason=String(d.cancel_reason||'').trim();
+      if(!reason)return res.status(400).json({error:'Cancel reason is required'});
+      const type=(wantsRefunded===true&&oldProp.is_token_refunded!==true)?'Cancelled Post Token':'Cancelled';
+      cancelReason=`${type} : ${reason}`;
+    }
+    delete d.cancel_reason;
 
     const allowed=ADMIN_EDITABLE;
     const sets=[];const vals=[];let i=1;
@@ -214,6 +223,7 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
       if(oldStr!==newStr)changes[k]={old:oldProp[k],new:newVal};
       sets.push(`${k}=$${i}`);vals.push(newVal);i++;
     }
+    if(cancelReason){sets.push(`cancel_reason=$${i}`);vals.push(cancelReason);i++;changes.cancel_reason={old:oldProp.cancel_reason,new:cancelReason}}
     if(!sets.length)return res.status(400).json({error:'No valid fields to update'});
     sets.push(`updated_at=NOW()`);
     vals.push(req.params.uid);
@@ -230,8 +240,9 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
     const logger=require('./utils/logger');
     if(Object.keys(changes).length){
       // Log status changes separately
-      if(changes.is_dead)logger.logStatusChange(req.params.uid,changes.is_dead.new?'visit_cancelled':'visit_uncancelled',changes.is_dead.old,changes.is_dead.new,req.user?.email,req.user?.name).catch(()=>{});
-      if(changes.is_token_refunded)logger.logStatusChange(req.params.uid,changes.is_token_refunded.new?'cancelled_post_token':'undo_cancelled_post_token',changes.is_token_refunded.old,changes.is_token_refunded.new,req.user?.email,req.user?.name).catch(()=>{});
+      const reasonExtra=cancelReason?{cancel_reason:cancelReason}:{};
+      if(changes.is_dead)logger.logStatusChange(req.params.uid,changes.is_dead.new?'visit_cancelled':'visit_uncancelled',changes.is_dead.old,changes.is_dead.new,req.user?.email,req.user?.name,reasonExtra).catch(()=>{});
+      if(changes.is_token_refunded)logger.logStatusChange(req.params.uid,changes.is_token_refunded.new?'cancelled_post_token':'undo_cancelled_post_token',changes.is_token_refunded.old,changes.is_token_refunded.new,req.user?.email,req.user?.name,reasonExtra).catch(()=>{});
       if(changes.assigned_by)logger.logAssignment(req.params.uid,'assigned_by_changed',changes.assigned_by.old,changes.assigned_by.new,req.user?.email,req.user?.name,'admin_edit').catch(()=>{});
       if(changes.field_exec)logger.logAssignment(req.params.uid,'assigned_to_changed',changes.field_exec.old,changes.field_exec.new,req.user?.email,req.user?.name,'admin_edit').catch(()=>{});
       // Log full admin edit

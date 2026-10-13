@@ -235,6 +235,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='replicated_from') THEN ALTER TABLE properties ADD COLUMN replicated_from TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='parking_image') THEN ALTER TABLE properties ADD COLUMN parking_image TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='lift_panel_image') THEN ALTER TABLE properties ADD COLUMN lift_panel_image TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='cancel_reason') THEN ALTER TABLE properties ADD COLUMN cancel_reason TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='brokerage_ama_signed') THEN ALTER TABLE properties ADD COLUMN brokerage_ama_signed TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='brokerage_ama_signed_amount') THEN ALTER TABLE properties ADD COLUMN brokerage_ama_signed_amount TEXT; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='brokerage_registry') THEN ALTER TABLE properties ADD COLUMN brokerage_registry TEXT; END IF;

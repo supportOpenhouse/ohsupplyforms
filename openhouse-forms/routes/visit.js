@@ -63,10 +63,13 @@ module.exports=function(pool){
       if(amaSigned(prop))return res.status(409).json({error:AMA_LOCK_MSG,ama_locked:true});
       if(prop.visit_submitted_at)
         return res.status(400).json({error:'Visit already completed, cannot cancel. To drop this property, cancel the deal instead.'});
-      await pool.query('UPDATE properties SET is_dead=TRUE,visit_date_history=$2,updated_at=NOW() WHERE uid=$1',
-        [req.params.uid,JSON.stringify(setCancelled(rows[0].visit_date_history,rows[0].schedule_date))]);
+      const reason=String(req.body?.reason||'').trim();
+      if(!reason)return res.status(400).json({error:'Cancel reason is required'});
+      const cancelReason=`Cancelled : ${reason}`;
+      await pool.query('UPDATE properties SET is_dead=TRUE,cancel_reason=$3,visit_date_history=$2,updated_at=NOW() WHERE uid=$1',
+        [req.params.uid,JSON.stringify(setCancelled(rows[0].visit_date_history,rows[0].schedule_date)),cancelReason]);
       res.json({success:true,uid:req.params.uid});
-      logger.logStatusChange(req.params.uid,'visit_cancelled',false,true,req.user?.email,req.user?.name).catch(()=>{});
+      logger.logStatusChange(req.params.uid,'visit_cancelled',false,true,req.user?.email,req.user?.name,{cancel_reason:cancelReason}).catch(()=>{});
       // Notify assigned_by that visit is cancelled
       const cancelledBy=req.user?.name||req.user?.email||'Unknown';
       notifyVisitCancelled(rows[0],cancelledBy,{email:req.user?.email,name:req.user?.name}).catch(e=>console.error('WA cancel notify error:',e));

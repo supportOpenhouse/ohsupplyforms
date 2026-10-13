@@ -651,11 +651,12 @@ function buildModal(p){
   const lockAttr=(on)=>on?`disabled title="${finalTip}"`:amaLock?`disabled title="${lockTip}"`:'';
   let html=`<div class="prev-status">${statusHtml}
     <label style="margin-left:auto;display:flex;align-items:center;gap:4px;font-size:10px;color:#b45309;font-weight:600;cursor:pointer" ${lockAttr(p.is_token_refunded)}>
-      <input type="checkbox" name="is_token_refunded" ${p.is_token_refunded?'checked':''} ${lockAttr(p.is_token_refunded)} style="margin:0"> Cancelled Post Token
+      <input type="checkbox" name="is_token_refunded" ${p.is_token_refunded?'checked':''} ${lockAttr(p.is_token_refunded)} onchange="onCancelTick(this)" style="margin:0"> Cancelled Post Token
     </label>
     <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--red);font-weight:600;cursor:pointer" ${lockAttr(p.is_dead)}>
-      <input type="checkbox" name="is_dead" ${p.is_dead?'checked':''} ${lockAttr(p.is_dead)} style="margin:0"> Cancelled
-    </label>${amaLock?'<span style="font-size:10px;color:var(--tx3)">🔒 AMA signed</span>':''}</div>`;
+      <input type="checkbox" name="is_dead" ${p.is_dead?'checked':''} ${lockAttr(p.is_dead)} onchange="onCancelTick(this)" style="margin:0"> Cancelled
+    </label>${amaLock?'<span style="font-size:10px;color:var(--tx3)">🔒 AMA signed</span>':''}<input type="hidden" name="cancel_reason" id="cancelReasonInp"></div>`;
+  if(p.cancel_reason)html+=`<div style="font-size:11px;color:var(--red);font-weight:600;margin:-4px 0 12px">✕ ${calEsc(p.cancel_reason)}</div>`;
 
   html+=`<div class="prev-section"><div class="prev-section-t">Schedule (Form 1)</div><div class="prev-grid">
     ${efRO('UID',p.uid)}${ef('City','city',p.city)}${ef('Society','society_name',p.society_name)}
@@ -752,6 +753,21 @@ function buildModal(p){
   mb.innerHTML=html;
 }
 
+// Ticking a cancel box asks for the reason right away. Dismissing the prompt or leaving
+// it blank un-ticks the box. A box is "newly ticked" when checked now but not at render.
+function onCancelTick(el){
+  const inp=document.getElementById('cancelReasonInp');
+  if(!el.checked||el.defaultChecked){
+    const stillTicked=[...document.querySelectorAll('#modalBody input[name="is_dead"],#modalBody input[name="is_token_refunded"]')].some(b=>b.checked&&!b.defaultChecked);
+    if(!stillTicked)inp.value='';
+    return;
+  }
+  const label=el.name==='is_token_refunded'?'Cancelled Post Token':'Cancelled';
+  const reason=prompt(`Marking ${currentModalUid} as "${label}". This cannot be undone once saved.\n\nEnter the cancel reason:`);
+  if(reason===null){el.checked=false;return}
+  if(!reason.trim()){el.checked=false;alert('Cancel reason is required');return}
+  inp.value=reason.trim();
+}
 async function saveModal(){
   if(!currentModalUid)return;
   const btn=document.getElementById('saveBtn');const status=document.getElementById('saveStatus');
