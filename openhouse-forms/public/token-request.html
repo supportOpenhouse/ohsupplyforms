@@ -93,6 +93,9 @@
         <div class="fg"><label>Occupancy <span class="req">*</span></label><select name="occupancy_status" id="selOcc" required><option value="">Select...</option><option>Vacant</option><option>Tenant</option><option>Owner Staying</option></select><div class="err-msg">Required</div></div>
       </div>
       <div class="fg" id="hdWrap" style="display:none"><label>Tentative Key Handover Date <span class="req">*</span></label><input type="date" name="key_handover_date" id="hdDate"><div class="err-msg">Required</div></div>
+      <!-- Asked here as well as on Form 6: the CRM sends the Pending Amount mail on its own
+           once the AMA is signed, and can't when an owner-staying deal has no answer. -->
+      <div class="fg" id="vacateWrap" style="display:none"><label>Will the owner vacate the property? <span class="req">*</span></label><select name="owner_will_vacate" id="ownerVacate"><option value="">Select...</option><option>Yes</option><option>No</option></select><div class="err-msg">Required</div></div>
       <div class="fg"><label>Guaranteed Sale Price (in Lakhs) <span class="req">*</span></label><input type="text" name="guaranteed_sale_price" id="gsp" inputmode="decimal" required><div class="err-msg">Required</div>
         <div style="font-size:9px;color:var(--tx3);margin-top:2px" id="gspHint"></div></div>
       <div class="r3">
@@ -350,7 +353,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
     const ocrBankSel=document.getElementById('ocrBank');
     allOpts.banks.forEach(b=>{ocrBankSel.innerHTML+=`<option value="${b}">${b}</option>`});
     document.getElementById('selOcc').addEventListener('change',e=>{const w=document.getElementById('hdWrap'),d=document.getElementById('hdDate');
-      if(e.target.value==='Tenant'){w.style.display='block';d.required=true}else{w.style.display='none';d.required=false;d.value=''}});
+      if(e.target.value==='Tenant'){w.style.display='block';d.required=true}else{w.style.display='none';d.required=false;d.value=''}
+      showVacate(e.target.value==='Owner Staying')});
     // ══ GSP + Deposit bidirectional calc ══
     const gspEl=document.getElementById('gsp'),gspHintEl=document.getElementById('gspHint');
     const tdPct=document.getElementById('tdPct'),pgPct=document.getElementById('pgPct'),rdPct=document.getElementById('rdPct');
@@ -450,6 +454,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     applyChequeVisibility();
     sv('registry_status',d.registry_status);sv('occupancy_status',d.occupancy_status);
     if(d.occupancy_status==='Tenant'){document.getElementById('hdWrap').style.display='block';document.getElementById('hdDate').required=true;if(d.key_handover_date)sv('key_handover_date',d.key_handover_date.split('T')[0])}
+    showVacate(d.occupancy_status==='Owner Staying');sv('owner_will_vacate',d.owner_will_vacate);
     sv('guaranteed_sale_price',d.guaranteed_sale_price);
     // Populate GSP total + all deposit fields
     const gspVal=parseFloat(d.guaranteed_sale_price)||0;const gspT=gspVal*100000;
@@ -498,6 +503,12 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     if(d.token_request_email_sent===true){const eb=document.getElementById('emailBtn');eb.innerHTML='🔄 Resend Email';eb.style.borderColor='var(--grn)';eb.style.color='var(--grn)';eb.dataset.sent='1'}
     st.className='pf-st show ok';st.textContent=`Loaded: ${uid}${d.token_is_draft?' (Draft)':''}`;
   }catch(e){st.className='pf-st show err';st.textContent=e.message;document.getElementById('tokenForm').style.display='none'}}
+// "Will the owner vacate?" — only for Owner Staying, and then mandatory (Form 6 asks it too).
+function showVacate(show){
+  const w=document.getElementById('vacateWrap'),v=document.getElementById('ownerVacate');
+  w.style.display=show?'block':'none';v.required=show;
+  if(!show){v.value='';w.classList.remove('invalid')}
+}
 // Deal Information (brokerage) is CP-only — Direct-sourced deals have no CP, so hide card + email block
 const isDirectSrc=s=>String(s||'').trim().toLowerCase()==='direct';
 // Hiding the card is not enough: validateForm() scans every [required] in the form whether
