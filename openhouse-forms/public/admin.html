@@ -655,6 +655,9 @@ function buildModal(p){
     </label>
     <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--red);font-weight:600;cursor:pointer" ${lockAttr(p.is_dead)}>
       <input type="checkbox" name="is_dead" ${p.is_dead?'checked':''} ${lockAttr(p.is_dead)} onchange="onCancelTick(this)" style="margin:0"> Cancelled
+    </label>
+    <label id="crmPtWrap" style="display:flex;align-items:center;gap:4px;font-size:10px;color:#7c3aed;font-weight:600;cursor:not-allowed;opacity:.5" title="Checking the CRM…">
+      <input type="checkbox" id="crmPtBox" disabled onchange="onCrmPreTokenTick(this)" style="margin:0"> Cancelled Pre Token
     </label>${amaLock?'<span style="font-size:10px;color:var(--tx3)">🔒 AMA signed</span>':''}<input type="hidden" name="cancel_reason" id="cancelReasonInp"></div>`;
   if(p.cancel_reason)html+=`<div style="font-size:11px;color:var(--red);font-weight:600;margin:-4px 0 12px">✕ ${calEsc(p.cancel_reason)}</div>`;
 
@@ -751,6 +754,42 @@ function buildModal(p){
   </div></div>`;
 
   mb.innerHTML=html;
+  crmPtAmaLock=amaLock;loadCrmPreToken(p.uid);
+}
+
+// "Cancelled Pre Token" cancels the deal in the Transaction Management Dashboard
+// (deals.status / cancel_phase) right away — it is not part of Save, has no name so
+// Save never posts it, and leaves this row's own Cancelled box (is_dead) alone.
+let crmPtAmaLock=false;
+async function loadCrmPreToken(uid){
+  const box=document.getElementById('crmPtBox'),wrap=document.getElementById('crmPtWrap');if(!box)return;
+  const set=(dis,tip,on)=>{box.disabled=dis;box.checked=box.defaultChecked=!!on;wrap.title=tip;
+    wrap.style.cursor=dis?'not-allowed':'pointer';wrap.style.opacity=dis&&!on?'.5':''};
+  try{
+    const r=await fetch(`${API}/api/admin/crm-pre-token/${encodeURIComponent(uid)}`);const d=await r.json().catch(()=>({}));
+    if(uid!==currentModalUid)return;
+    if(!r.ok)return set(true,d.error||'CRM unavailable');
+    if(d.cancelled_pre_token)return set(true,'Cancelled Pre-Token in the CRM — this cannot be undone.',true);
+    if(d.status==='cancelled')return set(true,`The CRM deal is already cancelled${d.cancel_phase==='post_token'?' (post-token)':''}.`);
+    if(d.token_paid)return set(true,'Token already paid in the CRM — this would be a post-token cancellation.');
+    if(crmPtAmaLock)return set(true,'AMA signed — cannot be cancelled here.');
+    set(false,'Cancels this deal in the CRM as Cancelled Pre-Token (immediately, not on Save).');
+  }catch(e){if(uid===currentModalUid)set(true,'CRM unreachable')}
+}
+async function onCrmPreTokenTick(el){
+  if(!el.checked)return;
+  const uid=currentModalUid;
+  const reason=prompt(`Cancel ${uid} in the CRM as "Cancelled Pre Token"?\nThis happens right away (not on Save) and cannot be undone.\n\nEnter the cancel reason:`);
+  if(reason===null){el.checked=false;return}
+  if(!reason.trim()){el.checked=false;alert('Cancel reason is required');return}
+  el.disabled=true;
+  try{
+    const r=await fetch(`${API}/api/admin/crm-pre-token/${encodeURIComponent(uid)}`,{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:reason.trim()})});
+    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Failed');
+    const st=document.getElementById('saveStatus');st.textContent='✓ Cancelled Pre-Token in the CRM';st.style.color='var(--grn)';
+  }catch(e){el.checked=false;alert('CRM cancel failed: '+e.message)}
+  loadCrmPreToken(uid);
 }
 
 // Ticking a cancel box asks for the reason right away. Dismissing the prompt or leaving

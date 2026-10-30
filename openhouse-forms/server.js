@@ -251,6 +251,72 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
   }catch(e){console.error('Admin update error:',e.message);res.status(500).json({error:e.message})}
 });
 
+// Admin: "Cancelled Pre Token" — cancels the deal in the Transaction Management
+// Dashboard by writing its own database (db/tmdPool.js): deals.status='cancelled',
+// cancel_phase='pre_token', no refund — exactly what the CRM's Cancel Pre-Token
+// approval writes. Nothing on this row changes: is_dead and the Cancelled box are
+// left alone.
+const TMD_OFF={error:'CRM database not configured (TMD_DATABASE_URL)'};
+const TMD_DEAL_SQL=`SELECT d.id,d.status,d.cancel_phase FROM deals d JOIN units u ON u.id=d.unit_id
+  WHERE u.property_uid=$1 ORDER BY d.id DESC LIMIT 1`;
+// Recording the Token Amount entry with its reference IS the payment in the CRM.
+const TMD_TOKEN_PAID_SQL=`SELECT 1 FROM finance_entries WHERE deal_id=$1 AND kind='token_amount'
+  AND booking_id IS NULL AND COALESCE(TRIM(reference),'')<>'' LIMIT 1`;
+async function tmdState(db,deal){
+  const paid=await db.query(TMD_TOKEN_PAID_SQL,[deal.id]);
+  return{deal_id:deal.id,status:deal.status,cancel_phase:deal.cancel_phase,
+    cancelled_pre_token:deal.status==='cancelled'&&deal.cancel_phase==='pre_token',token_paid:paid.rows.length>0};
+}
+app.get('/api/admin/crm-pre-token/:uid', isAuthenticated, isAdmin, async(req,res)=>{
+  const tmdPool=require('./db/tmdPool');
+  if(!tmdPool)return res.status(503).json(TMD_OFF);
+  try{
+    const{rows}=await tmdPool.query(TMD_DEAL_SQL,[req.params.uid]);
+    if(!rows.length)return res.status(404).json({error:'No CRM deal for this property yet'});
+    res.json(await tmdState(tmdPool,rows[0]));
+  }catch(e){res.status(502).json({error:'CRM database error: '+e.message})}
+});
+app.post('/api/admin/crm-pre-token/:uid', isAuthenticated, isAdmin, async(req,res)=>{
+  const tmdPool=require('./db/tmdPool');
+  if(!tmdPool)return res.status(503).json(TMD_OFF);
+  const uid=req.params.uid;
+  try{
+    const{rows:props}=await pool.query('SELECT * FROM properties WHERE uid=$1',[uid]);
+    if(!props.length)return res.status(404).json({error:'UID not found'});
+    const{amaSigned,AMA_LOCK_MSG}=require('./utils/ama-lock');
+    if(amaSigned(props[0]))return res.status(409).json({error:AMA_LOCK_MSG,ama_locked:true});
+    const reason=String(req.body?.reason||'').trim();
+    if(!reason)return res.status(400).json({error:'Cancel reason is required'});
+  }catch(e){return res.status(500).json({error:e.message})}
+
+  const c=await tmdPool.connect();
+  try{
+    await c.query('BEGIN');
+    const{rows}=await c.query(TMD_DEAL_SQL.replace('LIMIT 1','LIMIT 1 FOR UPDATE OF d'),[uid]);
+    const deal=rows[0];
+    const fail=async(code,error)=>{await c.query('ROLLBACK');res.status(code).json({error})};
+    if(!deal)return fail(404,'No CRM deal for this property yet');
+    if(deal.status==='cancelled')return fail(409,'The CRM deal is already cancelled');
+    if((await c.query(TMD_TOKEN_PAID_SQL,[deal.id])).rows.length)
+      return fail(409,'The token is already paid in the CRM — this is a post-token cancellation, not pre-token');
+    const reason=String(req.body.reason).trim();
+    const actor=`${req.user?.name||req.user?.email||'admin'} (supply forms)`;
+    await c.query(`UPDATE deals SET status='cancelled',cancel_phase='pre_token',refund_required=false,updated_at=now() WHERE id=$1`,[deal.id]);
+    // An open request from the CRM deal page is settled by this.
+    await c.query(`UPDATE cancel_requests SET status='approved',decided_at=now(),
+      decision_note='Cancelled Pre Token from the supply forms admin panel' WHERE deal_id=$1 AND status='pending'`,[deal.id]);
+    await c.query(`INSERT INTO activity_log (deal_id,user_id,actor_name,action,detail) VALUES ($1,NULL,$2,'deal_cancelled',$3)`,
+      [deal.id,actor,`Cancelled Pre-Token (supply forms admin panel) — ${reason}`]);
+    await c.query('COMMIT');
+    res.json({ok:true,...await tmdState(tmdPool,{...deal,status:'cancelled',cancel_phase:'pre_token'})});
+    require('./utils/logger').logStatusChange(uid,'cancelled_pre_token',false,true,req.user?.email,req.user?.name,
+      {cancel_reason:`Cancelled Pre Token : ${reason}`,crm_deal_id:deal.id}).catch(()=>{});
+  }catch(e){
+    await c.query('ROLLBACK').catch(()=>{});
+    if(!res.headersSent)res.status(502).json({error:'CRM database error: '+e.message});
+  }finally{c.release()}
+});
+
 // Columns a replicated copy resets to their default, so it restarts at Visit
 // Completed: the post-visit form timestamps, mail flags and threads, the manual
 // status, the cancel flags, and the records of the source's own deal (signed AMA,
