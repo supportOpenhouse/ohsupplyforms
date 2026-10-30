@@ -3,6 +3,8 @@ const { google } = require('googleapis');
 const puppeteer = require('puppeteer');
 const logger = require('./logger');
 const { sendWithThreadFallback, READ_OPTS } = require('./gmail-send');
+const { collectDocs, docLine } = require('./doc-attach');
+const kycstore = require('./kycstore');
 
 // Two transport-level fixes applied to ALL googleapis calls (Gmail + Calendar share
 // this singleton):
@@ -178,7 +180,20 @@ function normalizeAddrList(str) {
   return out.join(', ');
 }
 
-function buildMimeEmail({ from, to, cc, subject, bodyHtml, pdfBuffer, pdfFilename, references }) {
+// MIME parts for document attachments ({ filename, contentType, buffer } from ./doc-attach).
+function attachmentParts(boundary, attachments) {
+  const out = [];
+  for (const a of attachments || []) {
+    out.push(`--${boundary}`,
+      `Content-Type: ${a.contentType}; name="${a.filename}"`,
+      'Content-Transfer-Encoding: base64',
+      `Content-Disposition: attachment; filename="${a.filename}"`,
+      '', chunkBase64(Buffer.from(a.buffer).toString('base64')), '');
+  }
+  return out;
+}
+
+function buildMimeEmail({ from, to, cc, subject, bodyHtml, pdfBuffer, pdfFilename, references, attachments }) {
   to = normalizeAddrList(to);
   cc = normalizeAddrList(cc);
   if (!to) throw new Error('No valid recipient address after normalising the To list');
@@ -212,6 +227,7 @@ function buildMimeEmail({ from, to, cc, subject, bodyHtml, pdfBuffer, pdfFilenam
     '',
     pdfBase64,
     '',
+    ...attachmentParts(boundary, attachments),
     `--${boundary}--`,
     ''
   ].filter(line => line !== null).join('\r\n');
@@ -266,6 +282,16 @@ async function sendTokenRequestEmail({ accessToken, refreshToken, fromEmail, pro
 
   const senderName = fromEmail.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
+  // KYC + cheque go as attachments (./doc-attach); a file that can't be fetched keeps its link.
+  const trDocs = [
+    { key: 'cheque', label: 'Cancelled Cheque', url: p.cheque_image_url },
+    { key: 'pan', label: 'PAN Card', url: p.owner_pan_url },
+    { key: 'aadhaar_front', label: 'Aadhaar Card Front', url: p.owner_aadhaar_front_url },
+    { key: 'aadhaar_back', label: 'Aadhaar Card Back', url: p.owner_aadhaar_back_url },
+    { key: 'property_doc', label: 'Property Ownership Document', url: p.owner_property_doc_url },
+  ];
+  const { attachments: trAttach, attached: trAttached } = await collectDocs(p.uid, trDocs);
+
   const bodyHtml = `<html><body style="font-family:Arial,sans-serif;font-size:14px;color:#333;line-height:1.8">
 <p>Greetings of the day!</p>
 <p>Dear Accounts Team,</p>
@@ -279,11 +305,7 @@ ${(String(p.source || '').trim().toLowerCase() !== 'direct' && (p.brokerage_ama_
 </table>` : ''}
 ${p.token_remarks_printed && p.token_remarks_printed.trim() ? `<p style="font-style:italic;margin-top:16px"><strong>Remarks:</strong><br>${p.token_remarks_printed.trim().replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>` : ''}
 <p>Rahool Sureka, please approve the same.</p>
-${p.cheque_image_url ? `<p style="margin-top:16px"><strong>Cancelled Cheque Link:</strong> <a href="${p.cheque_image_url}" target="_blank" style="color:#1a73e8;text-decoration:underline">Click here to view cheque</a></p>` : ''}
-${p.owner_pan_url ? `<p><strong>PAN Card:</strong> <a href="${p.owner_pan_url}" target="_blank" style="color:#1a73e8;text-decoration:underline">Click here to view</a></p>` : ''}
-${p.owner_aadhaar_front_url ? `<p><strong>Aadhaar Card Front:</strong> <a href="${p.owner_aadhaar_front_url}" target="_blank" style="color:#1a73e8;text-decoration:underline">Click here to view</a></p>` : ''}
-${p.owner_aadhaar_back_url ? `<p><strong>Aadhaar Card Back:</strong> <a href="${p.owner_aadhaar_back_url}" target="_blank" style="color:#1a73e8;text-decoration:underline">Click here to view</a></p>` : ''}
-${p.owner_property_doc_url ? `<p><strong>Property Ownership Document:</strong> <a href="${p.owner_property_doc_url}" target="_blank" style="color:#1a73e8;text-decoration:underline">Click here to view</a></p>` : ''}<br>
+${trDocs.some(d => d.url) ? '<div style="margin-top:16px">' + trDocs.map(d => docLine(d, trAttached)).join('\n') + '</div>' : ''}<br>
 <p>Regards,<br><strong>${senderName}</strong></p>
 </body></html>`;
 
@@ -305,7 +327,8 @@ ${p.owner_property_doc_url ? `<p><strong>Property Ownership Document:</strong> <
     bodyHtml,
     pdfBuffer,
     pdfFilename,
-    references
+    references,
+    attachments: trAttach
   });
 
   console.log(`MIME raw length: ${raw.length} chars. Sending via Gmail API...`);
@@ -401,9 +424,28 @@ ${signatoryPhone ? signatoryPhone + '<br>' : ''}Website - <a href="https://www.o
 }
 
 // Build simple HTML email (no attachment)
-function buildSimpleMimeEmail({ from, to, cc, subject, bodyHtml, references }) {
+function buildSimpleMimeEmail({ from, to, cc, subject, bodyHtml, references, attachments }) {
   const encodedSubject = '=?UTF-8?B?' + Buffer.from(subject, 'utf-8').toString('base64') + '?=';
   const msgId = generateMsgId();
+  const boundary = 'boundary_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2);
+  const body = attachments && attachments.length ? [
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: 7bit',
+    '',
+    bodyHtml,
+    '',
+    ...attachmentParts(boundary, attachments),
+    `--${boundary}--`,
+    ''
+  ] : [
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: 7bit',
+    '',
+    bodyHtml
+  ];
   const mime = [
     'MIME-Version: 1.0',
     `Message-ID: ${msgId}`,
@@ -413,10 +455,7 @@ function buildSimpleMimeEmail({ from, to, cc, subject, bodyHtml, references }) {
     `Subject: ${encodedSubject}`,
     references ? `In-Reply-To: ${references}` : null,
     references ? `References: ${references}` : null,
-    'Content-Type: text/html; charset="UTF-8"',
-    'Content-Transfer-Encoding: 7bit',
-    '',
-    bodyHtml
+    ...body
   ].filter(line => line !== null).join('\r\n');
   const raw = Buffer.from(mime, 'utf-8').toString('base64')
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -454,13 +493,19 @@ async function sendCPBillEmail({ accessToken, refreshToken, fromEmail, senderNam
   const isFirm = p.cp_firm && p.cp_firm !== 'INDIVIDUAL';
   const isGstYes = isFirm && p.gst_applicable === 'Yes';
   const isFirmNoGst = isFirm && !isGstYes;
-  const photoLinks = [];
-  if(!isFirm && p.cp_aadhaar_front_url) photoLinks.push(`<li><a href="${p.cp_aadhaar_front_url}" target="_blank">Aadhaar Card Front</a></li>`);
-  if(!isFirm && p.cp_aadhaar_back_url) photoLinks.push(`<li><a href="${p.cp_aadhaar_back_url}" target="_blank">Aadhaar Card Back</a></li>`);
-  if(isFirmNoGst && p.cp_coi_url) photoLinks.push(`<li><a href="${p.cp_coi_url}" target="_blank">Certificate of Incorporation</a></li>`);
-  if(!isGstYes && p.cp_pan_card_url) photoLinks.push(`<li><a href="${p.cp_pan_card_url}" target="_blank">PAN Card</a></li>`);
-  if(p.cp_cancelled_cheque_url) photoLinks.push(`<li><a href="${p.cp_cancelled_cheque_url}" target="_blank">Cancelled Cheque</a></li>`);
-  if(isGstYes && p.cp_gst_invoice_url) photoLinks.push(`<li><a href="${p.cp_gst_invoice_url}" target="_blank">GST Invoice</a></li>`);
+  // CP documents go as attachments (./doc-attach); a file that can't be fetched keeps its link.
+  const cpDocs = [
+    !isFirm && { key: 'aadhaar_front', label: 'CP Aadhaar Card Front', url: p.cp_aadhaar_front_url },
+    !isFirm && { key: 'aadhaar_back', label: 'CP Aadhaar Card Back', url: p.cp_aadhaar_back_url },
+    isFirmNoGst && { key: 'coi', label: 'CP Certificate of Incorporation', url: p.cp_coi_url },
+    !isGstYes && { key: 'pan', label: 'CP PAN Card', url: p.cp_pan_card_url },
+    { key: 'cheque', label: 'CP Cancelled Cheque', url: p.cp_cancelled_cheque_url },
+    isGstYes && { key: 'gst_invoice', label: 'CP GST Invoice', url: p.cp_gst_invoice_url },
+  ].filter(d => d && d.url);
+  const { attachments: cpAttach, attached: cpAttached } = await collectDocs(p.uid, cpDocs);
+  const photoLinks = cpDocs.map(d => cpAttached[d.key]
+    ? `<li>${d.label.replace(/^CP /, '')} (${cpAttached[d.key]})</li>`
+    : `<li><a href="${kycstore.isRef(d.url) ? kycstore.resolve(d.url, 7 * 24 * 60) : d.url}" target="_blank">${d.label.replace(/^CP /, '')}</a></li>`);
 
   const subject = `${p.uid} - CP Bill Request | ${p.tower_no||''} ${p.unit_no||''} - ${p.society_name||'Property'} | ${p.cp_name||'CP'}`.replace(/\s+/g, ' ').trim();
   const bodyHtml = `<html><body style="font-family:Arial,sans-serif;font-size:14px;color:#333;line-height:1.8">
@@ -499,7 +544,8 @@ ${photoLinks.length?`<p style="margin-top:16px"><strong>Attached Documents:</str
     cc: cpCcFinal,
     subject,
     bodyHtml,
-    references
+    references,
+    attachments: cpAttach
   });
 
   const cpReqBody = { raw };
@@ -531,21 +577,27 @@ async function sendPendingAmountEmail({ accessToken, refreshToken, fromEmail, se
   }
   amountLines += `</ul>`;
 
+  // The signed AMA + co-owner KYC go as attachments (./doc-attach); a file that can't
+  // be fetched keeps its link.
+  const amaDoc = { key: 'ama', label: 'AMA', url: p.signed_ama_url };
+  const coDocs = owner2_name ? [
+    { key: 'co_cheque', label: 'Co Owner Cancelled Cheque', url: p.co_owner_cheque_url },
+    { key: 'co_pan', label: 'Co Owner PAN Card', url: p.co_owner_pan_url },
+    { key: 'co_aadhaar_front', label: 'Co Owner Aadhaar Card Front', url: p.co_owner_aadhaar_front_url },
+    { key: 'co_aadhaar_back', label: 'Co Owner Aadhaar Card Back', url: p.co_owner_aadhaar_back_url },
+  ] : [];
+  const { attachments: paAttach, attached: paAttached } = await collectDocs(p.uid, [amaDoc, ...coDocs]);
+
   const subject = `${p.uid} - Openhouse Offer | ${p.tower_no||''} ${p.unit_no||''} - ${p.society_name||'Property'} | ${ownerName}`.replace(/\s+/g, ' ').trim();
   const bodyHtml = `<html><body style="font-family:Arial,sans-serif;font-size:14px;color:#333;line-height:1.8">
 <p>Dear <strong>${ownerName}</strong>,</p>
 <p>Congratulations on the successful execution of the Asset Management Agreement dated <strong>${amaDate}</strong>.</p>
-<p>Please find the link to executed copy of the agreement for your reference. Kindly acknowledge receipt of this document by replying to this thread. Upon receiving your acknowledgement, the Accounts Team will release the remaining amount as follows:</p>
+<p>${paAttached.ama ? 'Please find attached the executed copy of the agreement' : 'Please find the link to executed copy of the agreement'} for your reference. Kindly acknowledge receipt of this document by replying to this thread. Upon receiving your acknowledgement, the Accounts Team will release the remaining amount as follows:</p>
 <p><strong>Property:</strong> ${addr}</p>
 ${amountLines}
 <p>Hi Accounts Team, please do the needful.</p>
-${owner2_name ? [
-  p.co_owner_cheque_url ? `<p><strong>Co Owner Cancelled Cheque Link:</strong> <a href="${p.co_owner_cheque_url}" style="color:#1a73e8">Click here to view</a></p>` : '',
-  p.co_owner_pan_url ? `<p><strong>Co Owner PAN Card:</strong> <a href="${p.co_owner_pan_url}" style="color:#1a73e8">Click here to view</a></p>` : '',
-  p.co_owner_aadhaar_front_url ? `<p><strong>Co Owner Aadhaar Card Front:</strong> <a href="${p.co_owner_aadhaar_front_url}" style="color:#1a73e8">Click here to view</a></p>` : '',
-  p.co_owner_aadhaar_back_url ? `<p><strong>Co Owner Aadhaar Card Back:</strong> <a href="${p.co_owner_aadhaar_back_url}" style="color:#1a73e8">Click here to view</a></p>` : ''
-].filter(Boolean).join('\n') : ''}
-${p.signed_ama_url ? `<p><strong>AMA Link:</strong> <a href="${p.signed_ama_url}" style="color:#1a73e8">Click here to view AMA</a></p>` : ''}
+${coDocs.map(d => docLine(d, paAttached)).filter(Boolean).join('\n')}
+${docLine(amaDoc, paAttached, 'Click here to view AMA')}
 <p>Regards,<br><strong>${senderName}</strong></p>
 </body></html>`;
 
@@ -561,7 +613,8 @@ ${p.signed_ama_url ? `<p><strong>AMA Link:</strong> <a href="${p.signed_ama_url}
     cc: paCcFinal,
     subject,
     bodyHtml,
-    references
+    references,
+    attachments: paAttach
   });
 
   const paReqBody = { raw };

@@ -9,8 +9,12 @@ module.exports=function(){
       const{imageUrl,imageBase64}=req.body;
       if(!imageUrl&&!imageBase64)return res.status(400).json({error:'Image required'});
 
-      // Build Vision API request
-      const imageObj=imageUrl?{source:{imageUri:imageUrl}}:{content:imageBase64};
+      // Build Vision API request. A cheque in the private KYC bucket (gs:// reference,
+      // or a signed URL of ours) can't be fetched by Vision, so its bytes are sent.
+      const kycstore=require('../utils/kycstore');
+      const kycName=imageUrl?kycstore.nameFromRef(imageUrl):null;
+      const imageObj=kycName?{content:(await kycstore.read(kycName)).buffer.toString('base64')}
+        :imageUrl?{source:{imageUri:imageUrl}}:{content:imageBase64};
       const body={requests:[{image:imageObj,features:[{type:'TEXT_DETECTION',maxResults:1}]}]};
 
       const r=await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,{

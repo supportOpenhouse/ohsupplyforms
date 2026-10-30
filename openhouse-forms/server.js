@@ -27,7 +27,26 @@ const { visibilityFilter } = require('./utils/visibility');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.use(cors()); app.use(express.json({limit:'10mb'})); app.use(express.urlencoded({extended:true}));
+// KYC uploads arrive as base64 JSON (a 10 MB file is ~13.4 MB encoded), so that one
+// route gets a bigger limit; express.json skips a body that is already parsed.
+const KYC_UPLOAD_PATH='/api/kyc/upload';
+app.use(cors()); app.use((req,res,next)=>req.path===KYC_UPLOAD_PATH?express.json({limit:'15mb'})(req,res,next):next());
+app.use(express.json({limit:'10mb'})); app.use(express.urlencoded({extended:true}));
+
+// KYC documents in the private bucket (utils/kycstore.js). Two hooks so every route is
+// covered without touching each one:
+//  - in: a KYC column arriving as a signed URL we minted (a form echoing back the
+//    preview it was shown) is stored as its gs:// reference, never an expiring URL;
+//  - out: a gs:// reference in any JSON response becomes a short-lived signed URL.
+//    If it can't be signed (bucket env unset) the reference itself goes out, so a
+//    form that saves it back keeps it rather than blanking the column.
+const kycstore=require('./utils/kycstore');
+app.use((req,res,next)=>{
+  if(req.body&&typeof req.body==='object')req.body=kycstore.mapKycFields(req.body,kycstore.toRef);
+  const json=res.json.bind(res);
+  res.json=body=>json(kycstore.mapKycFields(body,v=>kycstore.resolve(v)??v));
+  next();
+});
 
 app.set('trust proxy', 1);
 app.use(session({
@@ -90,6 +109,29 @@ app.use('/api/final', isAuthenticated, hasFormAccess, require('./routes/final')(
 app.use('/api/listing', isAuthenticated, hasFormAccess, require('./routes/listing')(pool));
 app.use('/api/cp-bill', isAuthenticated, hasFormAccess, require('./routes/cp-bill')(pool));
 app.use('/api/ocr', isAuthenticated, require('./routes/ocr')());
+
+// Upload one KYC document (owner / co-owner / CP) to the private bucket.
+// Body (JSON): { uid, role: owner|co_owner|cp, doc_key, filename, content_type, data: <base64> }
+// → 201 { ref: "gs://bucket/object", url: <signed URL for the preview> }. The form stores
+// `ref` as the field value; on save the column holds the reference.
+const KYC_TYPES=new Set(['image/jpeg','image/jpg','image/png','image/webp','image/heic','image/heif','application/pdf']);
+app.post(KYC_UPLOAD_PATH, isAuthenticated, async(req,res)=>{
+  try{
+    if(!kycstore.configured())return res.status(503).json({error:'Document storage is not configured on this server (OPENHOUSE_TMD_SELLER_KYC_JSON). Please tell the admin.'});
+    const{uid,role,doc_key,filename,content_type,data}=req.body||{};
+    if(!uid||!doc_key||!['owner','co_owner','cp'].includes(role))return res.status(400).json({error:'uid, role (owner|co_owner|cp) and doc_key are required'});
+    const ctype=String(content_type||'').toLowerCase();
+    if(!KYC_TYPES.has(ctype))return res.status(415).json({error:'Only JPG, PNG, WEBP, HEIC or PDF'});
+    const buf=Buffer.from(String(data||''),'base64');
+    if(!buf.length)return res.status(400).json({error:'Empty file'});
+    if(buf.length>10*1024*1024)return res.status(413).json({error:'File exceeds 10MB'});
+    const{rows}=await pool.query('SELECT 1 FROM properties WHERE uid=$1',[uid]);
+    if(!rows.length)return res.status(404).json({error:'UID not found'});
+    const name=kycstore.objectName(uid,role,doc_key,filename);
+    await kycstore.upload(name,buf,ctype);
+    res.status(201).json({ref:kycstore.refFor(name),url:kycstore.signedUrl(name)});
+  }catch(e){console.error('KYC upload:',e.message);res.status(e.status||500).json({error:e.message})}
+});
 // External integrations — uses X-Internal-Key header auth, NO session auth
 app.use('/api/external', require('./routes/external')(pool));
 

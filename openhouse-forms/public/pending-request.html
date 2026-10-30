@@ -116,27 +116,23 @@ let currentUid=null,propData=null,isAdmin=false,isManager=false;
 // Remaining (Total Deposit − Token Paid). The Payment Split must always add up to this,
 // since these figures are what the email instructs Accounts to release.
 let remainingAmt=0;
-let cloudCfg=null;
 const coDocUrls={co_aadhaar_front:'',co_aadhaar_back:'',co_pan:'',co_cheque:''};
 const CO_DOC_ITEM={co_aadhaar_front:'pu_coAadhaarFront',co_aadhaar_back:'pu_coAadhaarBack',co_pan:'pu_coPan',co_cheque:'pu_coCheque'};
 const CO_DOC_COL={co_aadhaar_front:'co_owner_aadhaar_front_url',co_aadhaar_back:'co_owner_aadhaar_back_url',co_pan:'co_owner_pan_url',co_cheque:'co_owner_cheque_url'};
 const CO_DOC_LABEL={co_aadhaar_front:'Aadhaar Front',co_aadhaar_back:'Aadhaar Back',co_pan:'PAN Card',co_cheque:'Cancelled Cheque'};
-fetch(`${API}/api/config/cloudinary`).then(r=>r.json()).then(c=>cloudCfg=c).catch(()=>{});
-
+// Co-owner KYC goes to the private bucket (kycUpload in shared.js): the form keeps the
+// gs:// reference, the View link is a short-lived signed URL.
 async function uploadCoDoc(input,key){
-  if(!input.files.length)return;if(!cloudCfg){toast('Upload not ready','warn');return}
+  if(!input.files.length)return;
   const file=input.files[0];if(file.size>10*1024*1024){toast('File exceeds 10MB','err');return}
   const item=document.getElementById(CO_DOC_ITEM[key]);item.querySelector('.pu-label').textContent='Uploading...';
   try{
-    const coName=(propData?.co_owner||'co-owner').replace(/[^a-zA-Z0-9 ]/g,'').replace(/\s+/g,'_');
-    const fd=new FormData();fd.append('file',file);fd.append('upload_preset',cloudCfg.uploadPreset);fd.append('folder',`co-owner-docs/${coName}`);
-    const r=await fetch(`https://api.cloudinary.com/v1_1/${cloudCfg.cloudName}/auto/upload`,{method:'POST',body:fd});
-    const d=await r.json();if(!d.secure_url)throw new Error('Upload failed');
-    coDocUrls[key]=d.secure_url;item.classList.add('uploaded');item.classList.remove('missing');
+    const d=await kycUpload(file,currentUid,'co_owner',key.replace(/^co_/,''));
+    coDocUrls[key]=d.ref;item.classList.add('uploaded');item.classList.remove('missing');
     item.querySelector('.pu-label').innerHTML=CO_DOC_LABEL[key]+' ✓ <span class="req">*</span>';
     let link=item.querySelector('.pu-link');if(!link){link=document.createElement('a');link.className='pu-link';link.target='_blank';link.textContent='View';link.onclick=e=>e.stopPropagation();item.appendChild(link)}
-    link.href=d.secure_url;toast('Uploaded','ok');
-  }catch(e){toast('Upload failed','err');item.querySelector('.pu-label').innerHTML=CO_DOC_LABEL[key]+' <span class="req">*</span>'}
+    link.href=d.url;toast('Uploaded','ok');
+  }catch(e){toast(e.message||'Upload failed','err');item.querySelector('.pu-label').innerHTML=CO_DOC_LABEL[key]+' <span class="req">*</span>'}
   input.value='';
 }
 

@@ -116,10 +116,36 @@ function initImageUpload(zoneId,previewsId,max=10){
   return{getUrls:()=>JSON.stringify(urls),setUrls(arr){arr.forEach(u=>{urls.push(u);addThumb(u)})}};
 }
 
+// ══════ KYC UPLOAD — private bucket ══════
+// Owner / co-owner / CP KYC goes to the private storage bucket through the server, not
+// to Cloudinary. Resolves to {ref, url}: `ref` (gs://…) is what the form saves, `url` a
+// short-lived signed link for the preview. Throws with the server's message.
+function kycUpload(file,uid,role,docKey){
+  return new Promise((resolve,reject)=>{
+    if(!uid){reject(new Error('Load the property first'));return}
+    if(file.size>10*1024*1024){reject(new Error('File exceeds 10MB'));return}
+    const fr=new FileReader();
+    fr.onerror=()=>reject(new Error('Could not read the file'));
+    fr.onload=async()=>{
+      try{
+        const data=String(fr.result).split(',')[1]||'';
+        const r=await fetch(`${API}/api/kyc/upload`,{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({uid,role,doc_key:docKey,filename:file.name,content_type:file.type||'application/octet-stream',data})});
+        const d=await r.json().catch(()=>({}));
+        if(!r.ok||!d.ref)throw new Error(d.error||'Upload failed');
+        resolve(d);
+      }catch(e){reject(e)}
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
 // ══════ SINGLE IMAGE UPLOAD — Camera + Gallery chooser ══════
-function initSingleUpload(btnId,previewId,urlInputId){
+// kyc: {role, docKey, getUid} sends the file to the private bucket (kycUpload) instead of
+// Cloudinary; the hidden input then holds the gs:// reference and getUrl() the signed preview.
+function initSingleUpload(btnId,previewId,urlInputId,kyc){
   let cfg=null,currentUrl='';
-  fetch(`${API}/api/config/cloudinary`).then(r=>r.json()).then(c=>cfg=c).catch(()=>{});
+  if(!kyc)fetch(`${API}/api/config/cloudinary`).then(r=>r.json()).then(c=>cfg=c).catch(()=>{});
   const btn=document.getElementById(btnId),prev=document.getElementById(previewId),urlInp=document.getElementById(urlInputId);
 
   // Two hidden file inputs: one for camera, one for gallery
@@ -145,7 +171,15 @@ function initSingleUpload(btnId,previewId,urlInputId){
   btn.addEventListener('click',showChooser);
 
   async function handleFile(file){
-    if(!file)return;if(!cfg||!cfg.cloudName){toast('Cloudinary not configured','warn');return}
+    if(!file)return;
+    if(kyc){
+      btn.textContent='Uploading...';btn.disabled=true;
+      try{const d=await kycUpload(file,kyc.getUid(),kyc.role,kyc.docKey);currentUrl=d.url;urlInp.value=d.ref;
+        prev.querySelector('img').src=d.url;prev.classList.add('show');toast('Uploaded!','ok')}
+      catch(e){toast(e.message||'Upload failed','err')}finally{btn.textContent='Upload';btn.disabled=false}
+      return;
+    }
+    if(!cfg||!cfg.cloudName){toast('Cloudinary not configured','warn');return}
     btn.textContent='Uploading...';btn.disabled=true;
     try{const fd=new FormData();fd.append('file',file);fd.append('upload_preset',cfg.uploadPreset);
       const r=await fetch(`https://api.cloudinary.com/v1_1/${cfg.cloudName}/image/upload`,{method:'POST',body:fd});if(!r.ok)throw new Error();

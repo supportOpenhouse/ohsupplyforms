@@ -182,8 +182,6 @@ let currentUid=null,loadedData=null,isAdmin=false,isManager=false;
 const docUrls={cp_aadhaar_front:'',cp_aadhaar_back:'',cp_pan_card:'',cp_cancelled_cheque:'',cp_gst_invoice:'',cp_coi:''};
 const DOC_MAP={cp_aadhaar_front:'cp_aadhaar_front_url',cp_aadhaar_back:'cp_aadhaar_back_url',cp_pan_card:'cp_pan_card_url',cp_cancelled_cheque:'cp_cancelled_cheque_url',cp_gst_invoice:'cp_gst_invoice_url',cp_coi:'cp_coi_url'};
 const ITEM_MAP={cp_aadhaar_front:'pu_aadhaarFront',cp_aadhaar_back:'pu_aadhaarBack',cp_pan_card:'pu_pan',cp_cancelled_cheque:'pu_cheque',cp_gst_invoice:'pu_gstInvoice',cp_coi:'pu_coi'};
-let cloudCfg=null;
-fetch(`${API}/api/config/cloudinary`).then(r=>r.json()).then(c=>cloudCfg=c).catch(()=>{});
 
 // ══ CP Mode: New vs Existing ══
 let cpMode='existing',cpCode='',cpMasterId=null,searchTimeout=null;
@@ -390,20 +388,20 @@ function toggleCpType(){
   else{document.getElementById('f_cpFirm').value=document.getElementById('f_cpFirmName').value}
 }
 function pickFile(key){document.getElementById('fi_'+key).click()}
+// CP KYC goes to the private bucket (kycUpload in shared.js): the form keeps the gs://
+// reference, the View link is a short-lived signed URL.
 async function uploadDoc(input,key){
-  if(!input.files.length)return;if(!cloudCfg){toast('Upload not ready','warn');return}
+  if(!input.files.length)return;
   const file=input.files[0];if(file.size>10*1024*1024){toast('File exceeds 10MB','err');return}
   const item=document.getElementById(ITEM_MAP[key]);item.querySelector('.pu-label').textContent='Uploading...';
   try{
-    const fd=new FormData();fd.append('file',file);fd.append('upload_preset',cloudCfg.uploadPreset);fd.append('folder','cp-bill');
-    const r=await fetch(`https://api.cloudinary.com/v1_1/${cloudCfg.cloudName}/auto/upload`,{method:'POST',body:fd});
-    const d=await r.json();if(!d.secure_url)throw new Error('Upload failed');
-    docUrls[key]=d.secure_url;item.classList.add('uploaded');item.classList.remove('missing');
+    const d=await kycUpload(file,currentUid,'cp',key.replace(/^cp_/,''));
+    docUrls[key]=d.ref;item.classList.add('uploaded');item.classList.remove('missing');
     const labelMap={cp_aadhaar_front:'Aadhaar Front ✓',cp_aadhaar_back:'Aadhaar Back ✓',cp_pan_card:'PAN Card ✓',cp_cancelled_cheque:'Cheque ✓'};
     item.querySelector('.pu-label').innerHTML=(labelMap[key]||'Uploaded ✓')+' <span class="req">*</span>';
     let link=item.querySelector('.pu-link');if(!link){link=document.createElement('a');link.className='pu-link';link.target='_blank';link.textContent='View';link.onclick=e=>e.stopPropagation();item.appendChild(link)}
-    link.href=d.secure_url;toast('Uploaded','ok');
-  }catch(e){toast('Upload failed','err');item.querySelector('.pu-label').innerHTML=key.replace(/cp_/,'').replace(/_/g,' ')+' <span class="req">*</span>'}
+    link.href=d.url;toast('Uploaded','ok');
+  }catch(e){toast(e.message||'Upload failed','err');item.querySelector('.pu-label').innerHTML=key.replace(/cp_/,'').replace(/_/g,' ')+' <span class="req">*</span>'}
 }
 
 function validatePhone(val){return /^[1-9]\d{9}$/.test(val)}

@@ -303,22 +303,19 @@ const ownerDocUrls={owner_pan:'',owner_aadhaar_front:'',owner_aadhaar_back:'',ow
 const OWNER_DOC_COL={owner_pan:'owner_pan_url',owner_aadhaar_front:'owner_aadhaar_front_url',owner_aadhaar_back:'owner_aadhaar_back_url',owner_property_doc:'owner_property_doc_url'};
 const OWNER_DOC_ITEM={owner_pan:'pu_ownerPan',owner_aadhaar_front:'pu_ownerAadhaarFront',owner_aadhaar_back:'pu_ownerAadhaarBack',owner_property_doc:'pu_ownerPropDoc'};
 const OWNER_DOC_LABEL={owner_pan:'PAN Card',owner_aadhaar_front:'Aadhaar Front',owner_aadhaar_back:'Aadhaar Back',owner_property_doc:'Property Ownership Doc'};
-let ownerCloudCfg=null;
-fetch(`${API}/api/config/cloudinary`).then(r=>r.json()).then(c=>ownerCloudCfg=c).catch(()=>{});
+// Owner KYC goes to the private bucket (kycUpload in shared.js): the form keeps the
+// gs:// reference, the View link is a short-lived signed URL.
 async function uploadOwnerDoc(input,key){
-  if(!input.files.length)return;if(!ownerCloudCfg){toast('Upload not ready','warn');return}
+  if(!input.files.length)return;
   const file=input.files[0];if(file.size>10*1024*1024){toast('File exceeds 10MB','err');return}
   const item=document.getElementById(OWNER_DOC_ITEM[key]);item.querySelector('.pu-label').textContent='Uploading...';
   try{
-    const ownerName=(document.getElementById('d_owner')?.value||loadedData?.owner_broker_name||'owner').replace(/[^a-zA-Z0-9 ]/g,'').replace(/\s+/g,'_');
-    const fd=new FormData();fd.append('file',file);fd.append('upload_preset',ownerCloudCfg.uploadPreset);fd.append('folder',`owner-docs/${ownerName}`);
-    const r=await fetch(`https://api.cloudinary.com/v1_1/${ownerCloudCfg.cloudName}/auto/upload`,{method:'POST',body:fd});
-    const d=await r.json();if(!d.secure_url)throw new Error('Upload failed');
-    ownerDocUrls[key]=d.secure_url;item.classList.add('uploaded');item.classList.remove('missing');
+    const d=await kycUpload(file,currentUid,'owner',key.replace(/^owner_/,''));
+    ownerDocUrls[key]=d.ref;item.classList.add('uploaded');item.classList.remove('missing');
     item.querySelector('.pu-label').innerHTML=OWNER_DOC_LABEL[key]+' ✓ <span class="req">*</span>';
     let link=item.querySelector('.pu-link');if(!link){link=document.createElement('a');link.className='pu-link';link.target='_blank';link.textContent='View';link.onclick=e=>e.stopPropagation();item.appendChild(link)}
-    link.href=d.secure_url;toast('Uploaded','ok');
-  }catch(e){toast('Upload failed','err');item.querySelector('.pu-label').innerHTML=OWNER_DOC_LABEL[key]+' <span class="req">*</span>'}
+    link.href=d.url;toast('Uploaded','ok');
+  }catch(e){toast(e.message||'Upload failed','err');item.querySelector('.pu-label').innerHTML=OWNER_DOC_LABEL[key]+' <span class="req">*</span>'}
   input.value='';
 }
 function autoFillBank(ifsc){const bank=bankFromIFSC(ifsc);if(bank){const sel=document.getElementById('ocrBank');for(const o of sel.options){if(o.value===bank){sel.value=bank;return}}}}
@@ -361,7 +358,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   try{
     const r=await fetch(`${API}/api/config`);allOpts=(await r.json()).options;
     docsMsel=makeMultiSelect(document.getElementById('docsSelect'),'documents_available',allOpts.documentsAvailable);
-    chequeUploader=initSingleUpload('chequeBtn','chequePrev','chequeUrl');
+    chequeUploader=initSingleUpload('chequeBtn','chequePrev','chequeUrl',{role:'owner',docKey:'cheque',getUid:()=>currentUid});
     document.getElementById('tokenAmt').addEventListener('input',applyChequeVisibility);
     applyChequeVisibility();
     fillSelect(document.getElementById('selReqBy'),allOpts.assignedByList,'Select...');
