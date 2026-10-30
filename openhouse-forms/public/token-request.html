@@ -119,6 +119,20 @@
         <div class="fg"><label>Rent Payable (in ₹) <span class="req">*</span></label><input type="text" inputmode="numeric" name="rent_payable_grace_period" id="rgp" oninput="this.value=this.value.replace(/\D/g,'')" required><div class="err-msg">Required</div></div></div>
       <label class="na-toggle"><input type="checkbox" id="rgp_na" onchange="toggleNA('rgp','No rent');document.getElementById('rgp').required=!this.checked"><span>No rent payable during grace period</span></label></div>
 
+    <!-- Same card as Form 4 (both kept, both mandatory for the owner). The CRM sends
+         Deal Terms on its own once the token payment mail goes, so the owner's email
+         has to be on file by then. -->
+    <div class="card" style="border-left:3px solid var(--ac)"><div class="card-t">Email Recipients</div>
+      <div class="r2">
+        <div class="fg"><label>Owner Email <span class="req">*</span></label><input type="email" name="owner_email" id="trOwnerEmail" required placeholder="owner@example.com"><div class="err-msg">Required</div></div>
+        <div class="fg"><label>Co-owner Email</label><input type="email" name="co_owner_email" id="trCoOwnerEmail" placeholder="Optional"></div>
+      </div>
+      <div class="r2">
+        <div class="fg"><label>3rd Owner Email</label><input type="email" name="third_owner_email" id="trThirdEmail" placeholder="Optional"></div>
+        <div class="fg"><label>Broker Email</label><input type="email" name="broker_email" id="trBrokerEmail" placeholder="Optional"></div>
+      </div>
+    </div>
+
     <div class="card"><div class="card-t">Loan</div>
       <div class="fg"><label>Any Loan? <span class="req">*</span></label>
         <div class="radios"><label><input type="radio" name="has_loan" value="Yes" id="loanYes"><span>Yes</span></label><label><input type="radio" name="has_loan" value="No" id="loanNo"><span>No</span></label></div>
@@ -455,6 +469,7 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
     sv('registry_status',d.registry_status);sv('occupancy_status',d.occupancy_status);
     if(d.occupancy_status==='Tenant'){document.getElementById('hdWrap').style.display='block';document.getElementById('hdDate').required=true;if(d.key_handover_date)sv('key_handover_date',d.key_handover_date.split('T')[0])}
     showVacate(d.occupancy_status==='Owner Staying');sv('owner_will_vacate',d.owner_will_vacate);
+    sv('owner_email',d.owner_email);sv('co_owner_email',d.co_owner_email);sv('third_owner_email',d.third_owner_email);sv('broker_email',d.broker_email);
     sv('guaranteed_sale_price',d.guaranteed_sale_price);
     // Populate GSP total + all deposit fields
     const gspVal=parseFloat(d.guaranteed_sale_price)||0;const gspT=gspVal*100000;
@@ -552,7 +567,7 @@ function collectBody(){const fd=new FormData(document.getElementById('tokenForm'
   body.documents_available=docsMsel.getSelected();
   if(document.getElementById('rip').dataset.na==='1')body.rent_payable_initial_period='N/A';
   if(document.getElementById('rgp').dataset.na==='1')body.rent_payable_grace_period='N/A';
-  const skipKeys=['documents_available','uid','cheque_image_url','cheque_bank_name','cheque_ifsc','registry_status','occupancy_status','token_remarks','token_remarks_printed','token_requested_by','rent_payable_initial_period','rent_payable_grace_period','key_handover_date','other_documents_text','unit_no','tower_no','floor','area_sqft','demand_price','co_owner','co_owner_number','performance_guarantee','total_deposit','refundable_deposit','has_loan'];
+  const skipKeys=['documents_available','uid','cheque_image_url','cheque_bank_name','cheque_ifsc','registry_status','occupancy_status','token_remarks','token_remarks_printed','token_requested_by','rent_payable_initial_period','rent_payable_grace_period','key_handover_date','other_documents_text','unit_no','tower_no','floor','area_sqft','demand_price','co_owner','co_owner_number','performance_guarantee','total_deposit','refundable_deposit','has_loan','owner_email','co_owner_email','third_owner_email','broker_email'];
   for(const k of Object.keys(body)){if(typeof body[k]==='string'&&!skipKeys.includes(k))body[k]=body[k].replace(/,/g,'')}
   body.performance_guarantee=body.performance_guarantee!==''?parseFloat(String(body.performance_guarantee).replace(/,/g,'')):null;
   body.total_deposit=body.total_deposit!==''?parseFloat(String(body.total_deposit).replace(/,/g,'')):null;

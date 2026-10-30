@@ -26,6 +26,10 @@ module.exports=function(pool){
       const ownerStaying=d.occupancy_status==='Owner Staying';
       const willVacate=ownerStaying&&['Yes','No'].includes(d.owner_will_vacate)?d.owner_will_vacate:null;
       if(!isDraft&&ownerStaying&&!willVacate)return res.status(400).json({error:'Select whether the owner will vacate the property'});
+      // The Email Recipients card (also on Form 4). A blank keeps what is stored:
+      // Form 4 may have set it, and an old open page must not wipe it.
+      const em=k=>String(d[k]||'').trim()||null;
+      if(!isDraft&&!em('owner_email')&&!oldRow.owner_email)return res.status(400).json({error:'Owner email is required'});
 
       // Form 3 re-writes the unit's identity columns on every submit, so a field
       // that arrives blank BLANKS the stored value. That is how floor was lost:
@@ -65,6 +69,8 @@ module.exports=function(pool){
         brokerage_ama_signed=$44,brokerage_ama_signed_amount=$45,brokerage_registry=$46,brokerage_registry_amount=$47,
         to_be_released_now=$48,incentive_visit=$49,incentive_owner_meeting=$50,total_cp_amount=$51,additional_brokerage=$52,
         owner_will_vacate=CASE WHEN $53::boolean THEN COALESCE($54,owner_will_vacate) ELSE NULL END,
+        owner_email=COALESCE($55,owner_email),co_owner_email=COALESCE($56,co_owner_email),
+        third_owner_email=COALESCE($57,third_owner_email),broker_email=COALESCE($58,broker_email),
         token_submitted_at=CASE WHEN $18=FALSE THEN NOW() ELSE token_submitted_at END,updated_at=NOW()
         WHERE uid=$19`,
         [d.token_requested_by||null,d.deal_token_amount!=null&&d.deal_token_amount!==''?parseFloat(d.deal_token_amount):null,
@@ -88,7 +94,8 @@ module.exports=function(pool){
          d.agreed_brokerage||null,d.total_brokerage_amount||null,
          d.brokerage_ama_signed||null,d.brokerage_ama_signed_amount||null,d.brokerage_registry||null,d.brokerage_registry_amount||null,
          d.to_be_released_now||null,d.incentive_visit||null,d.incentive_owner_meeting||null,d.total_cp_amount||null,d.additional_brokerage||null,
-         ownerStaying,willVacate]);
+         ownerStaying,willVacate,
+         em('owner_email'),em('co_owner_email'),em('third_owner_email'),em('broker_email')]);
       res.json({success:true,uid:d.uid,draft:isDraft});
       pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows:nu})=>
         logger.logFormSubmit(d.uid,'token_request_submitted',3,req.user?.email,req.user?.name,{isDraft,wasSubmitted,oldRow,newRow:nu[0]})).catch(()=>{});
