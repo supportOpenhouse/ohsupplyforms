@@ -26,6 +26,9 @@ module.exports=function(pool){
       const ownerStaying=d.occupancy_status==='Owner Staying';
       const willVacate=ownerStaying&&['Yes','No'].includes(d.owner_will_vacate)?d.owner_will_vacate:null;
       if(!isDraft&&ownerStaying&&!willVacate)return res.status(400).json({error:'Select whether the owner will vacate the property'});
+      // Tentative Key Handover Date: every case except Owner Staying + will not vacate.
+      if(!isDraft&&d.occupancy_status&&!(ownerStaying&&willVacate==='No')&&!d.key_handover_date)
+        return res.status(400).json({error:'Tentative Key Handover Date is required'});
       // The Email Recipients card (also on Form 4). A blank keeps what is stored:
       // Form 4 may have set it, and an old open page must not wipe it.
       const em=k=>String(d[k]||'').trim()||null;
