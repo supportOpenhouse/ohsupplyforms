@@ -226,6 +226,29 @@
       </div>
     </div>
 
+    <!-- Co-owner KYC (was Form 6's, which is retired: the CRM sends the Pending Amount
+         mail itself and attaches these). Shown only when a co-owner is entered. -->
+    <div class="card" id="coOwnerDocsCard" style="display:none"><div class="card-t">Co-owner Documents Upload</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+        <div class="pu-item" id="pu_coAadhaarFront" onclick="document.getElementById('fi_co_aadhaar_front').click()">
+          <div class="pu-icon">📄</div><div class="pu-label">Aadhaar Card Front <span class="req">*</span></div>
+          <input type="file" id="fi_co_aadhaar_front" accept="image/*,.pdf" style="display:none" onchange="uploadCoDoc(this,'co_aadhaar_front')">
+        </div>
+        <div class="pu-item" id="pu_coAadhaarBack" onclick="document.getElementById('fi_co_aadhaar_back').click()">
+          <div class="pu-icon">📄</div><div class="pu-label">Aadhaar Card Back <span class="req">*</span></div>
+          <input type="file" id="fi_co_aadhaar_back" accept="image/*,.pdf" style="display:none" onchange="uploadCoDoc(this,'co_aadhaar_back')">
+        </div>
+        <div class="pu-item" id="pu_coPan" onclick="document.getElementById('fi_co_pan').click()">
+          <div class="pu-icon">📄</div><div class="pu-label">PAN Card <span class="req">*</span></div>
+          <input type="file" id="fi_co_pan" accept="image/*,.pdf" style="display:none" onchange="uploadCoDoc(this,'co_pan')">
+        </div>
+        <div class="pu-item" id="pu_coCheque" onclick="document.getElementById('fi_co_cheque').click()">
+          <div class="pu-icon">📄</div><div class="pu-label">Cancelled Cheque <span class="req">*</span></div>
+          <input type="file" id="fi_co_cheque" accept="image/*,.pdf" style="display:none" onchange="uploadCoDoc(this,'co_cheque')">
+        </div>
+      </div>
+    </div>
+
     <div class="btn-row">
       <button type="button" class="btn btn-amb" id="draftBtn">Save Draft</button>
       <button type="button" class="btn btn-dark" id="submitBtn">Submit</button>
@@ -318,6 +341,34 @@ async function uploadOwnerDoc(input,key){
   }catch(e){toast(e.message||'Upload failed','err');item.querySelector('.pu-label').innerHTML=OWNER_DOC_LABEL[key]+' <span class="req">*</span>'}
   input.value='';
 }
+const coDocUrls={co_aadhaar_front:'',co_aadhaar_back:'',co_pan:'',co_cheque:''};
+const CO_DOC_COL={co_aadhaar_front:'co_owner_aadhaar_front_url',co_aadhaar_back:'co_owner_aadhaar_back_url',co_pan:'co_owner_pan_url',co_cheque:'co_owner_cheque_url'};
+const CO_DOC_ITEM={co_aadhaar_front:'pu_coAadhaarFront',co_aadhaar_back:'pu_coAadhaarBack',co_pan:'pu_coPan',co_cheque:'pu_coCheque'};
+const CO_DOC_LABEL={co_aadhaar_front:'Aadhaar Front',co_aadhaar_back:'Aadhaar Back',co_pan:'PAN Card',co_cheque:'Cancelled Cheque'};
+const coDocView={};   // signed View links, for the mail preview (coDocUrls holds the gs:// refs)
+function hasCoOwner(){return !!document.getElementById('d_coowner').value.trim()}
+function showCoOwnerDocs(){document.getElementById('coOwnerDocsCard').style.display=hasCoOwner()?'':'none'}
+function markCoDoc(key,url){
+  const item=document.getElementById(CO_DOC_ITEM[key]);
+  item.classList.toggle('uploaded',!!url);if(url)item.classList.remove('missing');
+  item.querySelector('.pu-label').innerHTML=CO_DOC_LABEL[key]+(url?' ✓':'')+' <span class="req">*</span>';
+  let link=item.querySelector('.pu-link');
+  if(!url){if(link)link.remove();return}
+  if(!link){link=document.createElement('a');link.className='pu-link';link.target='_blank';link.textContent='View';link.onclick=e=>e.stopPropagation();item.appendChild(link)}
+  link.href=url;
+}
+// Same private bucket as the owner's KYC, under role co_owner.
+async function uploadCoDoc(input,key){
+  if(!input.files.length)return;
+  const file=input.files[0];if(file.size>10*1024*1024){toast('File exceeds 10MB','err');return}
+  const item=document.getElementById(CO_DOC_ITEM[key]);item.querySelector('.pu-label').textContent='Uploading...';
+  try{
+    const d=await kycUpload(file,currentUid,'co_owner',key.replace(/^co_/,''));
+    coDocUrls[key]=d.ref;coDocView[key]=d.url;markCoDoc(key,d.url);toast('Uploaded','ok');
+  }catch(e){toast(e.message||'Upload failed','err');markCoDoc(key,coDocView[key]||'')}
+  input.value='';
+}
+document.getElementById('d_coowner').addEventListener('input',showCoOwnerDocs);
 function autoFillBank(ifsc){const bank=bankFromIFSC(ifsc);if(bank){const sel=document.getElementById('ocrBank');for(const o of sel.options){if(o.value===bank){sel.value=bank;return}}}}
 
 function isZeroToken(){const v=(document.getElementById('tokenAmt')?.value??'').trim();return v!==''&&Number(v)===0}
@@ -510,6 +561,10 @@ async function loadData(){const uid=document.getElementById('selUid').value;if(!
         let link=item.querySelector('.pu-link');if(!link){link=document.createElement('a');link.className='pu-link';link.target='_blank';link.textContent='View';link.onclick=e=>e.stopPropagation();item.appendChild(link)}
         link.href=d[col]}
     }
+    for(const[key,col]of Object.entries(CO_DOC_COL)){
+      coDocUrls[key]=d[col]||'';coDocView[key]=d[col]||'';markCoDoc(key,d[col]||'');
+    }
+    showCoOwnerDocs();
     document.getElementById('tokenForm').style.display='block';
     document.getElementById('pdfBtn').disabled=!d.token_submitted_at;
     document.getElementById('emailBtn').disabled=!d.token_submitted_at;
@@ -580,6 +635,7 @@ function collectBody(){const fd=new FormData(document.getElementById('tokenForm'
   body.total_deposit=body.total_deposit!==''?parseFloat(String(body.total_deposit).replace(/,/g,'')):null;
   body.refundable_deposit=body.refundable_deposit!==''?parseFloat(String(body.refundable_deposit).replace(/,/g,'')):null;
   for(const[key,col]of Object.entries(OWNER_DOC_COL)){body[col]=ownerDocUrls[key]||null}
+  for(const[key,col]of Object.entries(CO_DOC_COL)){body[col]=hasCoOwner()?(coDocUrls[key]||null):null}
   body.ama_pg_non_forfeitable=document.querySelector('input[name="ama_pg_non_forfeitable"]:checked')?.value||null;
   body.ama_payment_structure=document.querySelector('input[name="ama_payment_structure"]:checked')?.value||null;
   const isFlex=body.ama_payment_structure==='Flexible';
@@ -604,6 +660,17 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
       if(!ownerDocUrls[key]){missingOwnerDocs.push(label);document.getElementById(OWNER_DOC_ITEM[key]).classList.add('missing')}
     }
     if(missingOwnerDocs.length){toast(`Upload required: ${missingOwnerDocs.join(', ')}`,'err');return}
+  }
+  // Co-owner KYC is checked on resubmits too: older properties never had it asked here,
+  // and with Form 6 retired this is the only supply form that collects it.
+  if(hasCoOwner()){
+    const missingCo=[];
+    Object.values(CO_DOC_ITEM).forEach(id=>document.getElementById(id).classList.remove('missing'));
+    for(const[key,label]of Object.entries(CO_DOC_LABEL)){
+      if(!coDocUrls[key]){missingCo.push('Co-owner '+label);document.getElementById(CO_DOC_ITEM[key]).classList.add('missing')}
+    }
+    if(missingCo.length){toast(`Upload required: ${missingCo.join(', ')}`,'err');
+      document.getElementById('coOwnerDocsCard').scrollIntoView({behavior:'smooth',block:'center'});return}
   }
   const body=collectBody();body.is_draft=false;
   submitBtn(document.getElementById('submitBtn'),async()=>{const r=await fetch(`${API}/api/token-request/submit`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -664,6 +731,7 @@ document.getElementById('ownerBtnRow').addEventListener('click',async(e)=>{
       if(coPhone&&(coPhone.length!==10||coPhone[0]==='0')){toast('Enter valid 10-digit phone','err');return}
       document.getElementById('d_coowner').value=coName;
       document.getElementById('d_coowner_number').value=coPhone;
+      showCoOwnerDocs();
       // Setting the form inputs only feeds the email — this popup never submits
       // the form, so without this call the co-owner never reaches the database
       // and the Form-4 deal-terms mail has nothing to show.
@@ -738,6 +806,8 @@ function showEmailPreview(){
   if(p.owner_aadhaar_front_url)docLinks.push(`<strong>Aadhaar Front:</strong> <a href="${p.owner_aadhaar_front_url}" style="color:#1a73e8">View</a>`);
   if(p.owner_aadhaar_back_url)docLinks.push(`<strong>Aadhaar Back:</strong> <a href="${p.owner_aadhaar_back_url}" style="color:#1a73e8">View</a>`);
   if(p.owner_property_doc_url)docLinks.push(`<strong>Property Ownership Doc:</strong> <a href="${p.owner_property_doc_url}" style="color:#1a73e8">View</a>`);
+  if(hasCoOwner())for(const key of['co_cheque','co_pan','co_aadhaar_front','co_aadhaar_back'])
+    if(coDocView[key])docLinks.push(`<strong>Co Owner ${CO_DOC_LABEL[key]}:</strong> <a href="${coDocView[key]}" style="color:#1a73e8">View</a>`);
   const city=(p.city||'').toLowerCase();
   const isNoidaOrGzb=city.includes('noida')||city.includes('ghaziabad')||city.includes('gzb');
   const _cityCc=city.includes('gurgaon')||city.includes('gurugram')?'shashank.kumar@openhouse.in':city.includes('ghaziabad')||city.includes('gzb')?'animesh.singh@openhouse.in':city.includes('noida')?'abhishek.rathore@openhouse.in':null;

@@ -33,6 +33,14 @@ module.exports=function(pool){
       // Form 4 may have set it, and an old open page must not wipe it.
       const em=k=>String(d[k]||'').trim()||null;
       if(!isDraft&&!em('owner_email')&&!oldRow.owner_email)return res.status(400).json({error:'Owner email is required'});
+      // Co-owner KYC: Form 6 used to collect it and is retired, so with a co-owner on the
+      // deal it is required here (a file already on the row — CRM, Seller App — counts).
+      if(!isDraft&&String(d.co_owner||'').trim()){
+        const CO={co_owner_aadhaar_front_url:'Aadhaar Front',co_owner_aadhaar_back_url:'Aadhaar Back',
+          co_owner_pan_url:'PAN Card',co_owner_cheque_url:'Cancelled Cheque'};
+        const miss=Object.keys(CO).filter(c=>!d[c]&&!oldRow[c]).map(c=>'Co-owner '+CO[c]);
+        if(miss.length)return res.status(400).json({error:`Upload required: ${miss.join(', ')}`});
+      }
 
       // Form 3 re-writes the unit's identity columns on every submit, so a field
       // that arrives blank BLANKS the stored value. That is how floor was lost:
@@ -74,6 +82,8 @@ module.exports=function(pool){
         owner_will_vacate=CASE WHEN $53::boolean THEN COALESCE($54,owner_will_vacate) ELSE NULL END,
         owner_email=COALESCE($55,owner_email),co_owner_email=COALESCE($56,co_owner_email),
         third_owner_email=COALESCE($57,third_owner_email),broker_email=COALESCE($58,broker_email),
+        co_owner_aadhaar_front_url=COALESCE($59,co_owner_aadhaar_front_url),co_owner_aadhaar_back_url=COALESCE($60,co_owner_aadhaar_back_url),
+        co_owner_pan_url=COALESCE($61,co_owner_pan_url),co_owner_cheque_url=COALESCE($62,co_owner_cheque_url),
         token_submitted_at=CASE WHEN $18=FALSE THEN NOW() ELSE token_submitted_at END,updated_at=NOW()
         WHERE uid=$19`,
         [d.token_requested_by||null,d.deal_token_amount!=null&&d.deal_token_amount!==''?parseFloat(d.deal_token_amount):null,
@@ -98,7 +108,11 @@ module.exports=function(pool){
          d.brokerage_ama_signed||null,d.brokerage_ama_signed_amount||null,d.brokerage_registry||null,d.brokerage_registry_amount||null,
          d.to_be_released_now||null,d.incentive_visit||null,d.incentive_owner_meeting||null,d.total_cp_amount||null,d.additional_brokerage||null,
          ownerStaying,willVacate,
-         em('owner_email'),em('co_owner_email'),em('third_owner_email'),em('broker_email')]);
+         em('owner_email'),em('co_owner_email'),em('third_owner_email'),em('broker_email'),
+         // Co-owner KYC (moved here from the retired Form 6). Keep-if-null, so a file
+         // added in the CRM or the Seller App is never wiped by a resubmit.
+         d.co_owner_aadhaar_front_url||null,d.co_owner_aadhaar_back_url||null,
+         d.co_owner_pan_url||null,d.co_owner_cheque_url||null]);
       res.json({success:true,uid:d.uid,draft:isDraft});
       pool.query('SELECT * FROM properties WHERE uid=$1',[d.uid]).then(({rows:nu})=>
         logger.logFormSubmit(d.uid,'token_request_submitted',3,req.user?.email,req.user?.name,{isDraft,wasSubmitted,oldRow,newRow:nu[0]})).catch(()=>{});

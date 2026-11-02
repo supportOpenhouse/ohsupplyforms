@@ -289,6 +289,13 @@ async function sendTokenRequestEmail({ accessToken, refreshToken, fromEmail, pro
     { key: 'aadhaar_front', label: 'Aadhaar Card Front', url: p.owner_aadhaar_front_url },
     { key: 'aadhaar_back', label: 'Aadhaar Card Back', url: p.owner_aadhaar_back_url },
     { key: 'property_doc', label: 'Property Ownership Document', url: p.owner_property_doc_url },
+    // Co-owner KYC is collected on this form now (Form 6 is retired).
+    ...(String(p.co_owner || '').trim() ? [
+      { key: 'co_cheque', label: 'Co Owner Cancelled Cheque', url: p.co_owner_cheque_url },
+      { key: 'co_pan', label: 'Co Owner PAN Card', url: p.co_owner_pan_url },
+      { key: 'co_aadhaar_front', label: 'Co Owner Aadhaar Card Front', url: p.co_owner_aadhaar_front_url },
+      { key: 'co_aadhaar_back', label: 'Co Owner Aadhaar Card Back', url: p.co_owner_aadhaar_back_url },
+    ] : []),
   ];
   const { attachments: trAttach, attached: trAttached } = await collectDocs(p.uid, trDocs);
 
