@@ -261,6 +261,20 @@ tr.row-replicated td{color:#dc2626!important;opacity:.7}
           <label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Society Name <span style="color:var(--red)">*</span></label>
           <input type="text" id="s_name" placeholder="e.g. Prestige Lakeside" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Year of Possession <span style="color:var(--red)">*</span></label>
+            <input type="number" id="s_poss" step="1" placeholder="e.g. 2018" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Latitude <span style="color:var(--red)">*</span></label>
+            <input type="number" id="s_lat" step="any" placeholder="e.g. 28.4595" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em">Longitude <span style="color:var(--red)">*</span></label>
+            <input type="number" id="s_lng" step="any" placeholder="e.g. 77.0266" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
+          </div>
+        </div>
         <div id="s_msg" style="font-size:11px;min-height:14px"></div>
       </div>
     </div>
@@ -873,9 +887,11 @@ function syncMicroMarket(){
   mm.style.background=same?'var(--bg)':'';
   if(same)mm.value=document.getElementById('s_locality').value.trim();
 }
+let SOC_RULES=null; // Add-Society validation rules, loaded from /api/admin/society-options
 async function openSocietyModal(){
   if(!IS_ADMIN)return;
-  ['s_city','s_locality','s_micro','s_name'].forEach(id=>document.getElementById(id).value='');
+  ['s_city','s_locality','s_micro','s_name','s_poss','s_lat','s_lng'].forEach(id=>document.getElementById(id).value='');
+  SOC_RULES=null;
   document.getElementById('s_mmSame').checked=true;
   document.getElementById('s_msg').textContent='';
   syncMicroMarket();
@@ -885,7 +901,21 @@ async function openSocietyModal(){
     const o=await r.json();
     const fill=(id,arr)=>{document.getElementById(id).innerHTML=(arr||[]).map(v=>`<option value="${String(v).replace(/"/g,'&quot;')}">`).join('')};
     fill('soc_cities',o.cities);fill('soc_localities',o.localities);fill('soc_micromarkets',o.micro_markets);
+    SOC_RULES=o.rules;
+    const at=(id,min,max)=>{const el=document.getElementById(id);el.min=min;el.max=max};
+    at('s_poss',SOC_RULES.minYear,SOC_RULES.maxYear);at('s_lat',SOC_RULES.latMin,SOC_RULES.latMax);at('s_lng',SOC_RULES.lngMin,SOC_RULES.lngMax);
   }catch(e){}
+}
+// Same rules + messages as POST /api/admin/society — the numbers come from the server (SOC_RULES).
+function societyGeoError(py,la,lo){
+  const R=SOC_RULES,p=Number(py),lat=Number(la),lng=Number(lo);
+  if(!Number.isInteger(p)||p<R.minYear||p>R.maxYear)return `Year of Possession must be a year between ${R.minYear} and ${R.maxYear}`;
+  const latOk=Number.isFinite(lat)&&lat>=R.latMin&&lat<=R.latMax;
+  const lngOk=Number.isFinite(lng)&&lng>=R.lngMin&&lng<=R.lngMax;
+  if(latOk&&lngOk)return null;
+  if(lng>=R.latMin&&lng<=R.latMax&&lat>=R.lngMin&&lat<=R.lngMax)return 'Latitude and Longitude look swapped — latitude is ~28, longitude is ~77 in NCR';
+  if(!latOk)return `Latitude must be within NCR (${R.latMin} to ${R.latMax}), e.g. 28.4595`;
+  return `Longitude must be within NCR (${R.lngMin} to ${R.lngMax}), e.g. 77.0266`;
 }
 function closeSocietyModal(){document.getElementById('societyModal').classList.remove('open')}
 async function saveSociety(){
@@ -893,15 +923,22 @@ async function saveSociety(){
   const locality=document.getElementById('s_locality').value.trim();
   const society_name=document.getElementById('s_name').value.trim();
   const micro_market=document.getElementById('s_mmSame').checked?locality:document.getElementById('s_micro').value.trim();
+  const possession_year=document.getElementById('s_poss').value.trim();
+  const latitude=document.getElementById('s_lat').value.trim();
+  const longitude=document.getElementById('s_lng').value.trim();
   const msg=document.getElementById('s_msg');
   if(!city||!locality||!society_name){msg.style.color='var(--red)';msg.textContent='City, Locality and Society Name are required';return}
+  if(!possession_year||!latitude||!longitude){msg.style.color='var(--red)';msg.textContent='Year of Possession, Latitude and Longitude are required';return}
+  if(!SOC_RULES){msg.style.color='var(--red)';msg.textContent='Validation rules did not load — close and reopen Add Society';return}
+  const geoErr=societyGeoError(possession_year,latitude,longitude);
+  if(geoErr){msg.style.color='var(--red)';msg.textContent=geoErr;return}
   const btn=document.getElementById('s_saveBtn');btn.disabled=true;btn.textContent='Adding...';
   try{
     const r=await fetch('/api/admin/society',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({city,locality,society_name,micro_market})});
+      body:JSON.stringify({city,locality,society_name,micro_market,possession_year,latitude,longitude})});
     const d=await r.json();if(!r.ok)throw new Error(d.error);
     msg.style.color='var(--grn)';msg.textContent=`Added "${d.society_name}" — ${d.locality}, ${d.city}`;
-    document.getElementById('s_name').value='';
+    ['s_name','s_poss','s_lat','s_lng'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('s_name').focus();
   }catch(e){msg.style.color='var(--red)';msg.textContent=e.message||'Failed to add society'}
   finally{btn.disabled=false;btn.textContent='Add Society'}

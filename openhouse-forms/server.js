@@ -142,6 +142,15 @@ app.get('/api/properties', isAuthenticated, hasAdminPanelAccess, async(req,res)=
     FROM properties WHERE TRUE${vis.clause} ORDER BY created_at DESC`,vis.params);res.json(rows)}catch(e){console.error('Properties list error:',e.message);res.status(500).json({error:e.message})}
 });
 
+// Add-Society validation rules — the single source of truth. The admin modal fetches these
+// via /api/admin/society-options and validates with the same numbers before posting.
+// NCR box covers Gurgaon/Manesar/Sohna/Bhiwadi, Delhi, Faridabad, Noida/Greater Noida/Yamuna Expy,
+// Ghaziabad/Wave City, Meerut, Sonipat, Neemrana. Widen here if a legit society falls outside.
+const NCR_BOUNDS={latMin:27.8,latMax:29.2,lngMin:76.3,lngMax:78.0};
+const SOCIETY_MIN_YEAR=1950;
+// Possession must already have happened — no future years. Evaluated per request.
+const societyGeoRules=()=>({minYear:SOCIETY_MIN_YEAR,maxYear:new Date().getFullYear(),...NCR_BOUNDS});
+
 // ── Societies master: distinct values for the "Add Society" dropdowns ──
 app.get('/api/admin/society-options', isAuthenticated, isAdmin, async(_,res)=>{
   try{
@@ -149,7 +158,7 @@ app.get('/api/admin/society-options', isAuthenticated, isAdmin, async(_,res)=>{
       ARRAY(SELECT DISTINCT city FROM master_societies WHERE city IS NOT NULL AND city<>'' ORDER BY city) AS cities,
       ARRAY(SELECT DISTINCT locality FROM master_societies WHERE locality IS NOT NULL AND locality<>'' ORDER BY locality) AS localities,
       ARRAY(SELECT DISTINCT micro_market FROM master_societies WHERE micro_market IS NOT NULL AND micro_market<>'' ORDER BY micro_market) AS micro_markets`);
-    res.json(rows[0]||{cities:[],localities:[],micro_markets:[]});
+    res.json({...(rows[0]||{cities:[],localities:[],micro_markets:[]}),rules:societyGeoRules()});
   }catch(e){console.error('Society options error:',e.message);res.status(500).json({error:e.message})}
 });
 
@@ -163,17 +172,37 @@ app.post('/api/admin/society', isAuthenticated, isAdmin, async(req,res)=>{
     const micro_market=(req.body.micro_market||'').trim()||locality;
     if(!city||!locality||!society_name)return res.status(400).json({error:'City, Locality and Society Name are all required'});
 
+    // Possession year + coordinates are required for every new society.
+    // Blank is rejected before Number(), since Number('') is 0, not NaN.
+    const num=v=>{const t=String(v??'').trim();return t===''?NaN:Number(t)};
+    const possession_year=num(req.body.possession_year);
+    const latitude=num(req.body.latitude);
+    const longitude=num(req.body.longitude);
+    const B=societyGeoRules();
+    if(!Number.isInteger(possession_year)||possession_year<B.minYear||possession_year>B.maxYear)
+      return res.status(400).json({error:`Year of Possession must be a year between ${B.minYear} and ${B.maxYear}`});
+    // Coordinates must fall inside the NCR box. Catches swapped lat/lng and typos.
+    const latOk=Number.isFinite(latitude)&&latitude>=B.latMin&&latitude<=B.latMax;
+    const lngOk=Number.isFinite(longitude)&&longitude>=B.lngMin&&longitude<=B.lngMax;
+    if(!latOk||!lngOk){
+      const swapped=longitude>=B.latMin&&longitude<=B.latMax&&latitude>=B.lngMin&&latitude<=B.lngMax;
+      if(swapped)return res.status(400).json({error:'Latitude and Longitude look swapped — latitude is ~28, longitude is ~77 in NCR'});
+      if(!latOk)return res.status(400).json({error:`Latitude must be within NCR (${B.latMin} to ${B.latMax}), e.g. 28.4595`});
+      return res.status(400).json({error:`Longitude must be within NCR (${B.lngMin} to ${B.lngMax}), e.g. 77.0266`});
+    }
+
     const{rows:dupe}=await pool.query(
       `SELECT id FROM master_societies WHERE LOWER(city)=LOWER($1) AND LOWER(locality)=LOWER($2) AND LOWER(society_name)=LOWER($3)`,
       [city,locality,society_name]);
     if(dupe.length)return res.status(409).json({error:`"${society_name}" already exists in ${locality}, ${city}`});
 
     const{rows}=await pool.query(
-      `INSERT INTO master_societies(city,locality,society_name,micro_market) VALUES($1,$2,$3,$4) RETURNING id`,
-      [city,locality,society_name,micro_market]);
-    res.json({success:true,id:rows[0].id,city,locality,society_name,micro_market});
+      `INSERT INTO master_societies(city,locality,society_name,micro_market,possession_year,latitude,longitude)
+       VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+      [city,locality,society_name,micro_market,possession_year,latitude,longitude]);
+    res.json({success:true,id:rows[0].id,city,locality,society_name,micro_market,possession_year,latitude,longitude});
     require('./utils/logger').log(null,'society_added','master_data',req.user?.email,req.user?.name,
-      {city,locality,society_name,micro_market}).catch(()=>{});
+      {city,locality,society_name,micro_market,possession_year,latitude,longitude}).catch(()=>{});
   }catch(e){console.error('Add society error:',e.message);res.status(500).json({error:e.message})}
 });
 
