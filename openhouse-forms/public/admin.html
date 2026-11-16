@@ -806,6 +806,18 @@ async function onCrmPreTokenTick(el){
   loadCrmPreToken(uid);
 }
 
+// Some columns are rendered in two sections: key_handover_date (Tentative + Actual —
+// one column; Form 9 overwrites the tentative date with the actual one),
+// deal_token_amount (Token Request + Deal Terms), gas_pipeline. saveModal posts by
+// name and the LAST copy wins, so an edit to the first copy was silently overwritten
+// by the untouched second one. Keep every copy in sync: whichever is edited gets saved.
+function syncFieldCopies(e){
+  const el=e.target;
+  if(!el.name||el.type==='checkbox'||el.type==='hidden')return;
+  document.querySelectorAll(`#modalBody [name="${CSS.escape(el.name)}"]`).forEach(o=>{if(o!==el)o.value=el.value});
+}
+document.getElementById('modalBody').addEventListener('input',syncFieldCopies);
+document.getElementById('modalBody').addEventListener('change',syncFieldCopies);
 // Ticking a cancel box asks for the reason right away. Dismissing the prompt or leaving
 // it blank un-ticks the box. A box is "newly ticked" when checked now but not at render.
 function onCancelTick(el){
