@@ -5,6 +5,7 @@ const { notifyVisitScheduled, notifyVisitCancelled, notifyVisitReassigned } = re
 const { syncVisitCalendar } = require('../utils/calendar');
 const { initHistory, setCancelled, addReschedule, dateStr } = require('../utils/visit-history');
 const { amaSigned, AMA_LOCK_MSG } = require('../utils/ama-lock');
+const { withSlot, toMin } = require('../utils/slot-guard');
 
 const CITY_MAP = { 'Gurgaon': 'G', 'Noida': 'N', 'Ghaziabad': 'GH' };
 const SRC_MAP = { 'CP': 'C', 'Direct': 'D', 'CP Listing': 'C' };
@@ -102,46 +103,10 @@ module.exports = function (pool) {
       );
       const previousCancelledUid = deadRows.length ? deadRows[0].uid : null;
 
-      // 7. Slot conflict check — same as Form 1 (30-min window per visit)
-      const [sh, sm] = String(d.schedule_time).split(':').map(Number);
-      if (isNaN(sh) || isNaN(sm)) {
+      // 7. HH:MM check. The slot itself is checked atomically with the insert (step 9),
+      //    by the same guard every other slot-writing route uses (utils/slot-guard).
+      if (isNaN(toMin(d.schedule_time))) {
         return res.status(400).json({ error: 'schedule_time must be in HH:MM format' });
-      }
-      const selMin = sh * 60 + sm;
-      const { rows: busy } = await pool.query(
-        `SELECT schedule_time, uid, society_name, unit_no, tower_no FROM properties
-         WHERE field_exec = $1 AND schedule_date = $2
-         AND is_dead IS NOT TRUE AND is_token_refunded IS NOT TRUE AND replicated IS NOT TRUE`,
-        [d.field_exec, d.schedule_date]
-      );
-      const windows = busy.map(r => {
-        const [h, m] = r.schedule_time.split(':').map(Number);
-        const s = h * 60 + m;
-        return { start: s, end: s + 30, time: r.schedule_time, uid: r.uid, society: r.society_name, unit: r.unit_no, tower: r.tower_no };
-      });
-      const newEnd = selMin + 30;
-      const hit = windows.find(w => selMin < w.end && newEnd > w.start);
-      if (hit) {
-        const fmt = m => {
-          const h = Math.floor(m / 60), mm = m % 60;
-          return `${h > 12 ? h - 12 : h === 0 ? 12 : h}:${String(mm).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
-        };
-        const sorted = [...windows].sort((a, b) => a.start - b.start);
-        // A 30-min slot starting at t is free if it sits in business hours (8 AM–8 PM)
-        // and overlaps none of the booked windows. Collect up to 3 on each side.
-        const free = t => t >= 8 * 60 && t <= 20 * 60 && !sorted.some(w => t < w.end && t + 30 > w.start);
-        const before = [];
-        for (let t = selMin - 30; t >= 8 * 60 && before.length < 3; t -= 30) if (free(t)) before.push(t);
-        const after = [];
-        for (let t = selMin + 30; t <= 20 * 60 && after.length < 3; t += 30) if (free(t)) after.push(t);
-        // chronological: earliest before-slots first, then the after-slots
-        const suggestions = [...before.reverse(), ...after].map(fmt);
-        return res.status(409).json({
-          error: 'Slot conflict',
-          message: `${d.field_exec} is already booked at ${hit.time} (${hit.society} ${hit.tower || ''}${hit.unit ? '-' + hit.unit : ''}). Conflicting UID: ${hit.uid}`,
-          conflict: { uid: hit.uid, time: hit.time, society: hit.society, tower: hit.tower, unit: hit.unit, field_exec: d.field_exec, schedule_date: d.schedule_date },
-          suggested_times: suggestions
-        });
       }
 
       // 8. Build owner name
@@ -154,7 +119,8 @@ module.exports = function (pool) {
         [prefix, prefix + '%']
       );
       const uid = prefix + String((maxRows[0].max_num || 1000) + 1);
-      await pool.query(`INSERT INTO properties(
+      const slot = await withSlot(pool, { fieldExec: d.field_exec, date: d.schedule_date, time: d.schedule_time },
+        q => q.query(`INSERT INTO properties(
           uid, schedule_date, schedule_time, lead_id, source,
           first_name, last_name, owner_broker_name, contact_no,
           area_sqft, demand_price, city, society_name, locality,
@@ -166,7 +132,11 @@ module.exports = function (pool) {
          parseFloat(d.area_sqft) || null, parseFloat(d.demand_price) || null,
          d.city, d.society_name, d.locality,
          d.unit_no || null, d.tower_no || null, d.floor || null, d.configuration,
-         d.assigned_by, d.field_exec, JSON.stringify(initHistory(d.schedule_date))]);
+         d.assigned_by, d.field_exec, JSON.stringify(initHistory(d.schedule_date))]));
+      // Same documented 409 shape external callers already handle.
+      if (slot.error) return res.status(slot.error.status).json(slot.error.status === 409
+        ? { error: 'Slot conflict', message: slot.error.message, conflict: slot.error.conflict, suggested_times: slot.error.suggested_times }
+        : { error: slot.error.message });
 
       // 11. Respond immediately. `revived` is kept (always false) for callers that read it.
       res.json({ success: true, uid, already_existed: false, revived: false,
@@ -293,10 +263,15 @@ module.exports = function (pool) {
       // Record the old date in the history only when the date actually changes (matches in-app behaviour)
       const dateChanged = dateStr(prop.schedule_date) !== dateStr(newDate);
       const newHist = dateChanged ? JSON.stringify(addReschedule(prop.visit_date_history, prop.schedule_date, newDate)) : null;
-      await pool.query(
-        'UPDATE properties SET schedule_date = $1, schedule_time = $2, field_exec = $5, visit_date_history = COALESCE($4, visit_date_history), updated_at = NOW() WHERE uid = $3',
-        [newDate, newTime, prop.uid, newHist, finalExec]
-      );
+      // No overlapping visits for the (possibly new) RM — same guard as every other route.
+      const slot = await withSlot(pool, { fieldExec: finalExec, date: newDate, time: newTime, excludeUid: prop.uid },
+        q => q.query(
+          'UPDATE properties SET schedule_date = $1, schedule_time = $2, field_exec = $5, visit_date_history = COALESCE($4, visit_date_history), updated_at = NOW() WHERE uid = $3',
+          [newDate, newTime, prop.uid, newHist, finalExec]
+        ));
+      if (slot.error) return res.status(slot.error.status).json(slot.error.status === 409
+        ? { error: 'Slot conflict', message: slot.error.message, conflict: slot.error.conflict, suggested_times: slot.error.suggested_times }
+        : { error: slot.error.message });
       res.json({ success: true, uid: prop.uid, schedule_date: newDate, schedule_time: newTime, field_exec: finalExec });
 
       const actorEmail    = d.actor_email || null;

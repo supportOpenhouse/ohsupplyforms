@@ -6,6 +6,7 @@ const{syncVisitCalendar}=require('../utils/calendar');
 const{addReschedule,setCancelled,dateStr}=require('../utils/visit-history');
 const{amaSigned,AMA_LOCK_MSG}=require('../utils/ama-lock');
 const{UNCANCEL_LOCK_MSG}=require('../utils/no-uncancel');
+const{withSlot,slotErrorBody}=require('../utils/slot-guard');
 module.exports=function(pool){
   router.get('/prefill/:uid',async(req,res)=>{
     try{const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
@@ -90,7 +91,9 @@ module.exports=function(pool){
       if(!field_exec)return res.status(400).json({error:'Select a person'});
       const{rows}=await pool.query('SELECT * FROM properties WHERE uid=$1',[req.params.uid]);
       if(!rows.length)return res.status(404).json({error:'UID not found'});
-      await pool.query('UPDATE properties SET field_exec=$1,updated_at=NOW() WHERE uid=$2',[field_exec,req.params.uid]);
+      const slot=await withSlot(pool,{fieldExec:field_exec,date:rows[0].schedule_date,time:rows[0].schedule_time,excludeUid:req.params.uid},
+        q=>q.query('UPDATE properties SET field_exec=$1,updated_at=NOW() WHERE uid=$2',[field_exec,req.params.uid]));
+      if(slot.error)return res.status(slot.error.status).json(slotErrorBody(slot.error));
       res.json({success:true,uid:req.params.uid,field_exec});
       logger.logScheduleChange(req.params.uid,'visit_reassigned',{old_exec:rows[0].field_exec,new_exec:field_exec},req.user?.email,req.user?.name).catch(()=>{});
       // Notify new assignee
@@ -113,7 +116,9 @@ module.exports=function(pool){
       // Record the old date in the history when the date actually changes
       const dateChanged=dateStr(rows[0].schedule_date)!==dateStr(schedule_date);
       const newHist=dateChanged?JSON.stringify(addReschedule(rows[0].visit_date_history,rows[0].schedule_date,schedule_date)):null;
-      await pool.query('UPDATE properties SET schedule_date=$1,schedule_time=$2,visit_date_history=COALESCE($4,visit_date_history),updated_at=NOW() WHERE uid=$3',[schedule_date,schedule_time,req.params.uid,newHist]);
+      const slot=await withSlot(pool,{fieldExec:rows[0].field_exec,date:schedule_date,time:schedule_time,excludeUid:req.params.uid},
+        q=>q.query('UPDATE properties SET schedule_date=$1,schedule_time=$2,visit_date_history=COALESCE($4,visit_date_history),updated_at=NOW() WHERE uid=$3',[schedule_date,schedule_time,req.params.uid,newHist]));
+      if(slot.error)return res.status(slot.error.status).json(slotErrorBody(slot.error));
       res.json({success:true,uid:req.params.uid,schedule_date,schedule_time});
       logger.logScheduleChange(req.params.uid,'visit_rescheduled',{old_date:rows[0].schedule_date,new_date:schedule_date,old_time:rows[0].schedule_time,new_time:schedule_time},req.user?.email,req.user?.name).catch(()=>{});
       // Update calendar event time
@@ -141,7 +146,10 @@ module.exports=function(pool){
       if(!sets.length)return res.status(400).json({error:'Nothing to update'});
       sets.push(`updated_at=NOW()`);
       vals.push(req.params.uid);
-      await pool.query(`UPDATE properties SET ${sets.join(',')} WHERE uid=$${n}`,vals);
+      const slot=await withSlot(pool,{fieldExec:field_exec||rows[0].field_exec,date:schedule_date||rows[0].schedule_date,
+        time:schedule_time||rows[0].schedule_time,excludeUid:req.params.uid},
+        q=>q.query(`UPDATE properties SET ${sets.join(',')} WHERE uid=$${n}`,vals));
+      if(slot.error)return res.status(slot.error.status).json(slotErrorBody(slot.error));
       const resp={success:true,uid:req.params.uid};
       if(field_exec)resp.field_exec=field_exec;
       if(schedule_date)resp.schedule_date=schedule_date;
