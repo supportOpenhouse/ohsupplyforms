@@ -298,7 +298,21 @@ app.post('/api/admin/property/:uid', isAuthenticated, isAdmin, async(req,res)=>{
     if(!sets.length)return res.status(400).json({error:'No valid fields to update'});
     sets.push(`updated_at=NOW()`);
     vals.push(req.params.uid);
-    await pool.query(`UPDATE properties SET ${sets.join(',')} WHERE uid=$${i}`,vals);
+    // No overlapping visits for the RM (utils/slot-guard). Checked only when this save MOVES
+    // the visit (RM / date / time changed) and it stays live: cancelling one of an overlapping
+    // pair must stay possible, and unrelated edits on a legacy-overlapping row aren't blocked.
+    const{dateStr}=require('./utils/visit-history');
+    const after=k=>Object.prototype.hasOwnProperty.call(d,k)?(d[k]===''?null:d[k]):oldProp[k];
+    const moved=String(after('field_exec')??'').trim().toLowerCase()!==String(oldProp.field_exec??'').trim().toLowerCase()
+      ||dateStr(after('schedule_date'))!==dateStr(oldProp.schedule_date)
+      ||String(after('schedule_time')??'').trim()!==String(oldProp.schedule_time??'').trim();
+    const liveAfter=!(wantsDead===true||oldProp.is_dead===true)&&!(wantsRefunded===true||oldProp.is_token_refunded===true)&&oldProp.replicated!==true;
+    const writeRow=q=>q.query(`UPDATE properties SET ${sets.join(',')} WHERE uid=$${i}`,vals);
+    if(moved&&liveAfter){
+      const{withSlot,slotErrorBody}=require('./utils/slot-guard');
+      const slot=await withSlot(pool,{fieldExec:after('field_exec'),date:after('schedule_date'),time:after('schedule_time'),excludeUid:req.params.uid},writeRow);
+      if(slot.error)return res.status(slot.error.status).json(slotErrorBody(slot.error));
+    }else await writeRow(pool);
     // Keep visit_date_history.cancelled_on in sync when a visit is cancelled / un-cancelled here
     if(changes.is_dead){
       const{setCancelled,clearCancelled}=require('./utils/visit-history');
@@ -448,6 +462,12 @@ app.post('/api/admin/property/:uid/replicate', isAuthenticated, isAdmin, async(r
     const client=await pool.connect();
     try{
       await client.query('BEGIN');
+      // The copy is born live in the source's slot. If the source was cancelled, that slot may
+      // since have gone to another visit — same no-overlap rule as every other route.
+      const{checkSlotIn,slotErrorBody}=require('./utils/slot-guard');
+      const{rows:srcSlot}=await client.query('SELECT field_exec,schedule_date,schedule_time FROM properties WHERE uid=$1',[srcUid]);
+      const slotErr=await checkSlotIn(client,{fieldExec:srcSlot[0].field_exec,date:srcSlot[0].schedule_date,time:srcSlot[0].schedule_time,excludeUid:srcUid});
+      if(slotErr){await client.query('ROLLBACK');return res.status(slotErr.status).json(slotErrorBody(slotErr))}
       await client.query(`INSERT INTO properties(${insertCols}) SELECT ${selectExprs} FROM properties WHERE uid=$4`,[newUid,source,lead_id,srcUid]);
       // cancelled_on belongs to the source's cancellation, not the copy's visit.
       await client.query(`UPDATE properties SET ${resetSets.join(',')},

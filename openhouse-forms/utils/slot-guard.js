@@ -57,25 +57,38 @@ async function findClash(q, { fieldExec, date, time, excludeUid }) {
   };
 }
 
-// Runs write(q) only if the target slot is free. write gets the transaction client and
-// must do its INSERT/UPDATE through it. Returns { result } on success, or
-// { error: { status, message, conflict?, suggested_times? } } with nothing written.
 // slot = { fieldExec, date, time, excludeUid } — the visit's position AFTER the write;
 // excludeUid is the visit being moved, so it doesn't clash with itself.
-async function withSlot(pool, slot, write) {
+// An unassigned or untimed visit occupies no slot on anyone's calendar.
+function normalise(slot) {
   const fieldExec = String(slot.fieldExec ?? '').trim();
   const date = dateStr(slot.date);
   const time = String(slot.time ?? '').trim();
-  // An unassigned or untimed visit occupies no slot on anyone's calendar.
-  if (!fieldExec || !date || !time) return { result: await write(pool) };
-  if (isNaN(toMin(time))) return { error: { status: 400, message: 'Schedule time must be HH:MM (24-hour), e.g. 14:30' } };
+  return fieldExec && date && time ? { fieldExec, date, time, excludeUid: slot.excludeUid } : null;
+}
 
+// For a route that already runs its own transaction: takes the (RM, date) lock on `client`
+// and returns { status, message, conflict?, suggested_times? } if the slot can't be taken,
+// else null. Must be called after BEGIN, before the write, on the same client.
+async function checkSlotIn(client, slot) {
+  const s = normalise(slot);
+  if (!s) return null;
+  if (isNaN(toMin(s.time))) return { status: 400, message: 'Schedule time must be HH:MM (24-hour), e.g. 14:30' };
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`slot:${s.fieldExec.toLowerCase()}:${s.date}`]);
+  const clash = await findClash(client, s);
+  return clash ? { status: 409, ...clash } : null;
+}
+
+// Runs write(q) only if the target slot is free. write gets the transaction client and
+// must do its INSERT/UPDATE through it. Returns { result } on success, or
+// { error: { status, message, conflict?, suggested_times? } } with nothing written.
+async function withSlot(pool, slot, write) {
+  if (!normalise(slot)) return { result: await write(pool) };
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`slot:${fieldExec.toLowerCase()}:${date}`]);
-    const clash = await findClash(client, { fieldExec, date, time, excludeUid: slot.excludeUid });
-    if (clash) { await client.query('ROLLBACK'); return { error: { status: 409, ...clash } }; }
+    const err = await checkSlotIn(client, slot);
+    if (err) { await client.query('ROLLBACK'); return { error: err }; }
     const result = await write(client);
     await client.query('COMMIT');
     return { result };
@@ -90,4 +103,4 @@ async function withSlot(pool, slot, write) {
 // Response body for the in-app routes (the external API keeps its own documented shape).
 const slotErrorBody = e => ({ error: e.message, conflict: e.conflict, suggested_times: e.suggested_times });
 
-module.exports = { withSlot, findClash, slotErrorBody, toMin, SLOT_MIN };
+module.exports = { withSlot, checkSlotIn, findClash, slotErrorBody, toMin, SLOT_MIN };
