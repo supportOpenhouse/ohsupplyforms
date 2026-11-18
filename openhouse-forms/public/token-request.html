@@ -243,7 +243,7 @@
           <input type="file" id="fi_co_pan" accept="image/*,.pdf" style="display:none" onchange="uploadCoDoc(this,'co_pan')">
         </div>
         <div class="pu-item" id="pu_coCheque" onclick="document.getElementById('fi_co_cheque').click()">
-          <div class="pu-icon">📄</div><div class="pu-label">Cancelled Cheque <span class="req">*</span></div>
+          <div class="pu-icon">📄</div><div class="pu-label">Cancelled Cheque</div>
           <input type="file" id="fi_co_cheque" accept="image/*,.pdf" style="display:none" onchange="uploadCoDoc(this,'co_cheque')">
         </div>
       </div>
@@ -345,13 +345,16 @@ const coDocUrls={co_aadhaar_front:'',co_aadhaar_back:'',co_pan:'',co_cheque:''};
 const CO_DOC_COL={co_aadhaar_front:'co_owner_aadhaar_front_url',co_aadhaar_back:'co_owner_aadhaar_back_url',co_pan:'co_owner_pan_url',co_cheque:'co_owner_cheque_url'};
 const CO_DOC_ITEM={co_aadhaar_front:'pu_coAadhaarFront',co_aadhaar_back:'pu_coAadhaarBack',co_pan:'pu_coPan',co_cheque:'pu_coCheque'};
 const CO_DOC_LABEL={co_aadhaar_front:'Aadhaar Front',co_aadhaar_back:'Aadhaar Back',co_pan:'PAN Card',co_cheque:'Cancelled Cheque'};
+// Uploadable but not required on submit. To require the co-owner cheque again, empty this
+// list and add co_owner_cheque_url back to the CO check in routes/token-request.js.
+const CO_DOC_OPTIONAL=['co_cheque'];
 const coDocView={};   // signed View links, for the mail preview (coDocUrls holds the gs:// refs)
 function hasCoOwner(){return !!document.getElementById('d_coowner').value.trim()}
 function showCoOwnerDocs(){document.getElementById('coOwnerDocsCard').style.display=hasCoOwner()?'':'none'}
 function markCoDoc(key,url){
   const item=document.getElementById(CO_DOC_ITEM[key]);
   item.classList.toggle('uploaded',!!url);if(url)item.classList.remove('missing');
-  item.querySelector('.pu-label').innerHTML=CO_DOC_LABEL[key]+(url?' ✓':'')+' <span class="req">*</span>';
+  item.querySelector('.pu-label').innerHTML=CO_DOC_LABEL[key]+(url?' ✓':'')+(CO_DOC_OPTIONAL.includes(key)?'':' <span class="req">*</span>');
   let link=item.querySelector('.pu-link');
   if(!url){if(link)link.remove();return}
   if(!link){link=document.createElement('a');link.className='pu-link';link.target='_blank';link.textContent='View';link.onclick=e=>e.stopPropagation();item.appendChild(link)}
@@ -667,7 +670,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
     const missingCo=[];
     Object.values(CO_DOC_ITEM).forEach(id=>document.getElementById(id).classList.remove('missing'));
     for(const[key,label]of Object.entries(CO_DOC_LABEL)){
-      if(!coDocUrls[key]){missingCo.push('Co-owner '+label);document.getElementById(CO_DOC_ITEM[key]).classList.add('missing')}
+      if(!coDocUrls[key]&&!CO_DOC_OPTIONAL.includes(key)){missingCo.push('Co-owner '+label);document.getElementById(CO_DOC_ITEM[key]).classList.add('missing')}
     }
     if(missingCo.length){toast(`Upload required: ${missingCo.join(', ')}`,'err');
       document.getElementById('coOwnerDocsCard').scrollIntoView({behavior:'smooth',block:'center'});return}
