@@ -33,17 +33,8 @@ module.exports=function(pool){
       // Form 4 may have set it, and an old open page must not wipe it.
       const em=k=>String(d[k]||'').trim()||null;
       if(!isDraft&&!em('owner_email')&&!oldRow.owner_email)return res.status(400).json({error:'Owner email is required'});
-      // Co-owner KYC: Form 6 used to collect it and is retired, so with a co-owner on the
-      // deal it is required here (a file already on the row — CRM, Seller App — counts).
-      // The co-owner cancelled cheque is optional for now (still saved if uploaded); to
-      // require it again, add co_owner_cheque_url:'Cancelled Cheque' back to CO below and
-      // take co_cheque out of CO_DOC_OPTIONAL in token-request.html.
-      if(!isDraft&&String(d.co_owner||'').trim()){
-        const CO={co_owner_aadhaar_front_url:'Aadhaar Front',co_owner_aadhaar_back_url:'Aadhaar Back',
-          co_owner_pan_url:'PAN Card'};
-        const miss=Object.keys(CO).filter(c=>!d[c]&&!oldRow[c]).map(c=>'Co-owner '+CO[c]);
-        if(miss.length)return res.status(400).json({error:`Upload required: ${miss.join(', ')}`});
-      }
+      // Co-owner KYC (Aadhaar front/back, PAN, cancelled cheque) is optional: uploaded files
+      // are saved (keep-if-null below), but a submit is never blocked for missing ones.
 
       // Form 3 re-writes the unit's identity columns on every submit, so a field
       // that arrives blank BLANKS the stored value. That is how floor was lost:
